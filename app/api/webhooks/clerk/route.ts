@@ -36,8 +36,12 @@ export async function POST(req: Request) {
       "svix-timestamp": svix_timestamp,
       "svix-signature": svix_signature,
     }) as WebhookEvent;
-  } catch {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  } catch (err) {
+    console.error("[webhook] svix verify failed:", err);
+    return NextResponse.json(
+      { error: "Invalid signature", detail: String(err) },
+      { status: 400 }
+    );
   }
 
   const supabase = createAdminClient();

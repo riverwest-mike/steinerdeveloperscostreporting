@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
-import { createClient } from "@/lib/supabase/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 
 export default async function DashboardLayout({
@@ -18,14 +18,40 @@ export default async function DashboardLayout({
 
   // Fetch user role from Supabase
   const supabase = await createClient();
-  const { data: user } = await supabase
+  let { data: user } = await supabase
     .from("users")
     .select("role, full_name, is_active")
     .eq("id", userId)
     .single();
 
-  // If user record doesn't exist yet (first login before webhook fires),
-  // show a loading state rather than crashing
+  // Self-registration fallback: if the webhook hasn't fired yet (or failed),
+  // create the user record now so the app never crashes on first login.
+  if (!user) {
+    try {
+      const clerkUser = await currentUser();
+      if (clerkUser) {
+        const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
+        const full_name =
+          [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") ||
+          email;
+        const role =
+          (clerkUser.publicMetadata?.role as string) || "read_only";
+        const admin = createAdminClient();
+        const { data: newUser } = await admin
+          .from("users")
+          .upsert(
+            { id: userId, email, full_name, role, is_active: true },
+            { onConflict: "id" }
+          )
+          .select("role, full_name, is_active")
+          .single();
+        user = newUser;
+      }
+    } catch (err) {
+      console.error("[layout] self-registration fallback failed:", err);
+    }
+  }
+
   const role = user?.role ?? "read_only";
   const isActive = user?.is_active ?? true;
 

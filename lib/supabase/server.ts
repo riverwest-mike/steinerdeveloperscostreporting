@@ -12,7 +12,13 @@ export async function createClient() {
   const cookieStore = await cookies();
   const { getToken } = await auth();
   // Option A: JWT template — Clerk signs the token with the Supabase JWT secret
-  const supabaseToken = await getToken({ template: "supabase" });
+  // Wrapped in try/catch so a misconfigured template never crashes a server component
+  let supabaseToken: string | null = null;
+  try {
+    supabaseToken = await getToken({ template: "supabase" });
+  } catch (err) {
+    console.error("[supabase/server] getToken failed:", err);
+  }
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
