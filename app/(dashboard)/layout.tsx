@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 
 export default async function DashboardLayout({
@@ -16,9 +16,10 @@ export default async function DashboardLayout({
     redirect("/sign-in");
   }
 
-  // Fetch user role from Supabase
-  const supabase = await createClient();
-  let { data: user } = await supabase
+  // Fetch user role via admin client — server-side, already Clerk-authenticated,
+  // so there is no need to go through RLS here.
+  const admin = createAdminClient();
+  let { data: user } = await admin
     .from("users")
     .select("role, full_name, is_active")
     .eq("id", userId)
@@ -34,14 +35,10 @@ export default async function DashboardLayout({
         const full_name =
           [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") ||
           email;
-        const role =
-          (clerkUser.publicMetadata?.role as string) || "read_only";
-        const admin = createAdminClient();
-        // INSERT only — never overwrite an existing record's role
-        await admin.from("users").insert(
-          { id: userId, email, full_name, role, is_active: true }
-        ).onConflictDoNothing();
-        // Re-fetch so we get whatever role is actually stored
+        // INSERT only — never overwrite a role that was manually assigned
+        await admin
+          .from("users")
+          .insert({ id: userId, email, full_name, role: "read_only", is_active: true });
         const { data: newUser } = await admin
           .from("users")
           .select("role, full_name, is_active")
