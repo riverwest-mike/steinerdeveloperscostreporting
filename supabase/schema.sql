@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- Mirror of Clerk users. id = Clerk user ID (no auto-gen).
 -- ============================================================
 CREATE TABLE IF NOT EXISTS users (
-  id           UUID PRIMARY KEY,
+  id           TEXT PRIMARY KEY,
   email        TEXT NOT NULL UNIQUE,
   full_name    TEXT NOT NULL,
   role         TEXT NOT NULL
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS projects (
   description            TEXT,
   created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by             UUID NOT NULL REFERENCES users(id)
+  created_by             TEXT NOT NULL REFERENCES users(id)
 );
 
 -- ============================================================
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS cost_categories (
   display_order   INTEGER NOT NULL,
   is_active       BOOLEAN NOT NULL DEFAULT true,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by      UUID NOT NULL REFERENCES users(id)
+  created_by      TEXT NOT NULL REFERENCES users(id)
 );
 
 -- ============================================================
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS project_documents (
                  CHECK (category IN ('Legal', 'Financial', 'Design', 'Other')),
   notes        TEXT,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by   UUID NOT NULL REFERENCES users(id)
+  created_by   TEXT NOT NULL REFERENCES users(id)
 );
 
 -- ============================================================
@@ -82,9 +82,9 @@ CREATE TABLE IF NOT EXISTS project_documents (
 CREATE TABLE IF NOT EXISTS project_users (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id    UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   assigned_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  assigned_by   UUID NOT NULL REFERENCES users(id),
+  assigned_by   TEXT NOT NULL REFERENCES users(id),
   UNIQUE(project_id, user_id)
 );
 
@@ -104,8 +104,8 @@ CREATE TABLE IF NOT EXISTS gates (
   notes             TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   closed_at         TIMESTAMPTZ,
-  closed_by         UUID REFERENCES users(id),
-  created_by        UUID NOT NULL REFERENCES users(id),
+  closed_by         TEXT REFERENCES users(id),
+  created_by        TEXT NOT NULL REFERENCES users(id),
   UNIQUE(project_id, sequence_number)
 );
 
@@ -119,7 +119,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS one_active_gate_per_project
 -- ============================================================
 CREATE TABLE IF NOT EXISTS appfolio_syncs (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  triggered_by        UUID REFERENCES users(id),
+  triggered_by        TEXT REFERENCES users(id),
   sync_type           TEXT NOT NULL
                         CHECK (sync_type IN ('scheduled', 'manual')),
   status              TEXT NOT NULL DEFAULT 'running'
@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS budget_imports (
   filename      TEXT NOT NULL,
   row_count     INTEGER NOT NULL,
   imported_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  imported_by   UUID NOT NULL REFERENCES users(id),
+  imported_by   TEXT NOT NULL REFERENCES users(id),
   notes         TEXT
 );
 
@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS gate_budgets (
   import_batch_id       UUID REFERENCES budget_imports(id),
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by            UUID NOT NULL REFERENCES users(id),
+  created_by            TEXT NOT NULL REFERENCES users(id),
   UNIQUE(gate_id, cost_category_id)
 );
 
@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS contracts (
   notes                        TEXT,
   created_at                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at                   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by                   UUID NOT NULL REFERENCES users(id)
+  created_by                   TEXT NOT NULL REFERENCES users(id)
 );
 
 -- ============================================================
@@ -205,12 +205,12 @@ CREATE TABLE IF NOT EXISTS change_orders (
                       CHECK (status IN ('proposed', 'approved', 'rejected', 'voided')),
   proposed_date     DATE NOT NULL,
   approved_date     DATE,
-  approved_by       UUID REFERENCES users(id),
+  approved_by       TEXT REFERENCES users(id),
   teams_url         TEXT,
   notes             TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by        UUID NOT NULL REFERENCES users(id)
+  created_by        TEXT NOT NULL REFERENCES users(id)
 );
 
 -- ============================================================
@@ -261,8 +261,8 @@ CREATE TABLE IF NOT EXISTS bridge_mappings (
   notes                 TEXT,
   created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by            UUID NOT NULL REFERENCES users(id),
-  updated_by            UUID REFERENCES users(id)
+  created_by            TEXT NOT NULL REFERENCES users(id),
+  updated_by            TEXT REFERENCES users(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_bridge_mappings_project ON bridge_mappings(project_id);
@@ -284,7 +284,7 @@ CREATE TABLE IF NOT EXISTS transaction_mappings (
   is_override               BOOLEAN NOT NULL DEFAULT false,
   override_reason           TEXT,
   mapped_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  mapped_by                 UUID REFERENCES users(id)
+  mapped_by                 TEXT REFERENCES users(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_transaction_mappings_project ON transaction_mappings(project_id);
@@ -302,7 +302,7 @@ CREATE TABLE IF NOT EXISTS retainage_releases (
   amount         NUMERIC(15,2) NOT NULL,
   description    TEXT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by     UUID NOT NULL REFERENCES users(id)
+  created_by     TEXT NOT NULL REFERENCES users(id)
 );
 
 -- ============================================================
@@ -310,7 +310,7 @@ CREATE TABLE IF NOT EXISTS retainage_releases (
 -- ============================================================
 CREATE TABLE IF NOT EXISTS audit_log (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id      UUID REFERENCES users(id),
+  user_id      TEXT REFERENCES users(id),
   action       TEXT NOT NULL
                  CHECK (action IN ('INSERT', 'UPDATE', 'DELETE')),
   table_name   TEXT NOT NULL,
