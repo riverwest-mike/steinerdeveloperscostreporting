@@ -38,7 +38,7 @@ export function Sidebar({ role }: SidebarProps) {
       {/* Logo */}
       <div className="flex h-16 items-center border-b px-6">
         <span className="text-lg font-bold tracking-tight">
-          RW Cost Tracker
+          Steiner Developers Cost Tracker
         </span>
       </div>
 
