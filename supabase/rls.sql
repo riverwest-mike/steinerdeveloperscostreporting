@@ -15,7 +15,7 @@ LANGUAGE sql
 STABLE
 SECURITY DEFINER
 AS $$
-  SELECT role FROM users WHERE id = auth.uid();
+  SELECT role FROM users WHERE id = (auth.jwt()->>'sub');
 $$;
 
 CREATE OR REPLACE FUNCTION is_admin()
@@ -25,7 +25,7 @@ STABLE
 SECURITY DEFINER
 AS $$
   SELECT EXISTS (
-    SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'
+    SELECT 1 FROM users WHERE id = (auth.jwt()->>'sub') AND role = 'admin'
   );
 $$;
 
@@ -37,7 +37,7 @@ SECURITY DEFINER
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM project_users
-    WHERE project_id = proj_id AND user_id = auth.uid()
+    WHERE project_id = proj_id AND user_id = (auth.jwt()->>'sub')
   );
 $$;
 
@@ -74,7 +74,7 @@ CREATE POLICY "admin_all_users" ON users
 -- Everyone: can read their own record
 CREATE POLICY "self_read_users" ON users
   FOR SELECT TO authenticated
-  USING (id = auth.uid());
+  USING (id = (auth.jwt()->>'sub'));
 
 -- ============================================================
 -- projects table
@@ -147,7 +147,7 @@ CREATE POLICY "admin_all_project_users" ON project_users
 
 CREATE POLICY "self_read_project_users" ON project_users
   FOR SELECT TO authenticated
-  USING (user_id = auth.uid());
+  USING (user_id = (auth.jwt()->>'sub'));
 
 -- ============================================================
 -- gates table
