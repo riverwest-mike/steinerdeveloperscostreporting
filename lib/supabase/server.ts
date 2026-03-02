@@ -11,6 +11,7 @@ import type { ResponseCookie } from "next/dist/compiled/@edge-runtime/cookies";
 export async function createClient() {
   const cookieStore = await cookies();
   const { getToken } = await auth();
+  // Option A: JWT template — Clerk signs the token with the Supabase JWT secret
   const supabaseToken = await getToken({ template: "supabase" });
 
   return createServerClient(
