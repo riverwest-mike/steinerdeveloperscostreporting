@@ -37,13 +37,15 @@ export default async function DashboardLayout({
         const role =
           (clerkUser.publicMetadata?.role as string) || "read_only";
         const admin = createAdminClient();
+        // INSERT only — never overwrite an existing record's role
+        await admin.from("users").insert(
+          { id: userId, email, full_name, role, is_active: true }
+        ).onConflictDoNothing();
+        // Re-fetch so we get whatever role is actually stored
         const { data: newUser } = await admin
           .from("users")
-          .upsert(
-            { id: userId, email, full_name, role, is_active: true },
-            { onConflict: "id" }
-          )
           .select("role, full_name, is_active")
+          .eq("id", userId)
           .single();
         user = newUser;
       }
