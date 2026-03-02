@@ -3,8 +3,8 @@ import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "River West Cost Tracker",
-  description: "Construction cost tracking and reporting for River West Partners",
+  title: "Steiner Developers Cost Tracker",
+  description: "Construction cost tracking and reporting for Steiner Developers",
 };
 
 export default function RootLayout({
