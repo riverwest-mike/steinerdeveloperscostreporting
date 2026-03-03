@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { CategoriesTable } from "./categories-table";
+import { ExportButton } from "./export-button";
 
 export default async function CostCategoriesPage() {
   const { userId } = await auth();
@@ -29,11 +30,14 @@ export default async function CostCategoriesPage() {
     <div>
       <Header title="Cost Categories" />
       <div className="p-6 space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Cost Categories</h2>
-          <p className="text-muted-foreground mt-1">
-            Manage standardized cost classifications used across all projects and budgets.
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Cost Categories</h2>
+            <p className="text-muted-foreground mt-1">
+              Manage standardized cost classifications used across all projects and budgets.
+            </p>
+          </div>
+          <ExportButton categories={categories ?? []} />
         </div>
         <CategoriesTable categories={categories ?? []} />
       </div>
