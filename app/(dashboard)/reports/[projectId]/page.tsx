@@ -92,7 +92,7 @@ export default async function CostCategoryReportPage({ params }: Props) {
   }
 
   // Build report rows
-  const allRows = (categories ?? []).map((cat: { id: string; name: string; code: string }) => {
+  const allRows: ReportRow[] = (categories ?? []).map((cat: { id: string; name: string; code: string }) => {
     const b = budgetMap.get(cat.id) ?? { original: 0, co: 0, revised: 0 };
     const actual = actualsMap.get(cat.id) ?? 0;
     const variance = b.revised - actual;
