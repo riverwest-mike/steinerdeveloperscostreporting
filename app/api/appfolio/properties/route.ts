@@ -38,40 +38,54 @@ export async function GET() {
     const toDate = new Date().toISOString().split("T")[0];
     const fromDate = new Date(Date.now() - 2 * 365 * 86400000).toISOString().split("T")[0];
 
+    const headers = { "Content-Type": "application/json", Authorization: authHeader };
+
+    // First page — POST with date range params
+    const firstRes = await fetch(
+      `https://${dbUrl}/api/v2/reports/bill_detail.json`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ occurred_on_from: fromDate, occurred_on_to: toDate, paginate_results: true }),
+        cache: "no-store",
+      }
+    );
+    if (!firstRes.ok) {
+      const text = await firstRes.text();
+      return NextResponse.json({ error: `AppFolio API ${firstRes.status}`, body: text }, { status: 502 });
+    }
+    const firstData = await firstRes.json();
+
     // Collect unique properties across all pages
     const seen = new Map<number, { id: number; name: string; address: string }>();
-    let nextUrl: string | null =
-      `https://${dbUrl}/api/v2/reports/bill_detail.json`;
-    let isFirst = true;
 
-    while (nextUrl) {
-      const res = await fetch(nextUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: authHeader },
-        body: isFirst
-          ? JSON.stringify({ occurred_on_from: fromDate, occurred_on_to: toDate, paginate_results: true })
-          : undefined,
-        cache: "no-store",
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        return NextResponse.json({ error: `AppFolio API ${res.status}`, body: text }, { status: 502 });
-      }
-
-      const data = await res.json();
-      for (const row of data.results ?? []) {
-        if (row.property_id != null && !seen.has(row.property_id)) {
-          seen.set(row.property_id, {
-            id: row.property_id,
-            name: row.property_name ?? "",
-            address: row.property_address ?? "",
+    const collectRows = (results: Record<string, unknown>[]) => {
+      for (const row of results) {
+        const pid = row.property_id as number | null;
+        if (pid != null && !seen.has(pid)) {
+          seen.set(pid, {
+            id: pid,
+            name: (row.property_name as string) ?? "",
+            address: (row.property_address as string) ?? "",
           });
         }
       }
+    };
 
+    collectRows(firstData.results ?? []);
+    let nextUrl: string | null = firstData.next_page_url ?? null;
+
+    // Follow pagination — POST with no body
+    while (nextUrl) {
+      const res: Response = await fetch(nextUrl, {
+        method: "POST",
+        headers,
+        cache: "no-store",
+      });
+      if (!res.ok) break;
+      const data = await res.json();
+      collectRows(data.results ?? []);
       nextUrl = data.next_page_url ?? null;
-      isFirst = false;
     }
 
     const properties = [...seen.values()].sort((a, b) =>
