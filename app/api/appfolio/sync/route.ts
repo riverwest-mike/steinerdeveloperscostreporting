@@ -119,26 +119,30 @@ export async function POST(request: Request) {
 
       for (let i = 0; i < bills.length; i += BATCH_SIZE) {
         const batch = bills.slice(i, i + BATCH_SIZE);
-        const rows = batch.map((bill: BillDetailRow) => ({
-          appfolio_bill_id: String(bill.BillId ?? bill["Bill Id"] ?? `${bill.VendorName ?? bill["Payee"]}-${bill.BillDate ?? bill["Bill Date"]}-${i}`),
-          appfolio_property_id: String(bill.PropertyId ?? bill["Property Id"] ?? ""),
-          vendor_name: String(bill.VendorName ?? bill["Payee"] ?? "Unknown"),
-          gl_account_id: String(bill.GlAccountId ?? bill["Gl Account Id"] ?? ""),
-          gl_account_name: String(bill.GlAccountName ?? bill["Gl Account Name"] ?? ""),
-          bill_date: bill.BillDate ?? bill["Bill Date"] ?? null,
-          due_date: bill.DueDate ?? bill["Due Date"] ?? null,
-          payment_date: bill.PaymentDate ?? bill["Payment Date"] ?? null,
-          invoice_amount: Number(bill.InvoiceAmount ?? bill["Invoice Amount"] ?? 0),
-          paid_amount: Number(bill.PaidAmount ?? bill["Paid Amount"] ?? 0),
-          unpaid_amount: Number(bill.UnpaidAmount ?? bill["Unpaid Amount"] ?? 0),
-          payment_type: bill.PaymentType ?? bill["Payment Type"] ?? null,
-          check_number: bill.CheckNumber ?? bill["Check Number"] ?? null,
-          payment_status: String(bill.PaymentStatus ?? bill["Payment Status"] ?? "Unknown"),
-          reference_number: bill.ReferenceNumber ?? bill["Reference Number"] ?? null,
-          description: bill.Description ?? bill["Description"] ?? null,
-          property_name: bill.PropertyName ?? bill["Property Name"] ?? null,
-          sync_id: syncId,
-        }));
+        const rows = batch.map((bill: BillDetailRow) => {
+          const paidAmt = parseFloat(bill.paid ?? "0") || 0;
+          const unpaidAmt = parseFloat(bill.unpaid ?? "0") || 0;
+          return {
+            appfolio_bill_id: String(bill.payable_invoice_detail_id),
+            appfolio_property_id: String(bill.property_id ?? ""),
+            vendor_name: bill.payee_name ?? "Unknown",
+            gl_account_id: bill.account_number ?? "",
+            gl_account_name: bill.account_name ?? "",
+            bill_date: bill.bill_date ?? null,
+            due_date: bill.due_date ?? null,
+            payment_date: bill.payment_date ?? null,
+            invoice_amount: paidAmt + unpaidAmt,
+            paid_amount: paidAmt,
+            unpaid_amount: unpaidAmt,
+            payment_type: bill.other_payment_type ?? null,
+            check_number: bill.check_number ?? null,
+            payment_status: unpaidAmt === 0 ? "Paid" : paidAmt === 0 ? "Unpaid" : "Partial",
+            reference_number: bill.reference_number ?? null,
+            description: bill.description ?? null,
+            property_name: bill.property_name ?? null,
+            sync_id: syncId,
+          };
+        });
 
         const { error: upsertErr } = await supabase
           .from("appfolio_transactions")

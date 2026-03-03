@@ -23,25 +23,27 @@ function getAuthHeader() {
 
 /* ─── Types ────────────────────────────────────────────── */
 
+/** Matches the actual snake_case fields returned by AppFolio bill_detail.json */
 export interface BillDetailRow {
-  BillId: string;
-  PropertyId: string;
-  PropertyName: string;
-  VendorName: string;
-  GlAccountId: string;
-  GlAccountName: string;
-  GlAccountNumber: string;
-  BillDate: string;
-  DueDate: string;
-  PaymentDate: string | null;
-  InvoiceAmount: number;
-  PaidAmount: number;
-  UnpaidAmount: number;
-  PaymentType: string | null;
-  CheckNumber: string | null;
-  PaymentStatus: string;
-  ReferenceNumber: string | null;
-  Description: string | null;
+  payable_invoice_detail_id: number;
+  txn_id: number;
+  property_id: number;
+  property_name: string;
+  payee_name: string;
+  account_number: string;
+  account_name: string;
+  bill_date: string;
+  due_date: string;
+  payment_date: string | null;
+  /** String like "3327.50" */
+  paid: string;
+  /** String like "0.00" */
+  unpaid: string;
+  check_number: string | null;
+  approval_status: string;
+  reference_number: string | null;
+  description: string | null;
+  other_payment_type: string | null;
   [key: string]: unknown;
 }
 
