@@ -147,6 +147,7 @@ export function UploadGatesModal({ projectId, existingGates, onDone }: UploadGat
   const [parseError, setParseError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [unknownCodes, setUnknownCodes] = useState<string[] | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Build sequence → existing gate map for quick lookup
@@ -188,6 +189,7 @@ export function UploadGatesModal({ projectId, existingGates, onDone }: UploadGat
   function handleConfirm() {
     if (!rows) return;
     setUploadError(null);
+    setUnknownCodes(null);
     // Strip internal fields before sending to server
     const payload: GateUploadRow[] = rows
       .filter((r) => r._action !== "locked")
@@ -196,6 +198,11 @@ export function UploadGatesModal({ projectId, existingGates, onDone }: UploadGat
       try {
         const result = await uploadGates(projectId, payload);
         if (result.error) { setUploadError(result.error); return; }
+        if (result.unknownCodes?.length) {
+          setUnknownCodes(result.unknownCodes);
+          // Still close — gates were created, just budgets for unknown codes were skipped
+          return;
+        }
         onDone();
       } catch (err: unknown) {
         setUploadError(err instanceof Error ? err.message : "Upload failed");
@@ -367,7 +374,22 @@ export function UploadGatesModal({ projectId, existingGates, onDone }: UploadGat
         <p className="text-xs text-destructive">{uploadError}</p>
       )}
 
-      {rows && processableCount > 0 && (
+      {unknownCodes && (
+        <div className="rounded-lg border border-orange-300 bg-orange-50 px-4 py-3 text-xs text-orange-800 space-y-1">
+          <p className="font-medium">
+            Gates were created, but these column headers did not match any cost category code and were skipped:
+          </p>
+          <p className="font-mono">{unknownCodes.join(", ")}</p>
+          <p className="text-orange-700">
+            Budget amounts for those categories are 0. Check that the column headers exactly match the cost category codes in Admin → Cost Categories, then re-upload to correct them.
+          </p>
+          <button onClick={onDone} className="mt-1 rounded border border-orange-400 px-2.5 py-1 text-xs font-medium hover:bg-orange-100">
+            Close
+          </button>
+        </div>
+      )}
+
+      {rows && processableCount > 0 && !unknownCodes && (
         <div className="flex gap-2">
           <button
             onClick={handleConfirm}
@@ -388,7 +410,7 @@ export function UploadGatesModal({ projectId, existingGates, onDone }: UploadGat
         </div>
       )}
 
-      {rows && processableCount === 0 && (
+      {rows && processableCount === 0 && !unknownCodes && (
         <div className="flex gap-2 items-center">
           <p className="text-xs text-muted-foreground">All rows match locked gates — nothing to import.</p>
           <button type="button" onClick={onDone} className="rounded border px-3 py-1.5 text-xs font-medium">

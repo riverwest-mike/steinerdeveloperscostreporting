@@ -142,21 +142,25 @@ export interface GateUploadRow {
 export async function uploadGates(
   projectId: string,
   rows: GateUploadRow[]
-): Promise<{ error?: string; created: number; updated: number }> {
+): Promise<{ error?: string; created: number; updated: number; unknownCodes?: string[] }> {
   try {
     const { userId, supabase } = await requirePM();
 
     if (!rows.length) return { error: "No rows provided", created: 0, updated: 0 };
 
-    // Fetch active categories to map code → id
+    // Fetch active categories to map code → id (case-insensitive, trimmed)
     const { data: categories, error: catErr } = await supabase
       .from("cost_categories")
       .select("id, code")
       .eq("is_active", true);
     if (catErr) throw new Error(catErr.message);
 
+    // Normalize keys: trim + uppercase so Excel headers like "hard" match DB code "HARD"
     const codeToId: Record<string, string> = {};
-    for (const c of categories ?? []) codeToId[c.code] = c.id;
+    for (const c of categories ?? []) codeToId[c.code.trim().toUpperCase()] = c.id;
+
+    // Collect unrecognized column names across all rows (report back to UI)
+    const unknownCodeSet = new Set<string>();
 
     // Fetch existing gates for this project to detect sequence number collisions
     const { data: existingGates, error: egErr } = await supabase
@@ -196,14 +200,19 @@ export async function uploadGates(
 
         // Upsert budgets — only original_budget; approved_co_amount is untouched
         const budgetRows = Object.entries(row.budgets)
-          .filter(([code]) => codeToId[code] !== undefined)
-          .map(([code, amount]) => ({
-            gate_id: existing.id,
-            cost_category_id: codeToId[code],
-            original_budget: amount ?? 0,
-            created_by: userId,
-            updated_at: new Date().toISOString(),
-          }));
+          .map(([code, amount]) => {
+            const normalized = code.trim().toUpperCase();
+            const catId = codeToId[normalized];
+            if (!catId) { unknownCodeSet.add(code); return null; }
+            return {
+              gate_id: existing.id,
+              cost_category_id: catId,
+              original_budget: amount ?? 0,
+              created_by: userId,
+              updated_at: new Date().toISOString(),
+            };
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null);
 
         if (budgetRows.length) {
           const { error: budgetErr } = await supabase
@@ -235,13 +244,18 @@ export async function uploadGates(
         if (gateErr) throw new Error(`Insert "${row.name}": ${gateErr.message}`);
 
         const budgetRows = Object.entries(row.budgets)
-          .filter(([code]) => codeToId[code] !== undefined)
-          .map(([code, amount]) => ({
-            gate_id: gate.id,
-            cost_category_id: codeToId[code],
-            original_budget: amount ?? 0,
-            created_by: userId,
-          }));
+          .map(([code, amount]) => {
+            const normalized = code.trim().toUpperCase();
+            const catId = codeToId[normalized];
+            if (!catId) { unknownCodeSet.add(code); return null; }
+            return {
+              gate_id: gate.id,
+              cost_category_id: catId,
+              original_budget: amount ?? 0,
+              created_by: userId,
+            };
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null);
 
         if (budgetRows.length) {
           const { error: budgetErr } = await supabase
@@ -255,7 +269,8 @@ export async function uploadGates(
     }
 
     revalidatePath(`/projects/${projectId}`);
-    return { created, updated };
+    const unknownCodes = unknownCodeSet.size > 0 ? [...unknownCodeSet] : undefined;
+    return { created, updated, unknownCodes };
   } catch (err) {
     console.error("[uploadGates]", err);
     return { error: err instanceof Error ? err.message : "Upload failed", created: 0, updated: 0 };
