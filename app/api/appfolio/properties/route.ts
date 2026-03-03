@@ -75,9 +75,12 @@ export async function GET() {
     collectRows(firstData.results ?? []);
     let nextUrl: string | null = firstData.next_page_url ?? null;
 
+    const resolveUrl = (u: string) =>
+      u.startsWith("http") ? u : `https://${dbUrl}${u}`;
+
     // Follow pagination — POST with no body
     while (nextUrl) {
-      const res: Response = await fetch(nextUrl, {
+      const res: Response = await fetch(resolveUrl(nextUrl), {
         method: "POST",
         headers,
         cache: "no-store",
