@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { GateDetail } from "./gate-detail";
+import { getMyRole } from "../actions";
 
 interface Props {
   params: Promise<{ id: string; gateId: string }>;
@@ -14,7 +15,7 @@ export default async function GatePage({ params }: Props) {
   const { id: projectId, gateId } = await params;
   const supabase = createAdminClient();
 
-  const [{ data: gate }, { data: project }, { data: categories }, { data: budgets }] =
+  const [{ data: gate }, { data: project }, { data: categories }, { data: budgets }, userRole] =
     await Promise.all([
       supabase.from("gates").select("*").eq("id", gateId).single(),
       supabase.from("projects").select("id, name, code").eq("id", projectId).single(),
@@ -27,6 +28,7 @@ export default async function GatePage({ params }: Props) {
         .from("gate_budgets")
         .select("cost_category_id, original_budget, approved_co_amount, revised_budget")
         .eq("gate_id", gateId),
+      getMyRole(),
     ]);
 
   if (!gate || !project) notFound();
@@ -84,6 +86,7 @@ export default async function GatePage({ params }: Props) {
           gate={gate}
           projectId={projectId}
           budgetRows={rows}
+          isAdmin={userRole === "admin"}
         />
       </div>
     </div>

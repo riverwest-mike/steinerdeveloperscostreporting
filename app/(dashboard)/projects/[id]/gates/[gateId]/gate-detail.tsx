@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { activateGate, closeGate, updateGate, upsertGateBudgets } from "../actions";
+import { useRouter } from "next/navigation";
+import { activateGate, closeGate, deleteGate, updateGate, upsertGateBudgets } from "../actions";
 
 interface Gate {
   id: string;
@@ -27,6 +28,7 @@ interface GateDetailProps {
   gate: Gate;
   projectId: string;
   budgetRows: BudgetRow[];
+  isAdmin: boolean;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -48,7 +50,7 @@ function fmtCurrency(n: number) {
   }).format(n);
 }
 
-export function GateDetail({ gate, projectId, budgetRows }: GateDetailProps) {
+export function GateDetail({ gate, projectId, budgetRows, isAdmin }: GateDetailProps) {
   const [editingInfo, setEditingInfo] = useState(false);
 
   return (
@@ -78,6 +80,9 @@ export function GateDetail({ gate, projectId, budgetRows }: GateDetailProps) {
             </button>
           )}
           <GateStatusButton gate={gate} projectId={projectId} />
+          {isAdmin && !gate.is_locked && (
+            <DeleteGateButton gate={gate} projectId={projectId} />
+          )}
         </div>
       </div>
 
@@ -164,6 +169,37 @@ function GateStatusButton({ gate, projectId }: { gate: Gate; projectId: string }
   return null;
 }
 
+/* ─── Delete gate button (admin only) ──────────────────── */
+
+function DeleteGateButton({ gate, projectId }: { gate: Gate; projectId: string }) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button
+        disabled={isPending}
+        onClick={() => {
+          if (!confirm(`Delete "${gate.name}"? This will permanently remove the gate and all its budget data.`)) return;
+          setError(null);
+          startTransition(async () => {
+            try {
+              const r = await deleteGate(gate.id, projectId);
+              if (r?.error) { setError(r.error); return; }
+              router.push(`/projects/${projectId}`);
+            } catch (e: unknown) { setError(e instanceof Error ? e.message : "Error"); }
+          });
+        }}
+        className="rounded border border-destructive/50 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-colors"
+      >
+        {isPending ? "Deleting…" : "Delete Gate"}
+      </button>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
 /* ─── Edit gate form ────────────────────────────────────── */
 
 function EditGateForm({
@@ -209,7 +245,7 @@ function EditGateForm({
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="edit-gate-seq">Sequence #</label>
+          <label className="text-xs font-medium" htmlFor="edit-gate-seq">Gate #</label>
           <input
             id="edit-gate-seq"
             name="sequence_number"
@@ -349,8 +385,7 @@ function BudgetTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/30">
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Code</th>
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Category</th>
+              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Cost Category</th>
               <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Original Budget</th>
               <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Approved COs</th>
               <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Revised Budget</th>
@@ -362,10 +397,11 @@ function BudgetTable({
               const revised = orig + row.approved_co_amount;
               return (
                 <tr key={row.cost_category_id} className="border-b last:border-0 hover:bg-muted/10">
-                  <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
-                    {row.category_code}
+                  <td className="px-4 py-2">
+                    <span className="font-mono text-xs text-muted-foreground">{row.category_code}</span>
+                    <span className="mx-1.5 text-muted-foreground/40">—</span>
+                    <span className="text-sm">{row.category_name}</span>
                   </td>
-                  <td className="px-4 py-2 text-sm">{row.category_name}</td>
                   <td className="px-4 py-2 text-right">
                     {locked ? (
                       <span className="font-mono text-xs">
@@ -397,7 +433,7 @@ function BudgetTable({
           </tbody>
           <tfoot>
             <tr className="border-t bg-muted/30 font-medium">
-              <td className="px-4 py-2.5 text-xs" colSpan={2}>Total</td>
+              <td className="px-4 py-2.5 text-xs">Total</td>
               <td className="px-4 py-2.5 text-right font-mono text-xs">
                 {totalOriginal > 0 ? fmtCurrency(totalOriginal) : "—"}
               </td>
