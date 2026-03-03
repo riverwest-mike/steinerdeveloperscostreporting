@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { CategoryForm } from "./category-form";
-import { toggleCategoryActive } from "./actions";
+import { toggleCategoryActive, seedDefaultCategories } from "./actions";
 
 interface Category {
   id: string;
@@ -60,8 +60,20 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
           <tbody>
             {categories.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                  No categories yet. Add one above.
+                <td colSpan={6} className="px-4 py-12 text-center">
+                  <p className="text-sm text-muted-foreground mb-3">No categories yet.</p>
+                  <button
+                    onClick={() => {
+                      if (!confirm("Load all 95 default cost categories? This cannot be undone.")) return;
+                      startTransition(() => {
+                        seedDefaultCategories().catch((err) => alert(err.message));
+                      });
+                    }}
+                    disabled={isPending}
+                    className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                  >
+                    {isPending ? "Loading…" : "Load default categories (95)"}
+                  </button>
                 </td>
               </tr>
             )}

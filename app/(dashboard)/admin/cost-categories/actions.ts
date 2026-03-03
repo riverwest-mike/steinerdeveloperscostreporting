@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { SEED_CATEGORIES } from "./seed-data";
 
 async function requireAdmin() {
   const { userId } = await auth();
@@ -61,6 +62,15 @@ export async function updateCategory(
     .update({ name, code, description, display_order })
     .eq("id", id);
 
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/cost-categories");
+}
+
+export async function seedDefaultCategories() {
+  const { userId, supabase } = await requireAdmin();
+
+  const rows = SEED_CATEGORIES.map((c) => ({ ...c, created_by: userId }));
+  const { error } = await supabase.from("cost_categories").insert(rows);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/cost-categories");
 }
