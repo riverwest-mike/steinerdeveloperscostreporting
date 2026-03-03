@@ -46,10 +46,12 @@ export function ProjectForm({ editing, onCancel }: ProjectFormProps) {
     startTransition(async () => {
       try {
         if (editing) {
-          await updateProject(editing.id, fd);
+          const result = await updateProject(editing.id, fd);
+          if (result?.error) { setError(result.error); return; }
           onCancel?.();
         } else {
-          await createProject(fd);
+          const result = await createProject(fd);
+          if (result?.error) { setError(result.error); return; }
           router.push("/projects");
         }
       } catch (err: unknown) {

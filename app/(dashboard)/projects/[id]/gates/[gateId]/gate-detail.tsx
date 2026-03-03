@@ -122,8 +122,10 @@ function GateStatusButton({ gate, projectId }: { gate: Gate; projectId: string }
           onClick={() => {
             setError(null);
             startTransition(async () => {
-              try { await activateGate(gate.id, projectId); }
-              catch (e: unknown) { setError(e instanceof Error ? e.message : "Error"); }
+              try {
+                const r = await activateGate(gate.id, projectId);
+                if (r?.error) setError(r.error);
+              } catch (e: unknown) { setError(e instanceof Error ? e.message : "Error"); }
             });
           }}
           className="rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
@@ -144,8 +146,10 @@ function GateStatusButton({ gate, projectId }: { gate: Gate; projectId: string }
             if (!confirm("Close and lock this gate? This cannot be undone.")) return;
             setError(null);
             startTransition(async () => {
-              try { await closeGate(gate.id, projectId); }
-              catch (e: unknown) { setError(e instanceof Error ? e.message : "Error"); }
+              try {
+                const r = await closeGate(gate.id, projectId);
+                if (r?.error) setError(r.error);
+              } catch (e: unknown) { setError(e instanceof Error ? e.message : "Error"); }
             });
           }}
           className="rounded border border-destructive px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-colors"
@@ -180,7 +184,8 @@ function EditGateForm({
     const fd = new FormData(e.currentTarget);
     startTransition(async () => {
       try {
-        await updateGate(gate.id, projectId, fd);
+        const result = await updateGate(gate.id, projectId, fd);
+        if (result?.error) { setError(result.error); return; }
         onDone();
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Something went wrong");
@@ -308,7 +313,8 @@ function BudgetTable({
     }));
     startTransition(async () => {
       try {
-        await upsertGateBudgets(gateId, projectId, budgetRows);
+        const result = await upsertGateBudgets(gateId, projectId, budgetRows);
+        if (result?.error) { setError(result.error); return; }
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       } catch (e: unknown) {

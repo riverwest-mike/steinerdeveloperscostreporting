@@ -142,7 +142,8 @@ function AddGateForm({
     const fd = new FormData(e.currentTarget);
     startTransition(async () => {
       try {
-        await createGate(projectId, fd);
+        const result = await createGate(projectId, fd);
+        if (result?.error) { setError(result.error); return; }
         onDone();
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Something went wrong");
