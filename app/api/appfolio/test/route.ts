@@ -34,11 +34,12 @@ export async function GET() {
     const toDate = new Date().toISOString().split("T")[0];
     const fromDate = new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0];
 
-    const url = `https://${clientId}:${clientSecret}@${dbUrl}/api/v2/reports/bill_detail.json`;
+    const url = `https://${dbUrl}/api/v2/reports/bill_detail.json`;
+    const authHeader = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`;
 
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: authHeader },
       body: JSON.stringify({
         occurred_on_from: fromDate,
         occurred_on_to: toDate,
