@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { ProjectDetail } from "./project-detail";
 import { GatesSection } from "./gates-section";
 import { ContractsSection } from "./contracts-section";
+import { getMyRole } from "./gates/actions";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -21,6 +22,7 @@ export default async function ProjectPage({ params }: Props) {
     { data: gates },
     { data: contracts },
     { data: categories },
+    userRole,
   ] = await Promise.all([
     supabase.from("projects").select("*").eq("id", id).single(),
     supabase
@@ -38,6 +40,7 @@ export default async function ProjectPage({ params }: Props) {
       .select("id, name, code")
       .eq("is_active", true)
       .order("display_order"),
+    getMyRole(),
   ]);
 
   if (!project) notFound();
@@ -92,7 +95,7 @@ export default async function ProjectPage({ params }: Props) {
           <span className="text-foreground font-medium">{project.name}</span>
         </nav>
 
-        <ProjectDetail project={project} />
+        <ProjectDetail project={project} isAdmin={userRole === "admin"} />
         <GatesSection projectId={id} gates={gatesWithTotals} />
         <ContractsSection
           projectId={id}

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ProjectForm } from "../project-form";
+import { deleteProject } from "../actions";
 
 interface Project {
   id: string;
@@ -38,8 +40,21 @@ function fmtNum(n: number | null) {
   return n.toLocaleString();
 }
 
-export function ProjectDetail({ project }: { project: Project }) {
+export function ProjectDetail({ project, isAdmin }: { project: Project; isAdmin?: boolean }) {
   const [editing, setEditing] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, startDeleteTransition] = useTransition();
+  const router = useRouter();
+
+  function handleDelete() {
+    if (!confirm(`Delete project "${project.name}"? This will permanently remove all gates, budgets, and contracts. This cannot be undone.`)) return;
+    setDeleteError(null);
+    startDeleteTransition(async () => {
+      const result = await deleteProject(project.id);
+      if (result?.error) { setDeleteError(result.error); return; }
+      router.push("/projects");
+    });
+  }
 
   if (editing) {
     return (
@@ -71,13 +86,27 @@ export function ProjectDetail({ project }: { project: Project }) {
           </div>
           <p className="text-muted-foreground mt-1 font-mono text-sm">{project.code}</p>
         </div>
-        <button
-          onClick={() => setEditing(true)}
-          className="rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
-        >
-          Edit Project
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditing(true)}
+            className="rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            Edit Project
+          </button>
+          {isAdmin && (
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="rounded border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-50"
+            >
+              {isDeleting ? "Deleting…" : "Delete Project"}
+            </button>
+          )}
+        </div>
       </div>
+      {deleteError && (
+        <p className="text-sm text-destructive">{deleteError}</p>
+      )}
 
       {/* Info grid */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
@@ -110,26 +139,6 @@ export function ProjectDetail({ project }: { project: Project }) {
           <p className="text-sm">{project.description}</p>
         </div>
       )}
-
-      {/* Gates placeholder */}
-      <div className="rounded-lg border">
-        <div className="px-4 py-3 border-b bg-muted/50">
-          <h3 className="font-semibold text-sm">Gates</h3>
-        </div>
-        <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-          Gates will be managed here in the next phase.
-        </div>
-      </div>
-
-      {/* Contracts placeholder */}
-      <div className="rounded-lg border">
-        <div className="px-4 py-3 border-b bg-muted/50">
-          <h3 className="font-semibold text-sm">Contracts</h3>
-        </div>
-        <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-          Contracts will be managed here in the next phase.
-        </div>
-      </div>
     </div>
   );
 }

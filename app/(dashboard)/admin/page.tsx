@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { RoleSelect } from "./role-select";
+import { ActiveToggle } from "./active-toggle";
+import { ProjectAccessSection } from "./project-access";
 
 export default async function AdminPage() {
   const { userId } = await auth();
@@ -22,10 +24,11 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
-  const { data: users } = await supabase
-    .from("users")
-    .select("id, email, full_name, role, is_active, created_at")
-    .order("full_name");
+  const [{ data: users }, { data: projects }, { data: projectUsers }] = await Promise.all([
+    supabase.from("users").select("id, email, full_name, role, is_active, created_at").order("full_name"),
+    supabase.from("projects").select("id, name, code").order("name"),
+    supabase.from("project_users").select("project_id, user_id"),
+  ]);
 
   return (
     <div>
@@ -64,15 +67,11 @@ export default async function AdminPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          u.is_active
-                            ? "bg-green-100 text-green-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {u.is_active ? "Active" : "Inactive"}
-                      </span>
+                      <ActiveToggle
+                        userId={u.id}
+                        isActive={u.is_active}
+                        isSelf={u.id === userId}
+                      />
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {new Date(u.created_at).toLocaleDateString()}
@@ -90,9 +89,16 @@ export default async function AdminPage() {
             </table>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Users are created automatically when someone signs up via Clerk. Use the Actions column to change a user&apos;s role — you cannot change your own.
+            Users are created automatically when someone signs up via Clerk. Use the Actions column to change a user&apos;s role — you cannot change your own. Click the Status badge to activate or deactivate a user.
           </p>
         </div>
+
+        {/* Project Access */}
+        <ProjectAccessSection
+          projects={(projects ?? []) as { id: string; name: string; code: string }[]}
+          users={(users ?? []) as { id: string; full_name: string; email: string; role: string }[]}
+          assignments={(projectUsers ?? []) as { project_id: string; user_id: string }[]}
+        />
 
         {/* Admin section links */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

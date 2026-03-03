@@ -88,3 +88,25 @@ export async function updateProject(
     return { error: err instanceof Error ? err.message : "Failed to update project" };
   }
 }
+
+async function requireAdmin() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Not authenticated");
+  const supabase = createAdminClient();
+  const { data } = await supabase.from("users").select("role").eq("id", userId).single();
+  if (!data || data.role !== "admin") throw new Error("Admin role required");
+  return { userId, supabase };
+}
+
+export async function deleteProject(id: string): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await requireAdmin();
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+    revalidatePath("/projects");
+    return {};
+  } catch (err) {
+    console.error("[deleteProject]", err);
+    return { error: err instanceof Error ? err.message : "Failed to delete project" };
+  }
+}
