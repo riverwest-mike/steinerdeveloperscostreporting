@@ -73,13 +73,13 @@ export function CategoryForm({ editing, onDone }: CategoryFormProps) {
       </div>
       <div className="space-y-1">
         <label className="text-xs font-medium" htmlFor="description">
-          Description
+          Header Category
         </label>
         <input
           id="description"
           name="description"
           defaultValue={editing?.description ?? ""}
-          placeholder="Optional description"
+          placeholder="e.g. General Conditions"
           className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
         />
       </div>

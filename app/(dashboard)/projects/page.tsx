@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 
@@ -17,6 +18,12 @@ export default async function ProjectsPage() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold tracking-tight">All Projects</h2>
+          <Link
+            href="/projects/new"
+            className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            + New Project
+          </Link>
         </div>
 
         {projects && projects.length > 0 ? (
@@ -36,7 +43,14 @@ export default async function ProjectsPage() {
                 {projects.map((project) => (
                   <tr key={project.id} className="border-b last:border-0 hover:bg-muted/30">
                     <td className="px-4 py-3 font-mono text-xs">{project.code}</td>
-                    <td className="px-4 py-3 font-medium">{project.name}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="hover:text-primary hover:underline underline-offset-2 transition-colors"
+                      >
+                        {project.name}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {project.property_type ?? "—"}
                     </td>
@@ -70,7 +84,13 @@ export default async function ProjectsPage() {
           </div>
         ) : (
           <div className="rounded-lg border border-dashed p-12 text-center">
-            <p className="text-muted-foreground">No projects have been created yet.</p>
+            <p className="text-muted-foreground mb-3">No projects have been created yet.</p>
+            <Link
+              href="/projects/new"
+              className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Create your first project
+            </Link>
           </div>
         )}
       </div>
