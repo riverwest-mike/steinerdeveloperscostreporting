@@ -21,7 +21,7 @@ export default async function GatePage({ params }: Props) {
       supabase.from("projects").select("id, name, code").eq("id", projectId).single(),
       supabase
         .from("cost_categories")
-        .select("id, name, code, display_order")
+        .select("id, name, code, description, display_order")
         .eq("is_active", true)
         .order("display_order"),
       supabase
@@ -44,6 +44,7 @@ export default async function GatePage({ params }: Props) {
     id: string;
     name: string;
     code: string;
+    description: string | null;
     display_order: number;
   }
 
@@ -57,6 +58,7 @@ export default async function GatePage({ params }: Props) {
       cost_category_id: cat.id,
       category_name: cat.name,
       category_code: cat.code,
+      category_header: cat.description ?? "",
       original_budget: b?.original_budget ?? 0,
       approved_co_amount: b?.approved_co_amount ?? 0,
       revised_budget: b?.revised_budget ?? 0,
