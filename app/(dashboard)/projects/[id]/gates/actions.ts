@@ -129,6 +129,83 @@ export async function closeGate(
   }
 }
 
+export interface GateUploadRow {
+  name: string;
+  sequence_number: number;
+  start_date?: string | null;
+  end_date?: string | null;
+  notes?: string | null;
+  /** Record<cost_category_code, amount> */
+  budgets: Record<string, number>;
+}
+
+export async function uploadGates(
+  projectId: string,
+  rows: GateUploadRow[]
+): Promise<{ error?: string; created: number }> {
+  try {
+    const { userId, supabase } = await requirePM();
+
+    if (!rows.length) return { error: "No rows provided", created: 0 };
+
+    // Fetch active categories to map code → id
+    const { data: categories, error: catErr } = await supabase
+      .from("cost_categories")
+      .select("id, code")
+      .eq("is_active", true);
+    if (catErr) throw new Error(catErr.message);
+
+    const codeToId: Record<string, string> = {};
+    for (const c of categories ?? []) codeToId[c.code] = c.id;
+
+    let created = 0;
+    for (const row of rows) {
+      // Insert gate
+      const { data: gate, error: gateErr } = await supabase
+        .from("gates")
+        .insert({
+          project_id: projectId,
+          name: row.name.trim(),
+          sequence_number: row.sequence_number,
+          status: "pending",
+          start_date: row.start_date || null,
+          end_date: row.end_date || null,
+          notes: row.notes?.trim() || null,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+
+      if (gateErr) throw new Error(`Row "${row.name}": ${gateErr.message}`);
+
+      // Insert budget rows where a valid code maps to an amount
+      const budgetRows = Object.entries(row.budgets)
+        .filter(([code]) => codeToId[code] !== undefined)
+        .map(([code, amount]) => ({
+          gate_id: gate.id,
+          cost_category_id: codeToId[code],
+          original_budget: amount ?? 0,
+          created_by: userId,
+        }));
+
+      if (budgetRows.length) {
+        const { error: budgetErr } = await supabase
+          .from("gate_budgets")
+          .insert(budgetRows);
+        if (budgetErr) throw new Error(`Budgets for "${row.name}": ${budgetErr.message}`);
+      }
+
+      created++;
+    }
+
+    revalidatePath(`/projects/${projectId}`);
+    return { created };
+  } catch (err) {
+    console.error("[uploadGates]", err);
+    return { error: err instanceof Error ? err.message : "Upload failed", created: 0 };
+  }
+}
+
 export interface BudgetRow {
   cost_category_id: string;
   original_budget: number;
