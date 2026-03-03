@@ -19,6 +19,7 @@ interface BudgetRow {
   cost_category_id: string;
   category_name: string;
   category_code: string;
+  category_header: string;
   original_budget: number;
   approved_co_amount: number;
   revised_budget: number;
@@ -333,6 +334,18 @@ function BudgetTable({
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  // Group rows by header category, preserving display_order
+  const groups: { header: string; rows: BudgetRow[] }[] = [];
+  for (const row of rows) {
+    const header = row.category_header || "Other";
+    const last = groups[groups.length - 1];
+    if (last && last.header === header) {
+      last.rows.push(row);
+    } else {
+      groups.push({ header, rows: [row] });
+    }
+  }
+
   const totalOriginal = rows.reduce(
     (s, r) => s + (parseFloat(values[r.cost_category_id] || "0") || 0),
     0
@@ -392,42 +405,76 @@ function BudgetTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
-              const orig = parseFloat(values[row.cost_category_id] || "0") || 0;
-              const revised = orig + row.approved_co_amount;
+            {groups.map((group) => {
+              const grpOriginal = group.rows.reduce(
+                (s, r) => s + (parseFloat(values[r.cost_category_id] || "0") || 0), 0
+              );
+              const grpCO = group.rows.reduce((s, r) => s + r.approved_co_amount, 0);
+              const grpRevised = grpOriginal + grpCO;
+
               return (
-                <tr key={row.cost_category_id} className="border-b last:border-0 hover:bg-muted/10">
-                  <td className="px-4 py-2">
-                    <span className="font-mono text-xs text-muted-foreground">{row.category_code}</span>
-                    <span className="mx-1.5 text-muted-foreground/40">—</span>
-                    <span className="text-sm">{row.category_name}</span>
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    {locked ? (
-                      <span className="font-mono text-xs">
-                        {row.original_budget > 0 ? fmtCurrency(row.original_budget) : "—"}
-                      </span>
-                    ) : (
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={values[row.cost_category_id] ?? ""}
-                        onChange={(e) =>
-                          setValues((v) => ({ ...v, [row.cost_category_id]: e.target.value }))
-                        }
-                        placeholder="0"
-                        className="w-32 rounded border border-input bg-background px-2 py-1 text-xs text-right font-mono"
-                      />
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">
-                    {row.approved_co_amount > 0 ? fmtCurrency(row.approved_co_amount) : "—"}
-                  </td>
-                  <td className="px-4 py-2 text-right font-mono text-xs">
-                    {revised > 0 ? fmtCurrency(revised) : "—"}
-                  </td>
-                </tr>
+                <GroupRows key={group.header}>
+                  {/* Header row */}
+                  <tr className="bg-muted/40 border-b">
+                    <td colSpan={4} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {group.header}
+                    </td>
+                  </tr>
+                  {/* Category rows */}
+                  {group.rows.map((row) => {
+                    const orig = parseFloat(values[row.cost_category_id] || "0") || 0;
+                    const revised = orig + row.approved_co_amount;
+                    return (
+                      <tr key={row.cost_category_id} className="border-b last:border-0 hover:bg-muted/10">
+                        <td className="px-4 py-2 pl-8">
+                          <span className="font-mono text-xs text-muted-foreground">{row.category_code}</span>
+                          <span className="mx-1.5 text-muted-foreground/40">—</span>
+                          <span className="text-sm">{row.category_name}</span>
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          {locked ? (
+                            <span className="font-mono text-xs">
+                              {row.original_budget > 0 ? fmtCurrency(row.original_budget) : "—"}
+                            </span>
+                          ) : (
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={values[row.cost_category_id] ?? ""}
+                              onChange={(e) =>
+                                setValues((v) => ({ ...v, [row.cost_category_id]: e.target.value }))
+                              }
+                              placeholder="0"
+                              className="w-32 rounded border border-input bg-background px-2 py-1 text-xs text-right font-mono"
+                            />
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right font-mono text-xs text-muted-foreground">
+                          {row.approved_co_amount > 0 ? fmtCurrency(row.approved_co_amount) : "—"}
+                        </td>
+                        <td className="px-4 py-2 text-right font-mono text-xs">
+                          {revised > 0 ? fmtCurrency(revised) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Subtotal row */}
+                  <tr className="border-b bg-muted/20">
+                    <td className="px-4 py-1.5 pl-8 text-xs font-medium text-muted-foreground">
+                      Subtotal
+                    </td>
+                    <td className="px-4 py-1.5 text-right font-mono text-xs font-medium text-muted-foreground">
+                      {grpOriginal > 0 ? fmtCurrency(grpOriginal) : "—"}
+                    </td>
+                    <td className="px-4 py-1.5 text-right font-mono text-xs text-muted-foreground">
+                      {grpCO > 0 ? fmtCurrency(grpCO) : "—"}
+                    </td>
+                    <td className="px-4 py-1.5 text-right font-mono text-xs font-medium text-muted-foreground">
+                      {grpRevised > 0 ? fmtCurrency(grpRevised) : "—"}
+                    </td>
+                  </tr>
+                </GroupRows>
               );
             })}
           </tbody>
@@ -449,6 +496,10 @@ function BudgetTable({
       </div>
     </div>
   );
+}
+
+function GroupRows({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
 
 function InfoCard({ label, value }: { label: string; value: string }) {
