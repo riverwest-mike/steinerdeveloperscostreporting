@@ -16,6 +16,12 @@ function getBaseUrl() {
   return `https://${APPFOLIO_DATABASE_URL}/api/v2/reports`;
 }
 
+/** AppFolio next_page_url is sometimes a relative path — make it absolute. */
+function resolveNextUrl(nextPageUrl: string): string {
+  if (nextPageUrl.startsWith("http")) return nextPageUrl;
+  return `https://${APPFOLIO_DATABASE_URL}${nextPageUrl}`;
+}
+
 function getAuthHeader() {
   const token = Buffer.from(`${APPFOLIO_CLIENT_ID}:${APPFOLIO_CLIENT_SECRET}`).toString("base64");
   return `Basic ${token}`;
@@ -128,7 +134,7 @@ export async function fetchBillDetail(
   // Follow pagination
   let nextUrl = data.next_page_url;
   while (nextUrl) {
-    const pageRes = await fetch(nextUrl, {
+    const pageRes = await fetch(resolveNextUrl(nextUrl), {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
       cache: "no-store",
@@ -197,7 +203,7 @@ export async function fetchGeneralLedger(opts: {
 
   let nextUrl = data.next_page_url;
   while (nextUrl) {
-    const pageRes = await fetch(nextUrl, {
+    const pageRes = await fetch(resolveNextUrl(nextUrl), {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
       cache: "no-store",
