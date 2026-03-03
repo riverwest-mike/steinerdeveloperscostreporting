@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { createGate } from "./gates/actions";
+import { UploadGatesModal } from "./gates/upload-gates-modal";
 
 interface Gate {
   id: string;
@@ -43,27 +44,56 @@ function fmtDate(d: string | null) {
   });
 }
 
+type PanelMode = "add" | "upload" | null;
+
 export function GatesSection({ projectId, gates }: GatesSectionProps) {
-  const [showForm, setShowForm] = useState(false);
+  const [panel, setPanel] = useState<PanelMode>(null);
+
+  function togglePanel(mode: PanelMode) {
+    setPanel((prev) => (prev === mode ? null : mode));
+  }
 
   return (
     <div className="rounded-lg border">
       <div className="px-4 py-3 border-b bg-muted/50 flex items-center justify-between">
         <h3 className="font-semibold text-sm">Gates</h3>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded border px-2.5 py-1 text-xs font-medium hover:bg-accent transition-colors"
-        >
-          {showForm ? "Cancel" : "+ Add Gate"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => togglePanel("upload")}
+            className="rounded border px-2.5 py-1 text-xs font-medium hover:bg-accent transition-colors"
+          >
+            {panel === "upload" ? "Cancel" : "Upload Excel"}
+          </button>
+          <button
+            onClick={() => togglePanel("add")}
+            className="rounded border px-2.5 py-1 text-xs font-medium hover:bg-accent transition-colors"
+          >
+            {panel === "add" ? "Cancel" : "+ Add Gate"}
+          </button>
+        </div>
       </div>
 
-      {showForm && (
+      {panel === "upload" && (
+        <div className="border-b px-4 py-4 bg-muted/20">
+          <UploadGatesModal
+            projectId={projectId}
+            existingGates={gates.map((g) => ({
+              id: g.id,
+              name: g.name,
+              sequence_number: g.sequence_number,
+              is_locked: g.is_locked,
+            }))}
+            onDone={() => setPanel(null)}
+          />
+        </div>
+      )}
+
+      {panel === "add" && (
         <div className="border-b px-4 py-4 bg-muted/20">
           <AddGateForm
             projectId={projectId}
             nextSequence={(gates.length > 0 ? Math.max(...gates.map((g) => g.sequence_number)) : 0) + 1}
-            onDone={() => setShowForm(false)}
+            onDone={() => setPanel(null)}
           />
         </div>
       )}
@@ -115,7 +145,7 @@ export function GatesSection({ projectId, gates }: GatesSectionProps) {
             ))}
           </tbody>
         </table>
-      ) : !showForm ? (
+      ) : !panel ? (
         <div className="px-4 py-10 text-center text-sm text-muted-foreground">
           No gates yet. Gates represent sequential phases of the project.
         </div>
