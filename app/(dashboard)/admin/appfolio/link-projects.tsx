@@ -9,7 +9,13 @@ type Project = {
   code: string;
 };
 
-export function LinkProjects({ projects }: { projects: Project[] }) {
+export function LinkProjects({
+  projects,
+  appfolioBaseUrl,
+}: {
+  projects: Project[];
+  appfolioBaseUrl: string;
+}) {
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(projects.map((p) => [p.id, ""]))
   );
@@ -37,16 +43,24 @@ export function LinkProjects({ projects }: { projects: Project[] }) {
 
       {/* How-to callout */}
       <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-        <p className="font-semibold mb-1">How to find the AppFolio Property ID</p>
-        <ol className="list-decimal list-inside space-y-1 text-blue-800">
-          <li>Log in to AppFolio and go to <strong>Properties</strong>.</li>
-          <li>Open the property you want to link.</li>
-          <li>Look at the URL in your browser — it will contain a number like:<br />
-            <code className="mt-1 inline-block rounded bg-blue-100 px-2 py-0.5 text-xs font-mono">
-              appfolio.com/properties/<strong>12345</strong>/edit
-            </code>
+        <p className="font-semibold mb-2">How to find the Property ID in AppFolio</p>
+        <ol className="list-decimal list-inside space-y-2 text-blue-800">
+          <li>
+            Open a new browser tab and go to your AppFolio account:{" "}
+            <span className="font-mono font-semibold">{appfolioBaseUrl}</span>
           </li>
-          <li>That number (<strong>12345</strong>) is the Property ID. Enter it below and click <strong>Save</strong>.</li>
+          <li>
+            In the left menu, click <strong>Properties</strong>, then click on the property you want to link.
+          </li>
+          <li>
+            Look at the address bar in your browser. You will see a web address that contains a number — for example:
+            <div className="mt-1.5 rounded bg-white border border-blue-200 px-3 py-1.5 font-mono text-xs break-all">
+              https://<span className="text-blue-600">{appfolioBaseUrl}</span>/properties/<span className="font-bold text-blue-900 underline">12345</span>/edit
+            </div>
+          </li>
+          <li>
+            The number in that address (shown in bold above) is the <strong>Property ID</strong>. Copy and paste that number into the field below, then click <strong>Save</strong>.
+          </li>
         </ol>
       </div>
 
@@ -66,12 +80,12 @@ export function LinkProjects({ projects }: { projects: Project[] }) {
                 <>
                   <input
                     type="text"
-                    placeholder="AppFolio Property ID"
+                    placeholder="e.g. 12345"
                     value={values[project.id] ?? ""}
                     onChange={(e) =>
                       setValues((prev) => ({ ...prev, [project.id]: e.target.value }))
                     }
-                    className="w-44 rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="w-36 rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   />
                   <button
                     onClick={() => handleSave(project.id)}

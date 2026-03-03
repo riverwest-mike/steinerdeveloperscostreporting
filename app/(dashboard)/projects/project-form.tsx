@@ -24,6 +24,7 @@ interface Project {
 interface ProjectFormProps {
   editing?: Project;
   onCancel?: () => void;
+  appfolioBaseUrl?: string;
 }
 
 const PROPERTY_TYPES = ["Multifamily", "Commercial", "Mixed-Use", "Land", "Other"];
@@ -34,7 +35,7 @@ const STATUSES = [
   { value: "archived", label: "Archived" },
 ];
 
-export function ProjectForm({ editing, onCancel }: ProjectFormProps) {
+export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -109,8 +110,14 @@ export function ProjectForm({ editing, onCancel }: ProjectFormProps) {
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
           <p className="text-xs text-muted-foreground">
-            Numeric ID from the AppFolio property URL — e.g.{" "}
-            <span className="font-mono">appfolio.com/properties/<strong>12345</strong>/edit</span>
+            {appfolioBaseUrl ? (
+              <>
+                Found in the AppFolio property URL:{" "}
+                <span className="font-mono">{appfolioBaseUrl}/properties/<strong>12345</strong>/edit</span>
+              </>
+            ) : (
+              <>Numeric ID from the AppFolio property URL — e.g. the number in the browser address bar when viewing the property.</>
+            )}
           </p>
         </div>
         <div className="space-y-1">

@@ -105,7 +105,10 @@ export default async function AppFolioSyncPage() {
 
         {/* Unlinked projects */}
         {unlinkedProjects && unlinkedProjects.length > 0 && (
-          <LinkProjects projects={unlinkedProjects} />
+          <LinkProjects
+            projects={unlinkedProjects}
+            appfolioBaseUrl={process.env.APPFOLIO_DATABASE_URL ?? "your AppFolio account"}
+          />
         )}
 
         {/* Sync controls */}
