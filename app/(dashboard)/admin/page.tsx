@@ -2,12 +2,14 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import { Header } from "@/components/layout/header";
+import { RoleSelect } from "./role-select";
 
 export default async function AdminPage() {
   const { userId } = await auth();
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // Server-side role check — redirect non-admins
   const { data: user } = await supabase
@@ -48,10 +50,11 @@ export default async function AdminPage() {
                   <th className="px-4 py-3 text-left font-medium">Role</th>
                   <th className="px-4 py-3 text-left font-medium">Status</th>
                   <th className="px-4 py-3 text-left font-medium">Joined</th>
+                  <th className="px-4 py-3 text-left font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users?.map((u) => (
+                {users?.map((u: { id: string; email: string; full_name: string; role: string; is_active: boolean; created_at: string }) => (
                   <tr key={u.id} className="border-b last:border-0">
                     <td className="px-4 py-3 font-medium">{u.full_name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
@@ -74,28 +77,46 @@ export default async function AdminPage() {
                     <td className="px-4 py-3 text-muted-foreground">
                       {new Date(u.created_at).toLocaleDateString()}
                     </td>
+                    <td className="px-4 py-3">
+                      <RoleSelect
+                        userId={u.id}
+                        currentRole={u.role as "admin" | "project_manager" | "read_only"}
+                        isSelf={u.id === userId}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Users are created automatically when someone signs up via Clerk. Role assignment coming in the next build.
+            Users are created automatically when someone signs up via Clerk. Use the Actions column to change a user&apos;s role — you cannot change your own.
           </p>
         </div>
 
-        {/* Placeholder sections for future phases */}
+        {/* Admin section links */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {[
-            { title: "Cost Categories", desc: "Phase 2 — Manage standardized cost classifications" },
-            { title: "Bridge Mappings", desc: "Phase 4 — Map AppFolio vendors to cost categories" },
-            { title: "Audit Log", desc: "Phase 6 — View all system changes" },
-          ].map((item) => (
-            <div key={item.title} className="rounded-lg border border-dashed p-6">
-              <h4 className="font-semibold text-sm">{item.title}</h4>
-              <p className="text-xs text-muted-foreground mt-1">{item.desc}</p>
-            </div>
-          ))}
+          <Link
+            href="/admin/cost-categories"
+            className="rounded-lg border p-6 hover:bg-muted/40 transition-colors"
+          >
+            <h4 className="font-semibold text-sm">Cost Categories</h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              Manage standardized cost classifications
+            </p>
+          </Link>
+          <div className="rounded-lg border border-dashed p-6">
+            <h4 className="font-semibold text-sm">Bridge Mappings</h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              Phase 4 — Map AppFolio vendors to cost categories
+            </p>
+          </div>
+          <div className="rounded-lg border border-dashed p-6">
+            <h4 className="font-semibold text-sm">Audit Log</h4>
+            <p className="text-xs text-muted-foreground mt-1">
+              Phase 6 — View all system changes
+            </p>
+          </div>
         </div>
       </div>
     </div>
