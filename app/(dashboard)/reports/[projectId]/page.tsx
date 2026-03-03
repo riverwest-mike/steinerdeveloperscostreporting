@@ -19,6 +19,18 @@ function fmtVariance(n: number): string {
   return fmtUSD(n);
 }
 
+interface ReportRow {
+  id: string;
+  code: string;
+  name: string;
+  original: number;
+  co: number;
+  revised: number;
+  actual: number;
+  variance: number;
+  pctComplete: number | null;
+}
+
 interface Props {
   params: Promise<{ projectId: string }>;
 }
