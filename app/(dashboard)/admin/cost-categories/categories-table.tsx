@@ -52,7 +52,7 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
               <th className="px-4 py-3 text-left font-medium w-12">#</th>
               <th className="px-4 py-3 text-left font-medium">Code</th>
               <th className="px-4 py-3 text-left font-medium">Name</th>
-              <th className="px-4 py-3 text-left font-medium">Description</th>
+              <th className="px-4 py-3 text-left font-medium">Header Category</th>
               <th className="px-4 py-3 text-left font-medium">Status</th>
               <th className="px-4 py-3 text-left font-medium">Actions</th>
             </tr>

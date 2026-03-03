@@ -15,7 +15,7 @@ export function ExportButton({ categories }: { categories: Category[] }) {
     const rows = categories.map((c) => ({
       "Cost Code": c.code,
       "Cost Name": c.name,
-      "Cost Category": c.description ?? "",
+      "Header Category": c.description ?? "",
       "Display Order": c.display_order,
       Status: c.is_active ? "Active" : "Inactive",
     }));
@@ -26,7 +26,7 @@ export function ExportButton({ categories }: { categories: Category[] }) {
     ws["!cols"] = [
       { wch: 12 }, // Cost Code
       { wch: 45 }, // Cost Name
-      { wch: 35 }, // Cost Category
+      { wch: 35 }, // Header Category
       { wch: 14 }, // Display Order
       { wch: 10 }, // Status
     ];
