@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   FolderKanban,
+  BarChart3,
   ShieldCheck,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ interface NavItem {
 const baseNavItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
 const adminNavItems: NavItem[] = [
