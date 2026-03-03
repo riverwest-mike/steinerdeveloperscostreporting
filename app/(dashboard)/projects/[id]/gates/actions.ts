@@ -182,7 +182,7 @@ export async function uploadGates(
           );
         }
 
-        // Update gate metadata
+        // Update gate metadata (gates table has no updated_at column)
         const { error: updateErr } = await supabase
           .from("gates")
           .update({
@@ -190,7 +190,6 @@ export async function uploadGates(
             start_date: row.start_date || null,
             end_date: row.end_date || null,
             notes: row.notes?.trim() || null,
-            updated_at: new Date().toISOString(),
           })
           .eq("id", existing.id);
         if (updateErr) throw new Error(`Update "${row.name}": ${updateErr.message}`);
