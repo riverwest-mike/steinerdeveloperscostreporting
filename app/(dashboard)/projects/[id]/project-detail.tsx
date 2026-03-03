@@ -40,7 +40,7 @@ function fmtNum(n: number | null) {
   return n.toLocaleString();
 }
 
-export function ProjectDetail({ project, isAdmin }: { project: Project; isAdmin?: boolean }) {
+export function ProjectDetail({ project, isAdmin, appfolioBaseUrl }: { project: Project; isAdmin?: boolean; appfolioBaseUrl?: string }) {
   const [editing, setEditing] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
@@ -63,7 +63,7 @@ export function ProjectDetail({ project, isAdmin }: { project: Project; isAdmin?
           <h2 className="text-2xl font-bold tracking-tight">Edit Project</h2>
         </div>
         <div className="rounded-lg border p-6 bg-card max-w-3xl">
-          <ProjectForm editing={project} onCancel={() => setEditing(false)} />
+          <ProjectForm editing={project} onCancel={() => setEditing(false)} appfolioBaseUrl={appfolioBaseUrl} />
         </div>
       </div>
     );

@@ -95,7 +95,11 @@ export default async function ProjectPage({ params }: Props) {
           <span className="text-foreground font-medium">{project.name}</span>
         </nav>
 
-        <ProjectDetail project={project} isAdmin={userRole === "admin"} />
+        <ProjectDetail
+          project={project}
+          isAdmin={userRole === "admin"}
+          appfolioBaseUrl={process.env.APPFOLIO_DATABASE_URL}
+        />
         <GatesSection projectId={id} gates={gatesWithTotals} />
         <ContractsSection
           projectId={id}

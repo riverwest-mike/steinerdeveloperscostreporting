@@ -98,6 +98,27 @@ async function requireAdmin() {
   return { userId, supabase };
 }
 
+export async function linkAppfolioId(
+  projectId: string,
+  appfolioId: string
+): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await requireAdmin();
+    const value = appfolioId.trim() || null;
+    const { error } = await supabase
+      .from("projects")
+      .update({ appfolio_property_id: value, updated_at: new Date().toISOString() })
+      .eq("id", projectId);
+    if (error) throw new Error(error.message);
+    revalidatePath("/admin/appfolio");
+    revalidatePath("/projects");
+    return {};
+  } catch (err) {
+    console.error("[linkAppfolioId]", err);
+    return { error: err instanceof Error ? err.message : "Failed to update AppFolio ID" };
+  }
+}
+
 export async function deleteProject(id: string): Promise<{ error?: string }> {
   try {
     const { supabase } = await requireAdmin();

@@ -13,7 +13,7 @@ export default function NewProjectPage() {
           </p>
         </div>
         <div className="rounded-lg border p-6 bg-card">
-          <ProjectForm />
+          <ProjectForm appfolioBaseUrl={process.env.APPFOLIO_DATABASE_URL} />
         </div>
       </div>
     </div>
