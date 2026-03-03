@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
 import { uploadGates, type GateUploadRow } from "./actions";
 
@@ -25,7 +26,7 @@ type ParsedRow = GateUploadRow & {
   _existingName?: string; // name of the gate being replaced
 };
 
-const FIXED_COLS = new Set(["gate name", "sequence", "start date", "end date", "notes"]);
+const FIXED_COLS = new Set(["gate name", "sequence", "gate #", "start date", "end date", "notes"]);
 
 function normalizeDate(raw: unknown): string | null {
   if (!raw) return null;
@@ -64,7 +65,7 @@ function parseWorkbook(
   headers.forEach((h, i) => {
     const lower = h.toLowerCase();
     if (lower === "gate name") idx.name = i;
-    else if (lower === "sequence") idx.sequence = i;
+    else if (lower === "sequence" || lower === "gate #") idx.sequence = i;
     else if (lower === "start date") idx.start_date = i;
     else if (lower === "end date") idx.end_date = i;
     else if (lower === "notes") idx.notes = i;
@@ -149,6 +150,7 @@ export function UploadGatesModal({ projectId, existingGates, onDone }: UploadGat
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [unknownCodes, setUnknownCodes] = useState<string[] | null>(null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   // Build sequence → existing gate map for quick lookup
   const seqToExisting: Record<number, ExistingGate> = {};
@@ -198,9 +200,11 @@ export function UploadGatesModal({ projectId, existingGates, onDone }: UploadGat
       try {
         const result = await uploadGates(projectId, payload);
         if (result.error) { setUploadError(result.error); return; }
+        // Flush the client router cache so gate detail pages show fresh data immediately
+        router.refresh();
         if (result.unknownCodes?.length) {
           setUnknownCodes(result.unknownCodes);
-          // Still close — gates were created, just budgets for unknown codes were skipped
+          // Stay open to show the warning, but gates/budgets were saved
           return;
         }
         onDone();

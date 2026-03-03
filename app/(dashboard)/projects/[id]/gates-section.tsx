@@ -102,7 +102,7 @@ export function GatesSection({ projectId, gates }: GatesSectionProps) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/30">
-              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">#</th>
+              <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Gate #</th>
               <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Name</th>
               <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Status</th>
               <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Start</th>
@@ -199,7 +199,7 @@ function AddGateForm({
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="gate-seq">
-            Sequence #
+            Gate #
           </label>
           <input
             id="gate-seq"

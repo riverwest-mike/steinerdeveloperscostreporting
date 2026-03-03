@@ -76,6 +76,9 @@ export function ProjectForm({ editing, onCancel }: ProjectFormProps) {
             placeholder="e.g. Riverfront Lofts"
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
+          <p className="text-xs text-muted-foreground">
+            Must match the Property Name exactly as it appears in AppFolio for transaction syncing to work correctly.
+          </p>
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="code">

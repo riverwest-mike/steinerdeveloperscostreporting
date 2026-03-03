@@ -19,6 +19,21 @@ async function requirePM() {
   return { userId, supabase };
 }
 
+async function requireAdmin() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Not authenticated");
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  if (!data || data.role !== "admin") {
+    throw new Error(`Admin role required (role: ${data?.role ?? "none"})`);
+  }
+  return { userId, supabase };
+}
+
 export async function createGate(
   projectId: string,
   formData: FormData
@@ -174,6 +189,7 @@ export async function uploadGates(
 
     let created = 0;
     let updated = 0;
+    const processedGateIds: string[] = [];
 
     for (const row of rows) {
       const existing = seqToExisting[row.sequence_number];
@@ -224,6 +240,7 @@ export async function uploadGates(
           if (budgetErr) throw new Error(`Budgets for "${row.name}": ${budgetErr.message}`);
         }
 
+        processedGateIds.push(existing.id);
         updated++;
       } else {
         // Insert new gate
@@ -264,11 +281,16 @@ export async function uploadGates(
           if (budgetErr) throw new Error(`Budgets for "${row.name}": ${budgetErr.message}`);
         }
 
+        processedGateIds.push(gate.id);
         created++;
       }
     }
 
     revalidatePath(`/projects/${projectId}`);
+    // Also revalidate each gate detail page so the client router cache is cleared
+    for (const gateId of processedGateIds) {
+      revalidatePath(`/projects/${projectId}/gates/${gateId}`);
+    }
     const unknownCodes = unknownCodeSet.size > 0 ? [...unknownCodeSet] : undefined;
     return { created, updated, unknownCodes };
   } catch (err) {
@@ -318,5 +340,47 @@ export async function upsertGateBudgets(
   } catch (err) {
     console.error("[upsertGateBudgets]", err);
     return { error: err instanceof Error ? err.message : "Failed to save budgets" };
+  }
+}
+
+export async function deleteGate(
+  gateId: string,
+  projectId: string
+): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await requireAdmin();
+
+    const { data: gate } = await supabase
+      .from("gates")
+      .select("is_locked")
+      .eq("id", gateId)
+      .single();
+
+    if (gate?.is_locked) throw new Error("Locked gates cannot be deleted");
+
+    const { error } = await supabase.from("gates").delete().eq("id", gateId);
+    if (error) throw new Error(error.message);
+
+    revalidatePath(`/projects/${projectId}`);
+    return {};
+  } catch (err) {
+    console.error("[deleteGate]", err);
+    return { error: err instanceof Error ? err.message : "Failed to delete gate" };
+  }
+}
+
+export async function getMyRole(): Promise<string | null> {
+  try {
+    const { userId } = await auth();
+    if (!userId) return null;
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", userId)
+      .single();
+    return data?.role ?? null;
+  } catch {
+    return null;
   }
 }
