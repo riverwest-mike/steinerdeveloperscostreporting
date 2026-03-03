@@ -108,6 +108,10 @@ export function ProjectForm({ editing, onCancel }: ProjectFormProps) {
             placeholder="e.g. 12345"
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
+          <p className="text-xs text-muted-foreground">
+            Numeric ID from the AppFolio property URL — e.g.{" "}
+            <span className="font-mono">appfolio.com/properties/<strong>12345</strong>/edit</span>
+          </p>
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="property_type">
