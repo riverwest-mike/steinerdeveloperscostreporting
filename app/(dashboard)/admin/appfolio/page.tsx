@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { SyncButton } from "./sync-button";
+import { LinkProjects } from "./link-projects";
 
 export default async function AppFolioSyncPage() {
   const { userId } = await auth();
@@ -53,6 +54,14 @@ export default async function AppFolioSyncPage() {
     .from("appfolio_transactions")
     .select("id", { count: "exact", head: true });
 
+  // Get projects without an AppFolio property ID
+  const { data: unlinkedProjects } = await supabase
+    .from("projects")
+    .select("id, name, code")
+    .or("appfolio_property_id.is.null,appfolio_property_id.eq.")
+    .eq("status", "active")
+    .order("name");
+
   return (
     <div>
       <Header title="AppFolio Sync" />
@@ -93,6 +102,11 @@ export default async function AppFolioSyncPage() {
             </p>
           </div>
         </div>
+
+        {/* Unlinked projects */}
+        {unlinkedProjects && unlinkedProjects.length > 0 && (
+          <LinkProjects projects={unlinkedProjects} />
+        )}
 
         {/* Sync controls */}
         <div>
