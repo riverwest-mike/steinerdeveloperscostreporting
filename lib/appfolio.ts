@@ -13,7 +13,12 @@ function getBaseUrl() {
   if (!APPFOLIO_CLIENT_ID || !APPFOLIO_CLIENT_SECRET || !APPFOLIO_DATABASE_URL) {
     throw new Error("Missing AppFolio environment variables");
   }
-  return `https://${APPFOLIO_CLIENT_ID}:${APPFOLIO_CLIENT_SECRET}@${APPFOLIO_DATABASE_URL}/api/v2/reports`;
+  return `https://${APPFOLIO_DATABASE_URL}/api/v2/reports`;
+}
+
+function getAuthHeader() {
+  const token = Buffer.from(`${APPFOLIO_CLIENT_ID}:${APPFOLIO_CLIENT_SECRET}`).toString("base64");
+  return `Basic ${token}`;
 }
 
 /* ─── Types ────────────────────────────────────────────── */
@@ -54,7 +59,7 @@ async function fetchPaginated<T>(url: string): Promise<T[]> {
   while (nextUrl) {
     const res = await fetch(nextUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
       cache: "no-store",
     });
 
@@ -105,7 +110,7 @@ export async function fetchBillDetail(
   // POST with body params
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
     body: JSON.stringify(params),
     cache: "no-store",
   });
@@ -123,7 +128,7 @@ export async function fetchBillDetail(
   while (nextUrl) {
     const pageRes = await fetch(nextUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
       cache: "no-store",
     });
     if (!pageRes.ok) break;
@@ -175,7 +180,7 @@ export async function fetchGeneralLedger(opts: {
 
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
     body: JSON.stringify(params),
     cache: "no-store",
   });
@@ -192,7 +197,7 @@ export async function fetchGeneralLedger(opts: {
   while (nextUrl) {
     const pageRes = await fetch(nextUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
       cache: "no-store",
     });
     if (!pageRes.ok) break;
