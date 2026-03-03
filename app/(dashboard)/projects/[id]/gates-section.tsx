@@ -75,7 +75,16 @@ export function GatesSection({ projectId, gates }: GatesSectionProps) {
 
       {panel === "upload" && (
         <div className="border-b px-4 py-4 bg-muted/20">
-          <UploadGatesModal projectId={projectId} onDone={() => setPanel(null)} />
+          <UploadGatesModal
+            projectId={projectId}
+            existingGates={gates.map((g) => ({
+              id: g.id,
+              name: g.name,
+              sequence_number: g.sequence_number,
+              is_locked: g.is_locked,
+            }))}
+            onDone={() => setPanel(null)}
+          />
         </div>
       )}
 

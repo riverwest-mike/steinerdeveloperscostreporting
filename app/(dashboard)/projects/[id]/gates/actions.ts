@@ -142,11 +142,11 @@ export interface GateUploadRow {
 export async function uploadGates(
   projectId: string,
   rows: GateUploadRow[]
-): Promise<{ error?: string; created: number }> {
+): Promise<{ error?: string; created: number; updated: number }> {
   try {
     const { userId, supabase } = await requirePM();
 
-    if (!rows.length) return { error: "No rows provided", created: 0 };
+    if (!rows.length) return { error: "No rows provided", created: 0, updated: 0 };
 
     // Fetch active categories to map code → id
     const { data: categories, error: catErr } = await supabase
@@ -158,51 +158,108 @@ export async function uploadGates(
     const codeToId: Record<string, string> = {};
     for (const c of categories ?? []) codeToId[c.code] = c.id;
 
+    // Fetch existing gates for this project to detect sequence number collisions
+    const { data: existingGates, error: egErr } = await supabase
+      .from("gates")
+      .select("id, sequence_number, is_locked")
+      .eq("project_id", projectId);
+    if (egErr) throw new Error(egErr.message);
+
+    const seqToExisting: Record<number, { id: string; is_locked: boolean }> = {};
+    for (const g of existingGates ?? []) seqToExisting[g.sequence_number] = g;
+
     let created = 0;
+    let updated = 0;
+
     for (const row of rows) {
-      // Insert gate
-      const { data: gate, error: gateErr } = await supabase
-        .from("gates")
-        .insert({
-          project_id: projectId,
-          name: row.name.trim(),
-          sequence_number: row.sequence_number,
-          status: "pending",
-          start_date: row.start_date || null,
-          end_date: row.end_date || null,
-          notes: row.notes?.trim() || null,
-          created_by: userId,
-        })
-        .select("id")
-        .single();
+      const existing = seqToExisting[row.sequence_number];
 
-      if (gateErr) throw new Error(`Row "${row.name}": ${gateErr.message}`);
+      if (existing) {
+        // Refuse to overwrite a locked gate
+        if (existing.is_locked) {
+          throw new Error(
+            `Gate #${row.sequence_number} "${row.name}" is locked and cannot be replaced`
+          );
+        }
 
-      // Insert budget rows where a valid code maps to an amount
-      const budgetRows = Object.entries(row.budgets)
-        .filter(([code]) => codeToId[code] !== undefined)
-        .map(([code, amount]) => ({
-          gate_id: gate.id,
-          cost_category_id: codeToId[code],
-          original_budget: amount ?? 0,
-          created_by: userId,
-        }));
+        // Update gate metadata
+        const { error: updateErr } = await supabase
+          .from("gates")
+          .update({
+            name: row.name.trim(),
+            start_date: row.start_date || null,
+            end_date: row.end_date || null,
+            notes: row.notes?.trim() || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        if (updateErr) throw new Error(`Update "${row.name}": ${updateErr.message}`);
 
-      if (budgetRows.length) {
-        const { error: budgetErr } = await supabase
-          .from("gate_budgets")
-          .insert(budgetRows);
-        if (budgetErr) throw new Error(`Budgets for "${row.name}": ${budgetErr.message}`);
+        // Upsert budgets — only original_budget; approved_co_amount is untouched
+        const budgetRows = Object.entries(row.budgets)
+          .filter(([code]) => codeToId[code] !== undefined)
+          .map(([code, amount]) => ({
+            gate_id: existing.id,
+            cost_category_id: codeToId[code],
+            original_budget: amount ?? 0,
+            created_by: userId,
+            updated_at: new Date().toISOString(),
+          }));
+
+        if (budgetRows.length) {
+          const { error: budgetErr } = await supabase
+            .from("gate_budgets")
+            .upsert(budgetRows, {
+              onConflict: "gate_id,cost_category_id",
+              ignoreDuplicates: false,
+            });
+          if (budgetErr) throw new Error(`Budgets for "${row.name}": ${budgetErr.message}`);
+        }
+
+        updated++;
+      } else {
+        // Insert new gate
+        const { data: gate, error: gateErr } = await supabase
+          .from("gates")
+          .insert({
+            project_id: projectId,
+            name: row.name.trim(),
+            sequence_number: row.sequence_number,
+            status: "pending",
+            start_date: row.start_date || null,
+            end_date: row.end_date || null,
+            notes: row.notes?.trim() || null,
+            created_by: userId,
+          })
+          .select("id")
+          .single();
+        if (gateErr) throw new Error(`Insert "${row.name}": ${gateErr.message}`);
+
+        const budgetRows = Object.entries(row.budgets)
+          .filter(([code]) => codeToId[code] !== undefined)
+          .map(([code, amount]) => ({
+            gate_id: gate.id,
+            cost_category_id: codeToId[code],
+            original_budget: amount ?? 0,
+            created_by: userId,
+          }));
+
+        if (budgetRows.length) {
+          const { error: budgetErr } = await supabase
+            .from("gate_budgets")
+            .insert(budgetRows);
+          if (budgetErr) throw new Error(`Budgets for "${row.name}": ${budgetErr.message}`);
+        }
+
+        created++;
       }
-
-      created++;
     }
 
     revalidatePath(`/projects/${projectId}`);
-    return { created };
+    return { created, updated };
   } catch (err) {
     console.error("[uploadGates]", err);
-    return { error: err instanceof Error ? err.message : "Upload failed", created: 0 };
+    return { error: err instanceof Error ? err.message : "Upload failed", created: 0, updated: 0 };
   }
 }
 
