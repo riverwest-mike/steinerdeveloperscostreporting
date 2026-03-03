@@ -1,11 +1,11 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 
 export default async function ProjectsPage() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: projects } = await supabase
     .from("projects")
@@ -40,7 +40,7 @@ export default async function ProjectsPage() {
                 </tr>
               </thead>
               <tbody>
-                {projects.map((project) => (
+                {projects.map((project: { id: string; name: string; code: string; status: string; property_type: string | null; city: string | null; state: string | null; expected_completion: string | null }) => (
                   <tr key={project.id} className="border-b last:border-0 hover:bg-muted/30">
                     <td className="px-4 py-3 font-mono text-xs">{project.code}</td>
                     <td className="px-4 py-3 font-medium">

@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { GateDetail } from "./gate-detail";
 
@@ -12,7 +12,7 @@ interface Props {
 
 export default async function GatePage({ params }: Props) {
   const { id: projectId, gateId } = await params;
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const [{ data: gate }, { data: project }, { data: categories }, { data: budgets }] =
     await Promise.all([
@@ -31,11 +31,25 @@ export default async function GatePage({ params }: Props) {
 
   if (!gate || !project) notFound();
 
-  const budgetMap = new Map(
-    (budgets ?? []).map((b) => [b.cost_category_id, b])
+  interface BudgetRecord {
+    cost_category_id: string;
+    original_budget: number;
+    approved_co_amount: number;
+    revised_budget: number;
+  }
+
+  interface CategoryRecord {
+    id: string;
+    name: string;
+    code: string;
+    display_order: number;
+  }
+
+  const budgetMap = new Map<string, BudgetRecord>(
+    (budgets ?? []).map((b: BudgetRecord) => [b.cost_category_id, b])
   );
 
-  const rows = (categories ?? []).map((cat) => {
+  const rows = (categories ?? []).map((cat: CategoryRecord) => {
     const b = budgetMap.get(cat.id);
     return {
       cost_category_id: cat.id,
