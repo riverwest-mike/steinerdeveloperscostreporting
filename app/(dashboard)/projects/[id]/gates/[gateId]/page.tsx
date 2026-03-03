@@ -18,7 +18,7 @@ export default async function GatePage({ params }: Props) {
   const [{ data: gate }, { data: project }, { data: categories }, { data: budgets }, userRole] =
     await Promise.all([
       supabase.from("gates").select("*").eq("id", gateId).single(),
-      supabase.from("projects").select("id, name, code").eq("id", projectId).single(),
+      supabase.from("projects").select("id, name, code, appfolio_property_id").eq("id", projectId).single(),
       supabase
         .from("cost_categories")
         .select("id, name, code, description, display_order")
@@ -52,6 +52,40 @@ export default async function GatePage({ params }: Props) {
     (budgets ?? []).map((b: BudgetRecord) => [b.cost_category_id, b])
   );
 
+  // Build actuals from synced AppFolio transactions
+  const actualsMap = new Map<string, number>(); // cost_category_id → total amount
+  if (project.appfolio_property_id) {
+    // Build code → category_id lookup (case-insensitive)
+    const codeToCategory = new Map<string, string>();
+    for (const cat of (categories ?? []) as CategoryRecord[]) {
+      codeToCategory.set(cat.code.trim().toUpperCase(), cat.id);
+    }
+
+    // Query transactions for this property, optionally filtered by gate date range
+    let txQuery = supabase
+      .from("appfolio_transactions")
+      .select("gl_account_id, gl_account_name, invoice_amount")
+      .eq("appfolio_property_id", project.appfolio_property_id);
+
+    if (gate.start_date) {
+      txQuery = txQuery.gte("bill_date", gate.start_date);
+    }
+    if (gate.end_date) {
+      txQuery = txQuery.lte("bill_date", gate.end_date);
+    }
+
+    const { data: transactions } = await txQuery;
+
+    for (const tx of (transactions ?? []) as { gl_account_id: string; gl_account_name: string; invoice_amount: number }[]) {
+      // Try to match GL account to cost category by code
+      const glId = (tx.gl_account_id ?? "").trim().toUpperCase();
+      const categoryId = codeToCategory.get(glId);
+      if (categoryId) {
+        actualsMap.set(categoryId, (actualsMap.get(categoryId) ?? 0) + Number(tx.invoice_amount));
+      }
+    }
+  }
+
   const rows = (categories ?? []).map((cat: CategoryRecord) => {
     const b = budgetMap.get(cat.id);
     return {
@@ -62,6 +96,7 @@ export default async function GatePage({ params }: Props) {
       original_budget: b?.original_budget ?? 0,
       approved_co_amount: b?.approved_co_amount ?? 0,
       revised_budget: b?.revised_budget ?? 0,
+      actual_amount: actualsMap.get(cat.id) ?? 0,
     };
   });
 

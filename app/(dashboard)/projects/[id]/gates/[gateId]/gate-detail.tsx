@@ -23,6 +23,7 @@ interface BudgetRow {
   original_budget: number;
   approved_co_amount: number;
   revised_budget: number;
+  actual_amount: number;
 }
 
 interface GateDetailProps {
@@ -346,12 +347,16 @@ function BudgetTable({
     }
   }
 
+  const hasActuals = rows.some((r) => r.actual_amount > 0);
+
   const totalOriginal = rows.reduce(
     (s, r) => s + (parseFloat(values[r.cost_category_id] || "0") || 0),
     0
   );
   const totalCO = rows.reduce((s, r) => s + r.approved_co_amount, 0);
   const totalRevised = totalOriginal + totalCO;
+  const totalActuals = rows.reduce((s, r) => s + r.actual_amount, 0);
+  const totalVariance = totalRevised - totalActuals;
 
   function handleSave() {
     setError(null);
@@ -402,6 +407,12 @@ function BudgetTable({
               <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Original Budget</th>
               <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Approved COs</th>
               <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Revised Budget</th>
+              {hasActuals && (
+                <>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Actuals</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Variance</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -411,12 +422,14 @@ function BudgetTable({
               );
               const grpCO = group.rows.reduce((s, r) => s + r.approved_co_amount, 0);
               const grpRevised = grpOriginal + grpCO;
+              const grpActuals = group.rows.reduce((s, r) => s + r.actual_amount, 0);
+              const grpVariance = grpRevised - grpActuals;
 
               return (
                 <GroupRows key={group.header}>
                   {/* Header row */}
                   <tr className="bg-muted/40 border-b">
-                    <td colSpan={4} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <td colSpan={hasActuals ? 6 : 4} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {group.header}
                     </td>
                   </tr>
@@ -424,6 +437,7 @@ function BudgetTable({
                   {group.rows.map((row) => {
                     const orig = parseFloat(values[row.cost_category_id] || "0") || 0;
                     const revised = orig + row.approved_co_amount;
+                    const variance = revised - row.actual_amount;
                     return (
                       <tr key={row.cost_category_id} className="border-b last:border-0 hover:bg-muted/10">
                         <td className="px-4 py-2 pl-8">
@@ -456,6 +470,18 @@ function BudgetTable({
                         <td className="px-4 py-2 text-right font-mono text-xs">
                           {revised > 0 ? fmtCurrency(revised) : "—"}
                         </td>
+                        {hasActuals && (
+                          <>
+                            <td className="px-4 py-2 text-right font-mono text-xs">
+                              {row.actual_amount > 0 ? fmtCurrency(row.actual_amount) : "—"}
+                            </td>
+                            <td className={`px-4 py-2 text-right font-mono text-xs ${
+                              revised > 0 && variance < 0 ? "text-destructive font-medium" : ""
+                            }`}>
+                              {revised > 0 || row.actual_amount > 0 ? fmtCurrency(variance) : "—"}
+                            </td>
+                          </>
+                        )}
                       </tr>
                     );
                   })}
@@ -473,6 +499,18 @@ function BudgetTable({
                     <td className="px-4 py-1.5 text-right font-mono text-xs font-medium text-muted-foreground">
                       {grpRevised > 0 ? fmtCurrency(grpRevised) : "—"}
                     </td>
+                    {hasActuals && (
+                      <>
+                        <td className="px-4 py-1.5 text-right font-mono text-xs font-medium text-muted-foreground">
+                          {grpActuals > 0 ? fmtCurrency(grpActuals) : "—"}
+                        </td>
+                        <td className={`px-4 py-1.5 text-right font-mono text-xs font-medium ${
+                          grpRevised > 0 && grpVariance < 0 ? "text-destructive" : "text-muted-foreground"
+                        }`}>
+                          {grpRevised > 0 || grpActuals > 0 ? fmtCurrency(grpVariance) : "—"}
+                        </td>
+                      </>
+                    )}
                   </tr>
                 </GroupRows>
               );
@@ -490,6 +528,18 @@ function BudgetTable({
               <td className="px-4 py-2.5 text-right font-mono text-xs">
                 {totalRevised > 0 ? fmtCurrency(totalRevised) : "—"}
               </td>
+              {hasActuals && (
+                <>
+                  <td className="px-4 py-2.5 text-right font-mono text-xs">
+                    {totalActuals > 0 ? fmtCurrency(totalActuals) : "—"}
+                  </td>
+                  <td className={`px-4 py-2.5 text-right font-mono text-xs ${
+                    totalRevised > 0 && totalVariance < 0 ? "text-destructive" : ""
+                  }`}>
+                    {totalRevised > 0 || totalActuals > 0 ? fmtCurrency(totalVariance) : "—"}
+                  </td>
+                </>
+              )}
             </tr>
           </tfoot>
         </table>

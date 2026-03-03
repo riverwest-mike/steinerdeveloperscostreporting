@@ -111,12 +111,15 @@ export default async function AdminPage() {
               Manage standardized cost classifications
             </p>
           </Link>
-          <div className="rounded-lg border border-dashed p-6">
-            <h4 className="font-semibold text-sm">Bridge Mappings</h4>
+          <Link
+            href="/admin/appfolio"
+            className="rounded-lg border p-6 hover:bg-muted/40 transition-colors"
+          >
+            <h4 className="font-semibold text-sm">AppFolio Sync</h4>
             <p className="text-xs text-muted-foreground mt-1">
-              Phase 4 — Map AppFolio vendors to cost categories
+              Pull bill data and sync transactions
             </p>
-          </div>
+          </Link>
           <div className="rounded-lg border border-dashed p-6">
             <h4 className="font-semibold text-sm">Audit Log</h4>
             <p className="text-xs text-muted-foreground mt-1">
