@@ -393,9 +393,17 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
 
         {project.appfolio_property_id && txTotal === 0 && (
           <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-            No AppFolio transactions found for this property as of{" "}
+            No AppFolio transactions found for property ID <span className="font-mono font-semibold">{project.appfolio_property_id}</span> as of{" "}
             {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.{" "}
             Run an AppFolio sync in Admin to pull data.
+          </div>
+        )}
+
+        {project.appfolio_property_id && txTotal > 0 && (
+          <div className="mb-2 text-xs text-muted-foreground">
+            AppFolio property <span className="font-mono">{project.appfolio_property_id}</span>
+            {" · "}{txTotal} transaction{txTotal !== 1 ? "s" : ""} found
+            {" · "}{txMatched} matched
           </div>
         )}
 
