@@ -9,6 +9,7 @@ import { SyncButton } from "./sync-button";
 import { BalanceSheetSyncButton } from "./balance-sheet-sync-button";
 import { LinkProjects } from "./link-projects";
 import { FieldInspector } from "./field-inspector";
+import { SyncPreview } from "./sync-preview";
 
 export default async function AppFolioSyncPage() {
   const { userId } = await auth();
@@ -242,6 +243,18 @@ export default async function AppFolioSyncPage() {
             The Project Cost Category on each bill is used to match transactions to cost categories.
           </p>
           <SyncButton />
+        </div>
+
+        {/* Sync preview — runs exact same fetch as real sync, shows what would be stored */}
+        <div>
+          <h3 className="text-lg font-semibold mb-1">Sync Preview (Dry Run)</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Runs the <strong>exact same AppFolio fetch</strong> the real sync uses — same function,
+            same property ID filter, same date range — but does <strong>not</strong> write to the database.
+            Shows the raw <code className="font-mono text-xs bg-muted px-1 rounded">project_cost_category</code> value
+            AppFolio returns for each row, and what code/name would be stored. Red rows = would store null.
+          </p>
+          <SyncPreview />
         </div>
 
         {/* API field inspector */}
