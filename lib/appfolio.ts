@@ -308,23 +308,91 @@ export async function fetchBalanceSheet(opts: {
     throw new Error(`AppFolio balance_sheet ${res.status}: ${text}`);
   }
 
-  const data: PaginatedResponse<BalanceSheetRow> = await res.json();
-  const all = [...data.results];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw: unknown = await res.json();
 
-  let nextUrl = data.next_page_url;
-  while (nextUrl) {
-    const pageRes = await fetch(resolveNextUrl(nextUrl), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
-      cache: "no-store",
-    });
-    if (!pageRes.ok) break;
-    const pageData: PaginatedResponse<BalanceSheetRow> = await pageRes.json();
-    all.push(...pageData.results);
-    nextUrl = pageData.next_page_url;
+  // Normalise whichever shape AppFolio returns into a flat BalanceSheetRow[].
+  // Log the top-level shape so any future mismatch is diagnosable.
+  const rows = extractRows(raw);
+  if (rows === null) {
+    const shape = raw && typeof raw === "object"
+      ? `keys: ${Object.keys(raw as object).join(", ")}`
+      : `type: ${typeof raw}`;
+    throw new Error(
+      `AppFolio balance_sheet: unexpected response shape (${shape}). ` +
+      `Raw (first 500 chars): ${JSON.stringify(raw).slice(0, 500)}`
+    );
   }
 
-  return all;
+  // Follow pagination if the standard paginated envelope was used
+  if (
+    raw && typeof raw === "object" && "next_page_url" in (raw as object) &&
+    (raw as { next_page_url: string | null }).next_page_url
+  ) {
+    let nextUrl: string | null = (raw as { next_page_url: string | null }).next_page_url;
+    while (nextUrl) {
+      const pageRes = await fetch(resolveNextUrl(nextUrl), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
+        cache: "no-store",
+      });
+      if (!pageRes.ok) break;
+      const pageRaw: unknown = await pageRes.json();
+      const pageRows = extractRows(pageRaw);
+      if (pageRows) rows.push(...pageRows);
+      nextUrl = (pageRaw && typeof pageRaw === "object" && "next_page_url" in (pageRaw as object))
+        ? (pageRaw as { next_page_url: string | null }).next_page_url
+        : null;
+    }
+  }
+
+  return rows;
+}
+
+/**
+ * Try every known AppFolio response shape for the balance_sheet report and
+ * return a flat BalanceSheetRow[]. Returns null if the shape is unrecognised.
+ */
+function extractRows(raw: unknown): BalanceSheetRow[] | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  // Shape 1: standard paginated envelope { results: [...], next_page_url }
+  if ("results" in (raw as object) && Array.isArray((raw as { results: unknown }).results)) {
+    return (raw as { results: BalanceSheetRow[] }).results;
+  }
+
+  // Shape 2: direct array
+  if (Array.isArray(raw)) return raw as BalanceSheetRow[];
+
+  // Shape 3: { data: [...] }
+  if ("data" in (raw as object) && Array.isArray((raw as { data: unknown }).data)) {
+    return (raw as { data: BalanceSheetRow[] }).data;
+  }
+
+  // Shape 4: { balance_sheet: [...] }  — named root key
+  if ("balance_sheet" in (raw as object) && Array.isArray((raw as { balance_sheet: unknown }).balance_sheet)) {
+    return (raw as { balance_sheet: BalanceSheetRow[] }).balance_sheet;
+  }
+
+  // Shape 5: { balance_sheet: { sections: [{ accounts: [...] }] } } — nested sections
+  if (
+    "balance_sheet" in (raw as object) &&
+    typeof (raw as { balance_sheet: unknown }).balance_sheet === "object"
+  ) {
+    const bs = (raw as { balance_sheet: { sections?: { section_name?: string; accounts?: BalanceSheetRow[] }[] } }).balance_sheet;
+    if (bs.sections && Array.isArray(bs.sections)) {
+      const flattened: BalanceSheetRow[] = [];
+      for (const section of bs.sections) {
+        const type = section.section_name ?? "Other";
+        for (const acct of section.accounts ?? []) {
+          flattened.push({ ...acct, account_type: acct.account_type ?? type });
+        }
+      }
+      return flattened;
+    }
+  }
+
+  return null;
 }
 
 /* ─── General Ledger report ────────────────────────────── */
