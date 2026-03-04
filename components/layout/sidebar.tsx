@@ -8,22 +8,17 @@ import {
   FolderKanban,
   BarChart3,
   ShieldCheck,
+  ChevronDown,
+  FileBarChart2,
 } from "lucide-react";
+import { useState } from "react";
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const baseNavItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
+const adminNavItems = [
+  { href: "/admin", label: "Admin", icon: ShieldCheck },
 ];
 
-const adminNavItems: NavItem[] = [
-  { href: "/admin", label: "Admin", icon: ShieldCheck },
+const reportItems = [
+  { href: "/reports/cost-management", label: "Project Cost Management" },
 ];
 
 interface SidebarProps {
@@ -33,7 +28,10 @@ interface SidebarProps {
 export function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
   const isAdmin = role === "admin";
-  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
+
+  const [reportsOpen, setReportsOpen] = useState(pathname.startsWith("/reports"));
+
+  const reportsActive = pathname.startsWith("/reports");
 
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-card">
@@ -46,18 +44,85 @@ export function Sidebar({ role }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 p-4">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/dashboard"
-              ? pathname === "/dashboard"
-              : pathname.startsWith(item.href);
-          return (
+        {/* Dashboard */}
+        <Link
+          href="/dashboard"
+          className={cn(
+            "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+            pathname === "/dashboard"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          )}
+        >
+          <LayoutDashboard className="h-4 w-4" />
+          Dashboard
+        </Link>
+
+        {/* Projects */}
+        <Link
+          href="/projects"
+          className={cn(
+            "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+            pathname.startsWith("/projects")
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          )}
+        >
+          <FolderKanban className="h-4 w-4" />
+          Projects
+        </Link>
+
+        {/* Reports — expandable */}
+        <div>
+          <button
+            onClick={() => setReportsOpen((o) => !o)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              reportsActive
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            <BarChart3 className="h-4 w-4 shrink-0" />
+            <span className="flex-1 text-left">Reports</span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 transition-transform duration-200",
+                reportsOpen && "rotate-180"
+              )}
+            />
+          </button>
+
+          {reportsOpen && (
+            <div className="mt-1 ml-3 space-y-0.5 border-l pl-3">
+              {reportItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                    pathname.startsWith(item.href)
+                      ? "font-medium text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                  )}
+                >
+                  <FileBarChart2 className="h-3.5 w-3.5 shrink-0" />
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Admin */}
+        {isAdmin &&
+          adminNavItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                isActive
+                pathname.startsWith(item.href)
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
@@ -65,8 +130,7 @@ export function Sidebar({ role }: SidebarProps) {
               <item.icon className="h-4 w-4" />
               {item.label}
             </Link>
-          );
-        })}
+          ))}
       </nav>
 
       {/* Role badge at bottom */}
