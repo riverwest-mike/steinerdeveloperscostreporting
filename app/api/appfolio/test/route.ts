@@ -34,6 +34,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const propertyId = searchParams.get("property_id");
     const days = parseInt(searchParams.get("days") ?? "90", 10);
+    const vendorFilter = searchParams.get("vendor")?.toLowerCase() ?? null;
 
     const toDate = new Date().toISOString().split("T")[0];
     const fromDate = new Date(Date.now() - days * 86400000).toISOString().split("T")[0];
@@ -108,22 +109,30 @@ export async function GET(request: Request) {
         (k) => k.toLowerCase().includes("cost") || k.toLowerCase().includes("category")
       );
 
+      // Optionally narrow to a specific vendor for targeted diagnosis
+      const filteredRows = vendorFilter
+        ? rows.filter((r: Record<string, unknown>) =>
+            String(r.payee_name ?? "").toLowerCase().includes(vendorFilter)
+          )
+        : rows;
+
       const withCostCategory = detectedCostCatField
-        ? rows.filter((r: Record<string, unknown>) => r[detectedCostCatField] != null && r[detectedCostCatField] !== "")
+        ? filteredRows.filter((r: Record<string, unknown>) => r[detectedCostCatField] != null && r[detectedCostCatField] !== "")
         : [];
+      const withoutCostCategory = filteredRows.filter((r: Record<string, unknown>) =>
+        !detectedCostCatField || !r[detectedCostCatField]
+      );
       results[endpoint] = {
         total_records: rows.length,
+        filtered_records: vendorFilter ? filteredRows.length : undefined,
         has_next_page: !!data.next_page_url,
         all_field_names: [...allFields].sort(),
         cost_related_fields: costRelatedFields,
         detected_cost_category_field: detectedCostCatField,
         records_with_cost_category: withCostCategory.length,
         sample_with_cost_category: withCostCategory.slice(0, 3),
-        sample_without_cost_category: rows
-          .filter((r: Record<string, unknown>) =>
-            !detectedCostCatField || !r[detectedCostCatField]
-          )
-          .slice(0, 2),
+        records_without_cost_category: withoutCostCategory.length,
+        sample_without_cost_category: withoutCostCategory.slice(0, 5),
       };
     }
 

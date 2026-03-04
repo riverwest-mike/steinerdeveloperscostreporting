@@ -5,11 +5,15 @@ import { useState } from "react";
 interface EndpointResult {
   error?: string;
   total_records?: number;
+  filtered_records?: number;
+  has_next_page?: boolean;
   all_field_names?: string[];
   cost_related_fields?: string[];
   detected_cost_category_field?: string | null;
   records_with_cost_category?: number;
+  records_without_cost_category?: number;
   sample_with_cost_category?: Record<string, unknown>[];
+  sample_without_cost_category?: Record<string, unknown>[];
 }
 
 interface TestResult {
@@ -23,16 +27,17 @@ export function FieldInspector({ propertyId }: { propertyId?: string }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [vendor, setVendor] = useState("");
 
   async function handleInspect() {
     setLoading(true);
     setResult(null);
     setError(null);
     try {
-      const url = propertyId
-        ? `/api/appfolio/test?property_id=${propertyId}&days=365`
-        : `/api/appfolio/test?days=365`;
-      const res = await fetch(url);
+      const params = new URLSearchParams({ days: "365" });
+      if (propertyId) params.set("property_id", propertyId);
+      if (vendor.trim()) params.set("vendor", vendor.trim());
+      const res = await fetch(`/api/appfolio/test?${params}`);
       const data: TestResult = await res.json();
       if (!res.ok) {
         setError(data.error ?? `Request failed (${res.status})`);
@@ -50,13 +55,22 @@ export function FieldInspector({ propertyId }: { propertyId?: string }) {
 
   return (
     <div className="space-y-3">
-      <button
-        onClick={handleInspect}
-        disabled={loading}
-        className="rounded border border-input bg-background px-4 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
-      >
-        {loading ? "Fetching…" : "Inspect Raw API Fields"}
-      </button>
+      <div className="flex gap-2 items-center">
+        <input
+          type="text"
+          placeholder="Filter by vendor name (e.g. Kimley)"
+          value={vendor}
+          onChange={(e) => setVendor(e.target.value)}
+          className="rounded border border-input bg-background px-3 py-1.5 text-sm w-64"
+        />
+        <button
+          onClick={handleInspect}
+          disabled={loading}
+          className="rounded border border-input bg-background px-4 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
+        >
+          {loading ? "Fetching…" : "Inspect Raw API Fields"}
+        </button>
+      </div>
 
       {error && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/5 px-4 py-3 text-sm text-destructive">
@@ -70,30 +84,52 @@ export function FieldInspector({ propertyId }: { propertyId?: string }) {
             <p className="text-destructive">vendor_ledger error: {vl.error}</p>
           ) : (
             <>
-              <div className="flex gap-6 text-xs">
-                <span><span className="font-medium">{vl.total_records ?? 0}</span> rows fetched</span>
+              <div className="flex flex-wrap gap-4 text-xs">
+                <span><span className="font-medium">{vl.total_records ?? 0}</span> total rows</span>
+                {vl.filtered_records !== undefined && (
+                  <span><span className="font-medium">{vl.filtered_records}</span> matching vendor filter</span>
+                )}
+                {vl.has_next_page && (
+                  <span className="text-amber-600 font-medium">⚠ More pages exist (not all fetched)</span>
+                )}
                 <span>
-                  Cost category field:{" "}
-                  {vl.detected_cost_category_field ? (
-                    <code className="font-mono bg-green-100 text-green-800 px-1 rounded">
-                      {vl.detected_cost_category_field}
-                    </code>
-                  ) : (
-                    <span className="text-red-600 font-medium">not detected</span>
-                  )}
+                  <span className="font-medium text-green-700">{vl.records_with_cost_category ?? 0}</span> with project_cost_category
                 </span>
                 <span>
-                  <span className="font-medium">{vl.records_with_cost_category ?? 0}</span> rows have a cost category
+                  <span className="font-medium text-red-600">{vl.records_without_cost_category ?? 0}</span> without project_cost_category
                 </span>
               </div>
 
-              {(vl.cost_related_fields ?? []).length > 0 && (
-                <div className="text-xs">
-                  <span className="font-medium">Cost/category fields found: </span>
-                  {(vl.cost_related_fields ?? []).map((f) => (
-                    <code key={f} className="font-mono bg-muted px-1 rounded mr-1">{f}</code>
-                  ))}
-                </div>
+              {/* Sample rows WITHOUT cost category — the key diagnostic */}
+              {(vl.sample_without_cost_category ?? []).length > 0 && (
+                <details open className="text-xs">
+                  <summary className="cursor-pointer font-medium select-none text-red-700">
+                    Sample rows WITHOUT project_cost_category ({vl.records_without_cost_category ?? 0} total) — click to expand
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    {(vl.sample_without_cost_category ?? []).map((row, i) => (
+                      <pre key={i} className="overflow-x-auto bg-muted rounded p-2 text-[11px]">
+                        {JSON.stringify(row, null, 2)}
+                      </pre>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              {/* Sample rows WITH cost category */}
+              {(vl.sample_with_cost_category ?? []).length > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer font-medium select-none text-green-700">
+                    Sample rows WITH project_cost_category ({vl.records_with_cost_category ?? 0} total)
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    {(vl.sample_with_cost_category ?? []).map((row, i) => (
+                      <pre key={i} className="overflow-x-auto bg-muted rounded p-2 text-[11px]">
+                        {JSON.stringify(row, null, 2)}
+                      </pre>
+                    ))}
+                  </div>
+                </details>
               )}
 
               <details className="text-xs">
@@ -106,17 +142,6 @@ export function FieldInspector({ propertyId }: { propertyId?: string }) {
                   ))}
                 </div>
               </details>
-
-              {(vl.sample_with_cost_category ?? []).length > 0 && (
-                <details className="text-xs">
-                  <summary className="cursor-pointer font-medium select-none">
-                    Sample row with cost category
-                  </summary>
-                  <pre className="mt-2 overflow-x-auto bg-muted rounded p-2 text-[11px]">
-                    {JSON.stringify(vl.sample_with_cost_category![0], null, 2)}
-                  </pre>
-                </details>
-              )}
             </>
           )}
         </div>
