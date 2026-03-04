@@ -9,7 +9,7 @@ import { createAdminClient } from "@/lib/supabase/server";
  * and returns the raw field names + first few records so we can see
  * exactly what columns are available, including the cost_category field.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -30,15 +30,24 @@ export async function GET() {
     const clientSecret = process.env.APPFOLIO_CLIENT_SECRET!;
     const dbUrl = process.env.APPFOLIO_DATABASE_URL!;
 
+    // Accept ?property_id=196&days=365 query params
+    const { searchParams } = new URL(request.url);
+    const propertyId = searchParams.get("property_id");
+    const days = parseInt(searchParams.get("days") ?? "90", 10);
+
     const toDate = new Date().toISOString().split("T")[0];
-    const fromDate = new Date(Date.now() - 90 * 86400000).toISOString().split("T")[0];
+    const fromDate = new Date(Date.now() - days * 86400000).toISOString().split("T")[0];
 
     const authHeader = `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`;
-    const params = {
+    const params: Record<string, unknown> = {
       occurred_on_from: fromDate,
       occurred_on_to: toDate,
       paginate_results: true,
     };
+
+    if (propertyId) {
+      params.properties = { properties_ids: [propertyId] };
+    }
 
     // Try vendor_ledger first (has cost_category), fall back to bill_detail
     const endpoints = ["vendor_ledger", "bill_detail"];
@@ -69,16 +78,26 @@ export async function GET() {
         }
       }
 
+      const withCostCategory = rows.filter(
+        (r: Record<string, unknown>) => r.project_cost_category != null && r.project_cost_category !== ""
+      );
       results[endpoint] = {
         total_records: rows.length,
         has_next_page: !!data.next_page_url,
         all_field_names: [...allFields].sort(),
-        sample_records: rows.slice(0, 3),
-        has_cost_category: allFields.has("cost_category"),
+        records_with_project_cost_category: withCostCategory.length,
+        sample_with_cost_category: withCostCategory.slice(0, 3),
+        sample_without_cost_category: rows.filter(
+          (r: Record<string, unknown>) => !r.project_cost_category
+        ).slice(0, 2),
       };
     }
 
-    return NextResponse.json({ date_range: { fromDate, toDate }, endpoints: results });
+    return NextResponse.json({
+      date_range: { fromDate, toDate },
+      filter: propertyId ? { property_id: propertyId } : "all properties",
+      endpoints: results,
+    });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Test failed" },
