@@ -31,7 +31,9 @@ export async function GET(request: Request) {
     }
 
     const toDate = new Date().toISOString().split("T")[0];
-    const fromDate = new Date(Date.now() - 365 * 86400000).toISOString().split("T")[0];
+    // Allow caller to pass a custom fromDate so we can test "2000-01-01" (used by Run Report)
+    // vs the default 1-year window (used by the admin full sync)
+    const fromDate = searchParams.get("from_date") ?? new Date(Date.now() - 365 * 86400000).toISOString().split("T")[0];
 
     // Use EXACTLY the same fetchVendorLedger call as the real sync
     const rows = await fetchVendorLedger({
