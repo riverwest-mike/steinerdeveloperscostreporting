@@ -10,6 +10,7 @@ import { BalanceSheetSyncButton } from "./balance-sheet-sync-button";
 import { LinkProjects } from "./link-projects";
 import { FieldInspector } from "./field-inspector";
 import { SyncPreview } from "./sync-preview";
+import { ReportQueryDebug } from "./report-query-debug";
 
 export default async function AppFolioSyncPage() {
   const { userId } = await auth();
@@ -243,6 +244,19 @@ export default async function AppFolioSyncPage() {
             The Project Cost Category on each bill is used to match transactions to cost categories.
           </p>
           <SyncButton />
+        </div>
+
+        {/* Report query debug — runs exact same Supabase query the report uses */}
+        <div>
+          <h3 className="text-lg font-semibold mb-1">Report Query Debug</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Runs the <strong>exact same Supabase query</strong> the report page uses to fetch transactions,
+            then runs the matching logic against cost_categories. Shows what <code className="text-xs font-mono bg-muted px-1 rounded">cost_category_code</code> the
+            report query <em>actually returns</em> vs what is in the DB via SELECT *.
+            If "report query returns null" but "SELECT * shows a code" — there is a schema/RLS issue.
+            If the code is correct but "not in map" — the cost_categories codes don&apos;t match.
+          </p>
+          <ReportQueryDebug />
         </div>
 
         {/* Sync preview — runs exact same fetch as real sync, shows what would be stored */}
