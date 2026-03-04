@@ -116,26 +116,116 @@ export async function POST(request: Request) {
         paymentStatus: "All",
       });
 
-      // Upsert transactions
+      // ── Load bridge_mappings for all synced projects ──────────────────────
+      // Maps  gl_account_id (and/or vendor_name_pattern) → cost_category_code
+      // Used as a fallback when AppFolio doesn't supply project_cost_category.
+      interface BridgeRule {
+        gl_account_id: string | null;
+        vendor_name_pattern: string | null;
+        match_type: "exact" | "contains" | "starts_with";
+        priority: number;
+        cost_category_code: string;
+        cost_category_name: string;
+        appfolio_property_id: string;
+      }
+      const bridgeRules: BridgeRule[] = [];
+      {
+        const projectIds = projects.map((p: { id: string }) => p.id);
+        const { data: rawBridge } = await supabase
+          .from("bridge_mappings")
+          .select(
+            "gl_account_id, vendor_name_pattern, match_type, priority, " +
+            "cost_category_id, project_id"
+          )
+          .in("project_id", projectIds)
+          .eq("is_active", true)
+          .order("priority", { ascending: true });
+
+        if (rawBridge && rawBridge.length > 0) {
+          const catIds = [...new Set((rawBridge as { cost_category_id: string }[]).map((r) => r.cost_category_id))];
+          const { data: cats } = await supabase
+            .from("cost_categories")
+            .select("id, code, name")
+            .in("id", catIds);
+          const catMap = new Map<string, { id: string; code: string; name: string }>(
+            (cats ?? []).map((c: { id: string; code: string; name: string }) => [c.id, c])
+          );
+
+          // Build property_id → project map for looking up appfolio_property_id
+          const projMap = new Map<string, string>(
+            projects
+              .filter((p: { id: string; appfolio_property_id: string | null }) => p.appfolio_property_id)
+              .map((p: { id: string; appfolio_property_id: string | null }) => [p.id, p.appfolio_property_id as string])
+          );
+
+          for (const rule of rawBridge as {
+            gl_account_id: string | null;
+            vendor_name_pattern: string | null;
+            match_type: "exact" | "contains" | "starts_with";
+            priority: number;
+            cost_category_id: string;
+            project_id: string;
+          }[]) {
+            const cat = catMap.get(rule.cost_category_id);
+            const propId = projMap.get(rule.project_id);
+            if (cat && propId) {
+              bridgeRules.push({
+                gl_account_id: rule.gl_account_id,
+                vendor_name_pattern: rule.vendor_name_pattern,
+                match_type: rule.match_type,
+                priority: rule.priority,
+                cost_category_code: cat.code,
+                cost_category_name: cat.name,
+                appfolio_property_id: propId,
+              });
+            }
+          }
+        }
+      }
+
+      function applyBridgeRules(
+        glAccountId: string,
+        vendorName: string,
+        applyPropertyId: string
+      ): { code: string; name: string } | null {
+        const relevant = bridgeRules.filter((r) => r.appfolio_property_id === applyPropertyId);
+        for (const rule of relevant) {
+          // GL account must match if specified
+          if (rule.gl_account_id && rule.gl_account_id !== glAccountId) continue;
+          // Vendor pattern must match if specified
+          if (rule.vendor_name_pattern) {
+            const pattern = rule.vendor_name_pattern.toLowerCase();
+            const vendor = vendorName.toLowerCase();
+            if (rule.match_type === "exact" && vendor !== pattern) continue;
+            if (rule.match_type === "contains" && !vendor.includes(pattern)) continue;
+            if (rule.match_type === "starts_with" && !vendor.startsWith(pattern)) continue;
+          }
+          return { code: rule.cost_category_code, name: rule.cost_category_name };
+        }
+        return null;
+      }
+
+      // ── Upsert transactions ───────────────────────────────────────────────
       let upsertedCount = 0;
       let unmappedCount = 0;
       const BATCH_SIZE = 100;
 
       for (let i = 0; i < rows.length; i += BATCH_SIZE) {
         const batch = rows.slice(i, i + BATCH_SIZE);
-        const upsertRows = batch.map((row: VendorLedgerRow) => {
+
+        // Build preliminary rows (AppFolio data only)
+        const prelimRows = batch.map((row: VendorLedgerRow) => {
           const paidAmt = parseFloat(row.paid ?? "0") || 0;
           const unpaidAmt = parseFloat(row.unpaid ?? "0") || 0;
           const { code: costCode, name: costName } = parseCostCategory(row.project_cost_category);
-          if (!costCode) unmappedCount++;
           return {
             appfolio_bill_id: String(row.payable_invoice_detail_id),
             appfolio_property_id: String(row.property_id ?? ""),
             vendor_name: row.payee_name ?? "Unknown",
             gl_account_id: row.account_number ?? "",
             gl_account_name: row.account_name ?? "",
-            cost_category_code: costCode ?? null,
-            cost_category_name: costName ?? null,
+            _appfolio_code: costCode ?? null,   // what AppFolio returned
+            _appfolio_name: costName ?? null,
             bill_date: row.bill_date ?? null,
             due_date: row.due_date ?? null,
             payment_date: row.payment_date ?? null,
@@ -149,6 +239,58 @@ export async function POST(request: Request) {
             description: row.description ?? null,
             property_name: row.property_name ?? null,
             sync_id: syncId,
+          };
+        });
+
+        // For rows with no AppFolio category: fetch existing DB values so we
+        // don't accidentally overwrite a previously-classified transaction.
+        const needsLookup = prelimRows
+          .filter((r) => !r._appfolio_code)
+          .map((r) => r.appfolio_bill_id);
+
+        const existingMap = new Map<string, { cost_category_code: string | null; cost_category_name: string | null }>();
+        if (needsLookup.length > 0) {
+          const { data: existing } = await supabase
+            .from("appfolio_transactions")
+            .select("appfolio_bill_id, cost_category_code, cost_category_name")
+            .in("appfolio_bill_id", needsLookup);
+          for (const e of (existing ?? []) as { appfolio_bill_id: string; cost_category_code: string | null; cost_category_name: string | null }[]) {
+            existingMap.set(e.appfolio_bill_id, e);
+          }
+        }
+
+        // Resolve final cost_category_code: AppFolio → bridge_mapping → existing DB value
+        const upsertRows = prelimRows.map((row) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { _appfolio_code, _appfolio_name, ...rest } = row;
+
+          let finalCode = _appfolio_code;
+          let finalName = _appfolio_name;
+
+          if (!finalCode) {
+            // Try bridge mappings
+            const bridgeMatch = applyBridgeRules(row.gl_account_id, row.vendor_name, row.appfolio_property_id);
+            if (bridgeMatch) {
+              finalCode = bridgeMatch.code;
+              finalName = bridgeMatch.name;
+            }
+          }
+
+          if (!finalCode) {
+            // Preserve existing DB value rather than overwriting with null
+            const prev = existingMap.get(row.appfolio_bill_id);
+            if (prev?.cost_category_code) {
+              finalCode = prev.cost_category_code;
+              finalName = prev.cost_category_name ?? null;
+            }
+          }
+
+          if (!finalCode) unmappedCount++;
+
+          return {
+            ...rest,
+            cost_category_code: finalCode ?? null,
+            cost_category_name: finalName ?? null,
           };
         });
 
