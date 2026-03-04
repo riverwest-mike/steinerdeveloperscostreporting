@@ -140,20 +140,7 @@ export async function POST(request: Request) {
           const paidAmt = parseFloat(row.paid ?? "0") || 0;
           const unpaidAmt = parseFloat(row.unpaid ?? "0") || 0;
 
-          // 1st choice: AppFolio Project Cost Category (only set when bill is linked
-          //             to an AppFolio Project with a cost category assigned).
-          // 2nd choice: GL account_number + account_name — AppFolio invoices coded
-          //             directly to a GL account (e.g. "010700" / "Survey") with no
-          //             Project attached still carry the cost code in these fields.
-          let costCatRaw = getProjectCostCategory(row);
-          if (!costCatRaw) {
-            const acctNum = (row.account_number ?? "").trim();
-            const acctName = (row.account_name ?? "").trim();
-            if (acctNum && /^\d/.test(acctNum)) {
-              costCatRaw = acctName ? `${acctNum} ${acctName}` : acctNum;
-            }
-          }
-          const { code: costCode, name: costName } = parseCostCategory(costCatRaw);
+          const { code: costCode, name: costName } = parseCostCategory(getProjectCostCategory(row));
           return {
             appfolio_bill_id: String(row.payable_invoice_detail_id),
             appfolio_property_id: String(row.property_id ?? ""),

@@ -249,30 +249,19 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     // Fetch transactions — include rows where bill_date is null (undated)
     const { data: rawTx } = await supabase
       .from("appfolio_transactions")
-      .select("cost_category_code, cost_category_name, gl_account_id, gl_account_name, vendor_name, invoice_amount")
+      .select("cost_category_code, cost_category_name, vendor_name, invoice_amount")
       .eq("appfolio_property_id", project.appfolio_property_id)
       .or(`bill_date.lte.${asOf},bill_date.is.null`);
 
     for (const tx of (rawTx ?? []) as {
       cost_category_code: string | null;
       cost_category_name: string | null;
-      gl_account_id: string | null;
-      gl_account_name: string | null;
       vendor_name: string;
       invoice_amount: number;
     }[]) {
       txTotal++;
+      const code = (tx.cost_category_code ?? "").trim().toUpperCase();
       const amount = Number(tx.invoice_amount);
-
-      // Primary: use cost_category_code from sync.
-      // Fallback: use gl_account_id if it looks like a cost code (starts with digit)
-      // and cost_category_code is absent — handles invoices not linked to an AppFolio
-      // Project where the cost code lives in the GL account instead.
-      let code = (tx.cost_category_code ?? "").trim().toUpperCase();
-      if (!code) {
-        const glNum = (tx.gl_account_id ?? "").trim();
-        if (glNum && /^\d/.test(glNum)) code = glNum.toUpperCase();
-      }
 
       const catId = code ? (codeToCategory.get(code) ?? null) : null;
 
@@ -281,8 +270,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         actualsMap.set(catId, (actualsMap.get(catId) ?? 0) + amount);
       } else {
         const displayCode = code || "(no cost category)";
-        const glLabel = tx.gl_account_id ? ` [GL: ${tx.gl_account_id}]` : "";
-        const displayName = (tx.vendor_name || tx.cost_category_name || displayCode) + glLabel;
+        const displayName = tx.vendor_name || tx.cost_category_name || displayCode;
         const prev = unmatchedCats.get(displayCode) ?? { name: displayName, amount: 0 };
         unmatchedCats.set(displayCode, { name: prev.name, amount: prev.amount + amount });
       }
