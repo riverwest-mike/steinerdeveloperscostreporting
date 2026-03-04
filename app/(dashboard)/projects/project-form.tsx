@@ -38,7 +38,25 @@ const STATUSES = [
 export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [codeManuallyEdited, setCodeManuallyEdited] = useState(!!editing?.code);
+  const [codeValue, setCodeValue] = useState(editing?.code ?? "");
   const router = useRouter();
+
+  function deriveCode(name: string): string {
+    return name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 4)
+      .map((w) => w[0].toUpperCase())
+      .join("");
+  }
+
+  function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!codeManuallyEdited) {
+      setCodeValue(deriveCode(e.target.value));
+    }
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,6 +94,7 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormP
             defaultValue={editing?.name}
             placeholder="e.g. Riverfront Lofts"
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+            onChange={handleNameChange}
           />
           <p className="text-xs text-muted-foreground">
             Must match the Property Name exactly as it appears in AppFolio for transaction syncing to work correctly.
@@ -88,11 +107,17 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormP
           <input
             id="code"
             name="code"
-            required
-            defaultValue={editing?.code}
-            placeholder="e.g. RFL-001"
+            value={codeValue}
+            placeholder="e.g. RFL"
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm uppercase"
+            onChange={(e) => {
+              setCodeManuallyEdited(true);
+              setCodeValue(e.target.value.toUpperCase());
+            }}
           />
+          {!codeManuallyEdited && !editing && (
+            <p className="text-xs text-muted-foreground">Auto-filled from name — edit to override.</p>
+          )}
         </div>
       </div>
 
