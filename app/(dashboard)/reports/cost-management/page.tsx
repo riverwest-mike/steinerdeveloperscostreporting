@@ -97,10 +97,10 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   // Always load project list for the picker
   const { data: allProjects } = await supabase
     .from("projects")
-    .select("id, name, code")
+    .select("id, name, code, appfolio_property_id")
     .order("name");
 
-  const projects = (allProjects ?? []) as { id: string; name: string; code: string }[];
+  const projects = (allProjects ?? []) as { id: string; name: string; code: string; appfolio_property_id: string | null }[];
 
   // ── If no project selected, render just the controls ──
   if (!projectId) {
