@@ -270,7 +270,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         actualsMap.set(catId, (actualsMap.get(catId) ?? 0) + amount);
       } else {
         const displayCode = code || "(no cost category)";
-        const displayName = tx.cost_category_name || tx.vendor_name || displayCode;
+        const displayName = tx.vendor_name || tx.cost_category_name || displayCode;
         const prev = unmatchedCats.get(displayCode) ?? { name: displayName, amount: 0 };
         unmatchedCats.set(displayCode, { name: prev.name, amount: prev.amount + amount });
       }
