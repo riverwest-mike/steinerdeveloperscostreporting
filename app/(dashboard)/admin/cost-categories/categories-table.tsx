@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { CategoryForm } from "./category-form";
-import { toggleCategoryActive, seedDefaultCategories } from "./actions";
+import { toggleCategoryActive, seedDefaultCategories, deleteCategory } from "./actions";
 
 interface Category {
   id: string;
@@ -21,6 +21,13 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
   function handleToggle(id: string, current: boolean) {
     startTransition(() => {
       toggleCategoryActive(id, current).catch((err) => alert(err.message));
+    });
+  }
+
+  function handleDelete(id: string, name: string) {
+    if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+    startTransition(() => {
+      deleteCategory(id).catch((err) => alert(err.message));
     });
   }
 
@@ -109,6 +116,13 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
                         className="text-xs text-muted-foreground underline-offset-2 hover:underline disabled:opacity-50"
                       >
                         {cat.is_active ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(cat.id, cat.name)}
+                        disabled={isPending}
+                        className="text-xs text-destructive underline-offset-2 hover:underline disabled:opacity-50"
+                      >
+                        Delete
                       </button>
                     </div>
                   </td>

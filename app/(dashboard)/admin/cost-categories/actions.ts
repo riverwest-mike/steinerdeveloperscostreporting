@@ -75,6 +75,14 @@ export async function seedDefaultCategories() {
   revalidatePath("/admin/cost-categories");
 }
 
+export async function deleteCategory(id: string) {
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase.from("cost_categories").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/cost-categories");
+}
+
 export async function toggleCategoryActive(id: string, currentValue: boolean) {
   const { supabase } = await requireAdmin();
 

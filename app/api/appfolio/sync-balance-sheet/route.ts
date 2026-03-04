@@ -22,25 +22,32 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient();
 
-    const { data: user } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", userId)
-      .single();
-    if (user?.role !== "admin") {
-      return NextResponse.json({ error: "Admin role required" }, { status: 403 });
-    }
-
     // Parse body params
     let asOfDate: string;
     let accountingBasis: "Cash" | "Accrual";
+    let propertyId: string | null = null;
+    let adminOnly = false;
     try {
       const body = await request.json();
       asOfDate = body.asOfDate ?? new Date().toISOString().split("T")[0];
       accountingBasis = body.accountingBasis === "Cash" ? "Cash" : "Accrual";
+      propertyId = body.propertyId ?? null;
+      adminOnly = !propertyId; // full sync (no propertyId) requires admin
     } catch {
       asOfDate = new Date().toISOString().split("T")[0];
       accountingBasis = "Accrual";
+      adminOnly = true;
+    }
+
+    if (adminOnly) {
+      const { data: user } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", userId)
+        .single();
+      if (user?.role !== "admin") {
+        return NextResponse.json({ error: "Admin role required for full sync" }, { status: 403 });
+      }
     }
 
     // Create sync record
@@ -55,12 +62,16 @@ export async function POST(request: Request) {
     const syncId = syncRecord.id;
 
     try {
-      // Get all projects with appfolio_property_id set
-      const { data: projects } = await supabase
+      // Get projects with appfolio_property_id set (optionally filtered to one property)
+      let projectQuery = supabase
         .from("projects")
         .select("id, appfolio_property_id")
         .not("appfolio_property_id", "is", null)
         .neq("appfolio_property_id", "");
+      if (propertyId) {
+        projectQuery = projectQuery.eq("appfolio_property_id", propertyId);
+      }
+      const { data: projects } = await projectQuery;
 
       if (!projects || projects.length === 0) {
         await supabase

@@ -25,9 +25,13 @@ export async function createProject(
   try {
     const { userId, supabase } = await requirePM();
 
+    const name = (formData.get("name") as string).trim();
+    const rawCode = (formData.get("code") as string | null)?.trim().toUpperCase() || "";
+    const code = rawCode || name.split(/\s+/).filter(Boolean).slice(0, 4).map((w) => w[0].toUpperCase()).join("");
+
     const payload = {
-      name: (formData.get("name") as string).trim(),
-      code: (formData.get("code") as string).trim().toUpperCase(),
+      name,
+      code,
       appfolio_property_id: (formData.get("appfolio_property_id") as string)?.trim() || null,
       property_type: (formData.get("property_type") as string) || null,
       address: (formData.get("address") as string)?.trim() || null,
