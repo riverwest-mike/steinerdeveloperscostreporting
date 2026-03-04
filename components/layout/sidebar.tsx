@@ -19,6 +19,7 @@ const adminNavItems = [
 
 const reportItems = [
   { href: "/reports/cost-management", label: "Project Cost Management" },
+  { href: "/reports/balance-sheet", label: "Balance Sheet" },
 ];
 
 interface SidebarProps {
