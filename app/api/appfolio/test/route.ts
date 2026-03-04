@@ -69,7 +69,19 @@ export async function GET(request: Request) {
       }
 
       const data = await res.json();
-      const rows = data.results ?? [];
+      // Paginate through all pages (same as fetchVendorLedger — GET for subsequent pages)
+      const rows: Record<string, unknown>[] = [...(data.results ?? [])];
+      let nextUrl: string | null = data.next_page_url ?? null;
+      while (nextUrl) {
+        const pageRes = await fetch(
+          nextUrl.startsWith("http") ? nextUrl : `https://${dbUrl}${nextUrl}`,
+          { method: "GET", headers: { Authorization: authHeader }, cache: "no-store" }
+        );
+        if (!pageRes.ok) break;
+        const pageData = await pageRes.json();
+        rows.push(...(pageData.results ?? []));
+        nextUrl = pageData.next_page_url ?? null;
+      }
 
       const allFields = new Set<string>();
       for (const row of rows) {
