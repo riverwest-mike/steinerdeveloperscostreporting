@@ -23,26 +23,32 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient();
 
-    // Verify admin role
-    const { data: user } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", userId)
-      .single();
-    if (user?.role !== "admin") {
-      return NextResponse.json({ error: "Admin role required" }, { status: 403 });
-    }
-
     // Parse optional body params
     let fromDate: string;
     let toDate: string;
+    let propertyId: string | null = null;
+    let adminOnly = false;
     try {
       const body = await request.json();
       fromDate = body.fromDate ?? getDefaultFromDate();
       toDate = body.toDate ?? getDefaultToDate();
+      propertyId = body.propertyId ?? null;
+      adminOnly = !propertyId; // full sync (no propertyId) requires admin
     } catch {
       fromDate = getDefaultFromDate();
       toDate = getDefaultToDate();
+      adminOnly = true;
+    }
+
+    if (adminOnly) {
+      const { data: user } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", userId)
+        .single();
+      if (user?.role !== "admin") {
+        return NextResponse.json({ error: "Admin role required for full sync" }, { status: 403 });
+      }
     }
 
     // Create sync record
@@ -61,12 +67,16 @@ export async function POST(request: Request) {
     const syncId = syncRecord.id;
 
     try {
-      // Get all projects with appfolio_property_id set
-      const { data: projects } = await supabase
+      // Get projects with appfolio_property_id set (optionally filtered to one property)
+      let projectQuery = supabase
         .from("projects")
         .select("id, name, appfolio_property_id")
         .not("appfolio_property_id", "is", null)
         .neq("appfolio_property_id", "");
+      if (propertyId) {
+        projectQuery = projectQuery.eq("appfolio_property_id", propertyId);
+      }
+      const { data: projects } = await projectQuery;
 
       if (!projects || projects.length === 0) {
         await supabase
