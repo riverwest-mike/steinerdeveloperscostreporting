@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
+import { ReportRestorer } from "./report-restorer";
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -112,6 +113,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
             currentProjectId={null}
             currentAsOf={asOf}
           />
+          <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
             <p className="text-muted-foreground text-sm">Select a project above to generate the report.</p>
           </div>
