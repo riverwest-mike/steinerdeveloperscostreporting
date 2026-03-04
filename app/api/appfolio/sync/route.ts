@@ -116,7 +116,7 @@ export async function POST(request: Request) {
         const upsertRows = batch.map((row: VendorLedgerRow) => {
           const paidAmt = parseFloat(row.paid ?? "0") || 0;
           const unpaidAmt = parseFloat(row.unpaid ?? "0") || 0;
-          const { code: costCode, name: costName } = parseCostCategory(row.cost_category);
+          const { code: costCode, name: costName } = parseCostCategory(row.project_cost_category);
           if (!costCode) unmappedCount++;
           return {
             appfolio_bill_id: String(row.payable_invoice_detail_id),

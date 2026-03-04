@@ -175,8 +175,9 @@ export interface VendorLedgerRow {
   /**
    * AppFolio Project Cost Category, e.g. "010700 Survey".
    * Split on first space: code = part[0], name = rest.
+   * Only populated when the bill is linked to an AppFolio Project.
    */
-  cost_category: string | null;
+  project_cost_category: string | null;
   [key: string]: unknown;
 }
 
