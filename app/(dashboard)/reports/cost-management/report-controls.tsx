@@ -22,6 +22,17 @@ export function ReportControls({
   const router = useRouter();
 
   function navigate(projectId: string, asOf: string) {
+    // Persist so the user lands back on the same filter after navigating away
+    if (projectId) {
+      try {
+        localStorage.setItem(
+          "pcmr_last_filter",
+          JSON.stringify({ projectId, asOf })
+        );
+      } catch {
+        // storage unavailable — ignore
+      }
+    }
     const params = new URLSearchParams();
     if (projectId) params.set("projectId", projectId);
     if (asOf) params.set("asOf", asOf);
