@@ -90,6 +90,28 @@ export default async function AppFolioSyncPage() {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([code, { name, matched }]) => ({ code, name, matched }));
 
+  // GL Balances diagnostic: sample rows to verify field mapping
+  const { data: glSample } = await supabase
+    .from("gl_balances")
+    .select("appfolio_property_id, gl_account_id, gl_account_name, gl_account_number, account_type, balance, as_of_date, accounting_basis")
+    .order("synced_at", { ascending: false })
+    .limit(10);
+
+  const glRows = (glSample ?? []) as {
+    appfolio_property_id: string;
+    gl_account_id: string;
+    gl_account_name: string;
+    gl_account_number: string | null;
+    account_type: string;
+    balance: number;
+    as_of_date: string;
+    accounting_basis: string;
+  }[];
+
+  const { count: glCount } = await supabase
+    .from("gl_balances")
+    .select("id", { count: "exact", head: true });
+
   // Get ALL active projects with their current AppFolio property ID (for the mapping table)
   const { data: allActiveProjects } = await supabase
     .from("projects")
@@ -295,6 +317,57 @@ export default async function AppFolioSyncPage() {
             Results are keyed by property + account + date + basis, so multiple dates can coexist.
           </p>
           <BalanceSheetSyncButton />
+        </div>
+
+        {/* GL Balances diagnostic */}
+        <div>
+          <h3 className="text-lg font-semibold mb-1">GL Balances — Stored Data</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Most recent 10 rows in the <code className="font-mono text-xs bg-muted px-1 rounded">gl_balances</code> table.
+            Use this to verify that the balance sheet sync is storing data with the correct field values.
+          </p>
+          <p className="text-sm mb-3">
+            <span className="font-medium">{(glCount ?? 0).toLocaleString()}</span>
+            <span className="text-muted-foreground"> total rows stored</span>
+          </p>
+          {glRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No GL balance data synced yet. Run a Balance Sheet sync above.</p>
+          ) : (
+            <div className="rounded-lg border overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/50 border-b">
+                    <th className="px-3 py-2 text-left font-medium">Property ID</th>
+                    <th className="px-3 py-2 text-left font-medium">Account ID</th>
+                    <th className="px-3 py-2 text-left font-medium">Account Name</th>
+                    <th className="px-3 py-2 text-left font-medium">Account #</th>
+                    <th className="px-3 py-2 text-left font-medium">Type</th>
+                    <th className="px-3 py-2 text-right font-medium">Balance</th>
+                    <th className="px-3 py-2 text-left font-medium">As Of</th>
+                    <th className="px-3 py-2 text-left font-medium">Basis</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {glRows.map((r, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="px-3 py-2 font-mono">{r.appfolio_property_id || <span className="text-red-600 italic">empty</span>}</td>
+                      <td className="px-3 py-2 font-mono">{r.gl_account_id || <span className="text-red-600 italic">empty</span>}</td>
+                      <td className="px-3 py-2">{r.gl_account_name || <span className="text-red-600 italic">empty</span>}</td>
+                      <td className="px-3 py-2 font-mono">{r.gl_account_number ?? <span className="text-muted-foreground">—</span>}</td>
+                      <td className="px-3 py-2">{r.account_type || <span className="text-red-600 italic">empty</span>}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {r.balance === 0
+                          ? <span className="text-muted-foreground">0</span>
+                          : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(r.balance))}
+                      </td>
+                      <td className="px-3 py-2">{r.as_of_date}</td>
+                      <td className="px-3 py-2">{r.accounting_basis}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Cost Category Diagnostics */}
