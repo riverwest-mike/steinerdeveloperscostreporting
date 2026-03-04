@@ -134,10 +134,6 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
     sectionMap.get(type)!.push(row);
   }
 
-  const knownInData   = SECTION_ORDER.filter((t) => sectionMap.has(t));
-  const unknownInData = Array.from(sectionMap.keys()).filter((t) => !SECTION_ORDER.includes(t));
-  const displayOrder  = [...knownInData, ...unknownInData];
-
   const sectionTotals = new Map<string, number>();
   for (const [type, rows] of sectionMap.entries()) {
     sectionTotals.set(type, rows.reduce((s, r) => s + Number(r.balance), 0));
@@ -151,8 +147,13 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
   const isBalanced       = Math.abs(balanceDiff) < 0.01;
   const hasData          = glRows.length > 0;
 
-  // Liabilities and Equity are shown as one combined "LIABILITIES & CAPITAL" section
-  const hasLiabEquity    = sectionMap.has("Liability") || sectionMap.has("Equity");
+  const hasAssets     = sectionMap.has("Asset");
+  const hasLiab       = sectionMap.has("Liability");
+  const hasEquity     = sectionMap.has("Equity");
+  const hasLiabEquity = hasLiab || hasEquity;
+
+  // Any account_type not in the known three
+  const unknownTypes = Array.from(sectionMap.keys()).filter((t) => !SECTION_ORDER.includes(t));
 
   const displayDate = actualDate
     ? new Date(actualDate + "T00:00:00").toLocaleDateString("en-US", {
@@ -232,75 +233,58 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
                 </thead>
 
                 <tbody>
-                  {displayOrder.map((type) => {
-                    const rows        = sectionMap.get(type) ?? [];
-                    const sectionTotal = sectionTotals.get(type) ?? 0;
 
-                    // "Liability" and "Equity" are merged under LIABILITIES & CAPITAL.
-                    // Render the big section header only once — before Liability rows.
-                    const isLiab  = type === "Liability";
-                    const isEquity = type === "Equity";
-                    const showLiabCapHeader = isLiab || (isEquity && !sectionMap.has("Liability"));
+                  {/* ── ASSETS ── */}
+                  {hasAssets && (
+                    <>
+                      <SectionHeader label="ASSETS" />
+                      {(sectionMap.get("Asset") ?? []).map((row) => (
+                        <AccountRow key={row.gl_account_id} row={row} />
+                      ))}
+                      <GrandTotal label="TOTAL ASSETS" value={totalAssets} />
+                    </>
+                  )}
 
-                    // Sub-section label for the individual type subtotal
-                    const subLabel =
-                      type === "Asset"     ? "Assets" :
-                      type === "Liability" ? "Liabilities" :
-                      type === "Equity"    ? "Capital" : type;
+                  {/* ── LIABILITIES & CAPITAL ── */}
+                  {hasLiabEquity && (
+                    <>
+                      <SectionHeader label="LIABILITIES & CAPITAL" />
 
-                    return (
-                      <Fragment key={type}>
+                      {hasLiab && (
+                        <>
+                          <SubSectionHeader label="Liabilities" />
+                          {(sectionMap.get("Liability") ?? []).map((row) => (
+                            <AccountRow key={row.gl_account_id} row={row} />
+                          ))}
+                          <SubTotal label="Total Liabilities" value={totalLiabilities} />
+                        </>
+                      )}
 
-                        {/* ── Big section header ── */}
-                        {type === "Asset" && (
-                          <SectionHeader label="ASSETS" />
-                        )}
-                        {showLiabCapHeader && (
-                          <SectionHeader label="LIABILITIES & CAPITAL" />
-                        )}
-                        {!["Asset", "Liability", "Equity"].includes(type) && (
-                          <SectionHeader label={type.toUpperCase()} />
-                        )}
+                      {hasEquity && (
+                        <>
+                          <SubSectionHeader label="Capital" />
+                          {(sectionMap.get("Equity") ?? []).map((row) => (
+                            <AccountRow key={row.gl_account_id} row={row} />
+                          ))}
+                          <SubTotal label="Total Capital" value={totalEquity} />
+                        </>
+                      )}
 
-                        {/* ── Account rows ── */}
-                        {rows.map((row) => (
-                          <tr key={row.gl_account_id} className="border-t border-slate-100 hover:bg-slate-50/40">
-                            <td className="px-3 py-1.5 font-mono text-xs text-slate-400 align-top pt-2">
-                              {row.gl_account_number ?? ""}
-                            </td>
-                            <td className="px-3 py-1.5 text-blue-600">
-                              &nbsp;&nbsp;{row.gl_account_name}
-                            </td>
-                            <td className="px-3 py-1.5 text-right tabular-nums text-slate-700">
-                              {fmt(Number(row.balance))}
-                            </td>
-                          </tr>
-                        ))}
+                      <GrandTotal label="TOTAL LIABILITIES & CAPITAL" value={liabPlusEquity} />
+                    </>
+                  )}
 
-                        {/* ── Sub-section subtotal ── */}
-                        <tr className="border-t border-slate-200">
-                          <td className="px-3 py-1.5" />
-                          <td className="px-3 py-1.5 font-semibold text-slate-700">
-                            Total {subLabel}
-                          </td>
-                          <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-slate-800 border-t-2 border-t-slate-400">
-                            {fmt(sectionTotal)}
-                          </td>
-                        </tr>
+                  {/* ── Any other account types ── */}
+                  {unknownTypes.map((type) => (
+                    <Fragment key={type}>
+                      <SectionHeader label={type.toUpperCase()} />
+                      {(sectionMap.get(type) ?? []).map((row) => (
+                        <AccountRow key={row.gl_account_id} row={row} />
+                      ))}
+                      <GrandTotal label={`TOTAL ${type.toUpperCase()}`} value={sectionTotals.get(type) ?? 0} />
+                    </Fragment>
+                  ))}
 
-                        {/* ── TOTAL ASSETS grand total (after Asset section) ── */}
-                        {type === "Asset" && (
-                          <GrandTotal label="TOTAL ASSETS" value={totalAssets} />
-                        )}
-
-                        {/* ── TOTAL LIABILITIES & CAPITAL grand total (after Equity, or after Liability if no Equity) ── */}
-                        {(isEquity || (isLiab && !sectionMap.has("Equity"))) && hasLiabEquity && (
-                          <GrandTotal label="TOTAL LIABILITIES & CAPITAL" value={liabPlusEquity} />
-                        )}
-
-                      </Fragment>
-                    );
-                  })}
                 </tbody>
 
                 {/* ── Balance check footer ── */}
@@ -326,6 +310,45 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
 }
 
 /* ─── Sub-components ──────────────────────────────────── */
+
+function AccountRow({ row }: { row: GlRow }) {
+  return (
+    <tr className="border-t border-slate-100 hover:bg-slate-50/40">
+      <td className="px-3 py-1.5 font-mono text-xs text-slate-400">
+        {row.gl_account_number ?? ""}
+      </td>
+      <td className="px-3 py-1.5 text-blue-600">
+        &nbsp;&nbsp;{row.gl_account_name}
+      </td>
+      <td className="px-3 py-1.5 text-right tabular-nums text-slate-700">
+        {fmt(Number(row.balance))}
+      </td>
+    </tr>
+  );
+}
+
+function SubSectionHeader({ label }: { label: string }) {
+  return (
+    <tr className="bg-slate-50 border-t border-slate-200">
+      <td className="px-3 py-1" />
+      <td className="px-3 py-1 font-semibold text-slate-600 text-xs uppercase tracking-wide" colSpan={2}>
+        {label}
+      </td>
+    </tr>
+  );
+}
+
+function SubTotal({ label, value }: { label: string; value: number }) {
+  return (
+    <tr className="border-t border-slate-200">
+      <td className="px-3 py-1.5" />
+      <td className="px-3 py-1.5 font-semibold text-slate-700">{label}</td>
+      <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-slate-800 border-t-2 border-t-slate-400">
+        {fmt(value)}
+      </td>
+    </tr>
+  );
+}
 
 function SectionHeader({ label }: { label: string }) {
   return (
