@@ -56,20 +56,31 @@ export function ReportControls({
 
     startTransition(async () => {
       try {
-        // Use 1 year back for fromDate.
+        // Helper: YYYY-MM-DD from a Date using LOCAL calendar date (not UTC).
+        // toISOString() is UTC-based — in US timezones (UTC-4 to UTC-8) any
+        // time after ~4–8pm local causes UTC to roll to the next calendar day,
+        // so "yesterday local" computed via toISOString() can equal "today local."
+        function localDateStr(d: Date): string {
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        }
+
+        // fromDate: 1 year ago (local).
         const syncFrom = new Date();
         syncFrom.setFullYear(syncFrom.getFullYear() - 1);
-        const fromDate = syncFrom.toISOString().split("T")[0];
+        const fromDate = localDateStr(syncFrom);
 
-        // Cap the AppFolio sync toDate at yesterday.
-        // When occurred_on_to equals today, AppFolio returns intraday/pending
-        // transactions that are not yet fully posted and therefore lack
-        // project_cost_category. Past and future toDate values only return
-        // fully-posted records. Using yesterday ensures we always query
-        // settled data regardless of what asOf date the user selected.
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const syncToDate = yesterday.toISOString().split("T")[0];
+        // toDate: cap at yesterday (local) when asOf is today or a future date.
+        // AppFolio returns intraday/pending transactions when occurred_on_to = today,
+        // and those records lack project_cost_category. Past and future asOf dates
+        // work fine — AppFolio only returns fully-posted records for those.
+        // For past asOf dates we use asOf directly so we don't under-fetch.
+        const todayLocal = localDateStr(new Date());
+        let syncToDate = asOf;
+        if (asOf >= todayLocal) {
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          syncToDate = localDateStr(yesterday);
+        }
 
         const res = await fetch("/api/appfolio/sync", {
           method: "POST",

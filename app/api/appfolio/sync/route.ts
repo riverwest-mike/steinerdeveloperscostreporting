@@ -277,12 +277,20 @@ export async function POST(request: Request) {
 
 /* ─── Helpers ──────────────────────────────────────────── */
 
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function getDefaultFromDate(): string {
   const d = new Date();
   d.setFullYear(d.getFullYear() - 1);
-  return d.toISOString().split("T")[0];
+  return localDateStr(d);
 }
 
 function getDefaultToDate(): string {
-  return new Date().toISOString().split("T")[0];
+  // Default to yesterday — same reasoning as the client-side cap:
+  // AppFolio returns unposted pending records when occurred_on_to = today.
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return localDateStr(d);
 }
