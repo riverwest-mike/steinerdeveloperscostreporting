@@ -136,7 +136,7 @@ export async function POST(request: Request) {
         // Build rows using AppFolio's Project Cost Code as the source of truth.
         // For rows where AppFolio returns no cost code, we look up and preserve
         // the existing DB value so a re-sync never wipes a valid classification.
-        const prelimRows = batch.map((row: VendorLedgerRow) => {
+        const rawPrelimRows = batch.map((row: VendorLedgerRow) => {
           const paidAmt = parseFloat(row.paid ?? "0") || 0;
           const unpaidAmt = parseFloat(row.unpaid ?? "0") || 0;
 
@@ -164,6 +164,21 @@ export async function POST(request: Request) {
             sync_id: syncId,
           };
         });
+
+        // Deduplicate by appfolio_bill_id within this batch.
+        // AppFolio can return the same payable_invoice_detail_id multiple times
+        // (e.g. once as an invoice and again as a payment record). When that
+        // happens we keep the entry that has a cost_category_code, because the
+        // payment record typically has project_cost_category = null. Without
+        // this, the null entry would overwrite the good code in the upsert.
+        const seenBillIds = new Map<string, typeof rawPrelimRows[0]>();
+        for (const row of rawPrelimRows) {
+          const prev = seenBillIds.get(row.appfolio_bill_id);
+          if (!prev || (!prev._appfolio_code && row._appfolio_code)) {
+            seenBillIds.set(row.appfolio_bill_id, row);
+          }
+        }
+        const prelimRows = [...seenBillIds.values()];
 
         // For rows AppFolio returned no cost code for, fetch the existing DB
         // value so we can preserve it instead of overwriting with null.

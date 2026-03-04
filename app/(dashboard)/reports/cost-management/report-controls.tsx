@@ -56,10 +56,12 @@ export function ReportControls({
 
     startTransition(async () => {
       try {
-        // Use 3 years back as fromDate — "2000-01-01" causes AppFolio to return
-        // rows without project_cost_category (too large a date range strips the field).
+        // Use 1 year back — matches the sync-preview window that reliably returns
+        // project_cost_category. Wider ranges (3yr, 2000-01-01) cause AppFolio to
+        // return duplicate entries for the same bill ID: one with the cost code and
+        // one (older/payment record) without, and the null entry can win the upsert.
         const syncFrom = new Date();
-        syncFrom.setFullYear(syncFrom.getFullYear() - 3);
+        syncFrom.setFullYear(syncFrom.getFullYear() - 1);
         const fromDate = syncFrom.toISOString().split("T")[0];
 
         const res = await fetch("/api/appfolio/sync", {
