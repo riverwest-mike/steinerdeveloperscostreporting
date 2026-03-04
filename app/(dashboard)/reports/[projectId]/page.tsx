@@ -119,7 +119,7 @@ export default async function CostCategoryReportPage({ params }: Props) {
         actualsMap.set(categoryId, (actualsMap.get(categoryId) ?? 0) + Number(tx.invoice_amount));
       } else {
         const displayCode = code || "(no cost category)";
-        const displayName = tx.cost_category_name || tx.vendor_name || displayCode;
+        const displayName = tx.vendor_name || tx.cost_category_name || displayCode;
         const prev = unmatchedGl.get(displayCode) ?? { name: displayName, amount: 0 };
         unmatchedGl.set(displayCode, { name: prev.name, amount: prev.amount + Number(tx.invoice_amount) });
       }
