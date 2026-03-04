@@ -259,6 +259,74 @@ export function parseCostCategory(raw: string | null | undefined): {
   };
 }
 
+/* ─── Balance Sheet report ─────────────────────────────── */
+
+/**
+ * Row returned by AppFolio balance_sheet.json report.
+ * Represents one GL account's balance at a point in time.
+ */
+export interface BalanceSheetRow {
+  property_id: string;
+  property_name: string;
+  account_id: string;
+  account_name: string;
+  account_number: string | null;
+  /** e.g. "Asset", "Liability", "Equity" */
+  account_type: string;
+  balance: number;
+  [key: string]: unknown;
+}
+
+export async function fetchBalanceSheet(opts: {
+  propertyIds?: string[];
+  asOfDate: string;            // YYYY-MM-DD
+  accountingBasis: "Cash" | "Accrual";
+}): Promise<BalanceSheetRow[]> {
+  const baseUrl = getBaseUrl();
+
+  const params: Record<string, unknown> = {
+    as_of_date: opts.asOfDate,
+    accounting_basis: opts.accountingBasis,
+    paginate_results: true,
+  };
+
+  if (opts.propertyIds && opts.propertyIds.length > 0) {
+    params.properties = { properties_ids: opts.propertyIds };
+  }
+
+  const url = `${baseUrl}/balance_sheet.json`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
+    body: JSON.stringify(params),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`AppFolio balance_sheet ${res.status}: ${text}`);
+  }
+
+  const data: PaginatedResponse<BalanceSheetRow> = await res.json();
+  const all = [...data.results];
+
+  let nextUrl = data.next_page_url;
+  while (nextUrl) {
+    const pageRes = await fetch(resolveNextUrl(nextUrl), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
+      cache: "no-store",
+    });
+    if (!pageRes.ok) break;
+    const pageData: PaginatedResponse<BalanceSheetRow> = await pageRes.json();
+    all.push(...pageData.results);
+    nextUrl = pageData.next_page_url;
+  }
+
+  return all;
+}
+
 /* ─── General Ledger report ────────────────────────────── */
 
 export interface GLRow {

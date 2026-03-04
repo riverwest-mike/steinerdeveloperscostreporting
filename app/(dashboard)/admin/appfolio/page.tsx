@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { SyncButton } from "./sync-button";
+import { BalanceSheetSyncButton } from "./balance-sheet-sync-button";
 import { LinkProjects } from "./link-projects";
 
 export default async function AppFolioSyncPage() {
@@ -285,6 +286,17 @@ export default async function AppFolioSyncPage() {
             </div>
           )}
         </div>
+        {/* Balance sheet sync */}
+        <div>
+          <h3 className="text-lg font-semibold mb-3">Sync Balance Sheet</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Pulls a point-in-time balance sheet snapshot from AppFolio and stores it in the GL Balances
+            table. Run this for each date you want to view in the Balance Sheet report.
+            Results are keyed by property + account + date + basis, so multiple dates can coexist.
+          </p>
+          <BalanceSheetSyncButton />
+        </div>
+
         {/* Cost Category Diagnostics */}
         <div>
           <h3 className="text-lg font-semibold mb-1">Cost Category Diagnostics</h3>
