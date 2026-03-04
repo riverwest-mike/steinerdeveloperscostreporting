@@ -12,6 +12,17 @@ import { useRouter } from "next/navigation";
 export function ReportRestorer() {
   const router = useRouter();
 
+  // When the browser restores this page from its back/forward cache (bfcache),
+  // React does NOT re-run — the old DOM is shown as-is. Detecting event.persisted
+  // and calling router.refresh() forces a server re-fetch so data is current.
+  useEffect(() => {
+    function onPageShow(e: PageTransitionEvent) {
+      if (e.persisted) router.refresh();
+    }
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [router]);
+
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get("projectId")) return; // already has a filter
@@ -29,6 +40,9 @@ export function ReportRestorer() {
       params.set("projectId", projectId);
       if (asOf) params.set("asOf", asOf);
       router.replace(`/reports/cost-management?${params.toString()}`);
+      // Bust the Next.js client-side router cache so the server component
+      // re-fetches fresh data rather than serving a stale cached payload.
+      router.refresh();
     } catch {
       // storage or parse error — ignore, show default empty state
     }
