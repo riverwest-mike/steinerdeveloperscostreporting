@@ -56,12 +56,18 @@ export function ReportControls({
 
     startTransition(async () => {
       try {
+        // Use 3 years back as fromDate — "2000-01-01" causes AppFolio to return
+        // rows without project_cost_category (too large a date range strips the field).
+        const syncFrom = new Date();
+        syncFrom.setFullYear(syncFrom.getFullYear() - 3);
+        const fromDate = syncFrom.toISOString().split("T")[0];
+
         const res = await fetch("/api/appfolio/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             propertyId,
-            fromDate: "2000-01-01",
+            fromDate,
             toDate: asOf,
           }),
         });

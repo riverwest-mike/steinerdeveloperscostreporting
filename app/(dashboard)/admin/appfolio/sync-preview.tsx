@@ -28,13 +28,17 @@ export function SyncPreview() {
   const [result, setResult] = useState<PreviewResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [useOldFromDate, setUseOldFromDate] = useState(false);
+
   async function handlePreview() {
     if (!propertyId.trim()) return;
     setLoading(true);
     setResult(null);
     setError(null);
     try {
-      const res = await fetch(`/api/appfolio/sync-preview?property_id=${propertyId.trim()}`);
+      const params = new URLSearchParams({ property_id: propertyId.trim() });
+      if (useOldFromDate) params.set("from_date", "2000-01-01");
+      const res = await fetch(`/api/appfolio/sync-preview?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) setError(data.error ?? `Error ${res.status}`);
       else setResult(data);
@@ -47,7 +51,7 @@ export function SyncPreview() {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center flex-wrap">
         <input
           type="text"
           placeholder="AppFolio Property ID (e.g. 196)"
@@ -55,6 +59,16 @@ export function SyncPreview() {
           onChange={(e) => setPropertyId(e.target.value)}
           className="rounded border border-input bg-background px-3 py-1.5 text-sm w-52"
         />
+        <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={useOldFromDate}
+            onChange={(e) => setUseOldFromDate(e.target.checked)}
+            className="accent-primary"
+          />
+          Use <code className="font-mono text-xs bg-muted px-1 rounded">fromDate=2000-01-01</code>
+          <span className="text-muted-foreground text-xs">(same as "Run Report" button)</span>
+        </label>
         <button
           onClick={handlePreview}
           disabled={loading || !propertyId.trim()}
@@ -72,10 +86,13 @@ export function SyncPreview() {
 
       {result && (
         <div className="space-y-3">
-          <div className="flex gap-6 text-sm">
+          <div className="flex gap-6 text-sm flex-wrap">
             <span><span className="font-medium">{result.total_rows}</span> rows from AppFolio</span>
             <span className="text-green-700 font-medium">✓ {result.rows_with_cost_category} would have cost category code</span>
             <span className="text-red-600 font-medium">✗ {result.rows_without_cost_category} would store null</span>
+            <span className="text-muted-foreground text-xs">
+              from: <code className="font-mono">{result.date_range.fromDate}</code> to <code className="font-mono">{result.date_range.toDate}</code>
+            </span>
           </div>
 
           <div className="rounded-lg border overflow-x-auto">
