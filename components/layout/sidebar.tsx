@@ -10,17 +10,22 @@ import {
   ShieldCheck,
   ChevronDown,
   FileBarChart2,
+  Users,
+  Tag,
+  RefreshCw,
 } from "lucide-react";
 import { useState } from "react";
-
-const adminNavItems = [
-  { href: "/admin", label: "Admin", icon: ShieldCheck },
-];
 
 const reportItems = [
   { href: "/reports/cost-management", label: "Project Cost Management" },
   { href: "/reports/cost-detail", label: "Cost Detail" },
   { href: "/reports/balance-sheet", label: "Balance Sheet" },
+];
+
+const adminItems = [
+  { href: "/admin", label: "Users & Access", icon: Users, exact: true },
+  { href: "/admin/cost-categories", label: "Cost Categories", icon: Tag, exact: false },
+  { href: "/admin/appfolio", label: "AppFolio", icon: RefreshCw, exact: false },
 ];
 
 interface SidebarProps {
@@ -32,8 +37,10 @@ export function Sidebar({ role }: SidebarProps) {
   const isAdmin = role === "admin";
 
   const [reportsOpen, setReportsOpen] = useState(pathname.startsWith("/reports"));
+  const [adminOpen, setAdminOpen] = useState(pathname.startsWith("/admin"));
 
   const reportsActive = pathname.startsWith("/reports");
+  const adminActive = pathname.startsWith("/admin");
 
   return (
     <aside className="flex h-full w-64 flex-col border-r bg-card">
@@ -116,23 +123,54 @@ export function Sidebar({ role }: SidebarProps) {
           )}
         </div>
 
-        {/* Admin */}
-        {isAdmin &&
-          adminNavItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
+        {/* Admin — expandable */}
+        {isAdmin && (
+          <div>
+            <button
+              onClick={() => setAdminOpen((o) => !o)}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                pathname.startsWith(item.href)
+                "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                adminActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          ))}
+              <ShieldCheck className="h-4 w-4 shrink-0" />
+              <span className="flex-1 text-left">Admin</span>
+              <ChevronDown
+                className={cn(
+                  "h-4 w-4 shrink-0 transition-transform duration-200",
+                  adminOpen && "rotate-180"
+                )}
+              />
+            </button>
+
+            {adminOpen && (
+              <div className="mt-1 ml-3 space-y-0.5 border-l pl-3">
+                {adminItems.map((item) => {
+                  const isActive = item.exact
+                    ? pathname === item.href
+                    : pathname.startsWith(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+                        isActive
+                          ? "font-medium text-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                      )}
+                    >
+                      <item.icon className="h-3.5 w-3.5 shrink-0" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Role badge at bottom */}

@@ -281,87 +281,87 @@ export default async function AppFolioSyncPage() {
           <FieldInspector />
         </div>
 
-        {/* Sync history */}
+        {/* Sync history — scrollable compact table */}
         <div>
-          <h3 className="text-lg font-semibold mb-4">Sync History</h3>
+          <h3 className="text-lg font-semibold mb-3">Sync History</h3>
           {(!syncs || syncs.length === 0) ? (
             <p className="text-sm text-muted-foreground">No syncs have been run yet.</p>
           ) : (
-            <div className="rounded-lg border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="px-4 py-3 text-left font-medium">Date</th>
-                    <th className="px-4 py-3 text-left font-medium">Type</th>
-                    <th className="px-4 py-3 text-left font-medium">Status</th>
-                    <th className="px-4 py-3 text-right font-medium">Fetched</th>
-                    <th className="px-4 py-3 text-right font-medium">Stored</th>
-                    <th className="px-4 py-3 text-left font-medium">Triggered By</th>
-                    <th className="px-4 py-3 text-left font-medium">Duration</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {syncs.map((s: {
-                    id: string;
-                    triggered_by: string | null;
-                    sync_type: string;
-                    status: string;
-                    records_fetched: number | null;
-                    records_upserted: number | null;
-                    records_unmapped: number | null;
-                    error_message: string | null;
-                    started_at: string;
-                    completed_at: string | null;
-                  }) => {
-                    const duration = s.completed_at
-                      ? Math.round((new Date(s.completed_at).getTime() - new Date(s.started_at).getTime()) / 1000)
-                      : null;
-                    return (
-                      <tr key={s.id} className="border-b last:border-0">
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {new Date(s.started_at).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </td>
-                        <td className="px-4 py-3 capitalize">{s.sync_type}</td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                              s.status === "completed"
-                                ? "bg-green-100 text-green-800"
-                                : s.status === "failed"
-                                ? "bg-red-100 text-red-800"
-                                : "bg-yellow-100 text-yellow-800"
-                            }`}
-                          >
-                            {s.status}
-                          </span>
-                          {s.error_message && (
-                            <p className="text-xs text-destructive mt-1 max-w-xs truncate" title={s.error_message}>
-                              {s.error_message}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-xs">
-                          {s.records_fetched?.toLocaleString() ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-xs">
-                          {s.records_upserted?.toLocaleString() ?? "—"}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {s.triggered_by ? userMap.get(s.triggered_by) ?? "Unknown" : "System"}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">
-                          {duration != null ? `${duration}s` : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="rounded-lg border overflow-hidden">
+              <div className="overflow-y-auto max-h-56">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-muted/90 backdrop-blur-sm">
+                    <tr className="border-b">
+                      <th className="px-3 py-2 text-left font-medium">Date</th>
+                      <th className="px-3 py-2 text-left font-medium">Type</th>
+                      <th className="px-3 py-2 text-left font-medium">Status</th>
+                      <th className="px-3 py-2 text-right font-medium">Fetched</th>
+                      <th className="px-3 py-2 text-right font-medium">Stored</th>
+                      <th className="px-3 py-2 text-left font-medium">By</th>
+                      <th className="px-3 py-2 text-left font-medium">Dur.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {syncs.map((s: {
+                      id: string;
+                      triggered_by: string | null;
+                      sync_type: string;
+                      status: string;
+                      records_fetched: number | null;
+                      records_upserted: number | null;
+                      records_unmapped: number | null;
+                      error_message: string | null;
+                      started_at: string;
+                      completed_at: string | null;
+                    }) => {
+                      const duration = s.completed_at
+                        ? Math.round((new Date(s.completed_at).getTime() - new Date(s.started_at).getTime()) / 1000)
+                        : null;
+                      return (
+                        <tr key={s.id} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                            {new Date(s.started_at).toLocaleDateString("en-US", {
+                              month: "short", day: "numeric",
+                              hour: "numeric", minute: "2-digit",
+                            })}
+                          </td>
+                          <td className="px-3 py-2 capitalize text-muted-foreground">{s.sync_type.replace("_", " ")}</td>
+                          <td className="px-3 py-2">
+                            <span
+                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                s.status === "completed"
+                                  ? "bg-green-100 text-green-800"
+                                  : s.status === "failed"
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-yellow-100 text-yellow-800"
+                              }`}
+                            >
+                              {s.status}
+                            </span>
+                            {s.error_message && (
+                              <p className="text-xs text-destructive mt-0.5 max-w-[200px] truncate" title={s.error_message}>
+                                {s.error_message}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            {s.records_fetched?.toLocaleString() ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono">
+                            {s.records_upserted?.toLocaleString() ?? "—"}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground max-w-[100px] truncate" title={s.triggered_by ? userMap.get(s.triggered_by) ?? "Unknown" : "System"}>
+                            {s.triggered_by ? userMap.get(s.triggered_by) ?? "Unknown" : "System"}
+                          </td>
+                          <td className="px-3 py-2 text-muted-foreground">
+                            {duration != null ? `${duration}s` : "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -379,15 +379,15 @@ export default async function AppFolioSyncPage() {
         {/* Recent stored transactions — key diagnostic */}
         <div>
           <h3 className="text-lg font-semibold mb-1">Most Recent Stored Transactions</h3>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-muted-foreground mb-3">
             Last 20 transactions in the database. The <strong>Cost Category Code</strong> column
-            must be non-empty for the Cost Management Report to match them. If it&apos;s blank here,
-            the sync isn&apos;t storing the value from AppFolio.
+            must be non-empty for the Cost Management Report to match them.
           </p>
           {recentTransactions.length === 0 ? (
             <p className="text-sm text-muted-foreground">No transactions stored yet.</p>
           ) : (
-            <div className="rounded-lg border overflow-x-auto">
+            <div className="rounded-lg border overflow-hidden">
+              <div className="overflow-x-auto overflow-y-auto max-h-64">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-muted/50 border-b">
@@ -424,6 +424,7 @@ export default async function AppFolioSyncPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </div>
