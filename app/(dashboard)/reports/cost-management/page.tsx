@@ -310,6 +310,28 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     };
   });
 
+  // Phantom rows for AppFolio transactions whose code has no matching cost category
+  const UNMATCHED_SECTION = "AppFolio — Unmatched Costs";
+  for (const [code, { name, amount }] of unmatchedCats.entries()) {
+    rows.push({
+      id: `appfolio-unmatched-${code}`,
+      code,
+      name,
+      section: UNMATCHED_SECTION,
+      a_original: 0,
+      b_authorized: 0,
+      c_current: 0,
+      d_proposed: 0,
+      e_projected: 0,
+      f_variance: 0,
+      g_committed: 0,
+      h_pct_committed: null,
+      i_uncommitted: 0,
+      j_cost_to_date: amount,
+      k_balance: -amount,
+    });
+  }
+
   // ── Group by section, only keep sections with any data ─
   const sectionOrder: string[] = [];
   const sectionMap = new Map<string, CategoryRow[]>();
@@ -384,7 +406,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
               {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(
                 Array.from(unmatchedCats.values()).reduce((s, v) => s + v.amount, 0)
               )}{" "}
-              excluded from Cost to Date ({txMatched} of {txTotal} transactions matched)
+              shown below as &ldquo;AppFolio — Unmatched Costs&rdquo; ({txMatched} of {txTotal} transactions matched)
             </summary>
             <div className="border-t border-amber-200 px-4 py-3">
               <p className="mb-2 text-xs text-amber-700">
