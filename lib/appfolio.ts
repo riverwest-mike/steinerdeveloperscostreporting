@@ -131,12 +131,12 @@ export async function fetchBillDetail(
   const data: PaginatedResponse<BillDetailRow> = await res.json();
   const all = [...data.results];
 
-  // Follow pagination
+  // Follow pagination — next_page_url is a GET endpoint with the cursor in the URL
   let nextUrl = data.next_page_url;
   while (nextUrl) {
     const pageRes = await fetch(resolveNextUrl(nextUrl), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
+      method: "GET",
+      headers: { Authorization: getAuthHeader() },
       cache: "no-store",
     });
     if (!pageRes.ok) break;
@@ -241,11 +241,12 @@ export async function fetchVendorLedger(
   const data: PaginatedResponse<VendorLedgerRow> = await res.json();
   const all = [...data.results];
 
+  // Follow pagination — next_page_url is a GET endpoint with the cursor in the URL
   let nextUrl = data.next_page_url;
   while (nextUrl) {
     const pageRes = await fetch(resolveNextUrl(nextUrl), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
+      method: "GET",
+      headers: { Authorization: getAuthHeader() },
       cache: "no-store",
     });
     if (!pageRes.ok) break;
@@ -348,9 +349,10 @@ export async function fetchBalanceSheet(opts: {
   ) {
     let nextUrl: string | null = (raw as { next_page_url: string | null }).next_page_url;
     while (nextUrl) {
+      // next_page_url is a GET endpoint with the cursor embedded in the URL
       const pageRes = await fetch(resolveNextUrl(nextUrl), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
+        method: "GET",
+        headers: { Authorization: getAuthHeader() },
         cache: "no-store",
       });
       if (!pageRes.ok) break;
@@ -465,11 +467,12 @@ export async function fetchGeneralLedger(opts: {
   const data: PaginatedResponse<GLRow> = await res.json();
   const all = [...data.results];
 
+  // Follow pagination — next_page_url is a GET endpoint with the cursor in the URL
   let nextUrl = data.next_page_url;
   while (nextUrl) {
     const pageRes = await fetch(resolveNextUrl(nextUrl), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
+      method: "GET",
+      headers: { Authorization: getAuthHeader() },
       cache: "no-store",
     });
     if (!pageRes.ok) break;
