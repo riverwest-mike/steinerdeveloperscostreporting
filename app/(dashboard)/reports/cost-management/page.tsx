@@ -321,18 +321,13 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     sectionMap.get(row.section)!.push(row);
   }
 
-  // Filter: keep rows that have at least one non-zero value
-  function rowHasData(r: CategoryRow): boolean {
-    return r.c_current !== 0 || r.d_proposed !== 0 || r.g_committed !== 0 || r.j_cost_to_date !== 0;
-  }
-
-  // Grand totals
+  // Grand totals — include every row so AppFolio actuals on any code are counted
   let grand = emptyTotals();
   for (const row of rows) {
-    if (rowHasData(row)) grand = addToTotals(grand, row);
+    grand = addToTotals(grand, row);
   }
 
-  const hasAnyData = rows.some(rowHasData);
+  const hasAnyData = rows.length > 0;
 
   return (
     <div>
@@ -462,7 +457,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
 
               <tbody>
                 {sectionOrder.map((section) => {
-                  const sectionRows = (sectionMap.get(section) ?? []).filter(rowHasData);
+                  const sectionRows = sectionMap.get(section) ?? [];
                   if (sectionRows.length === 0) return null;
 
                   // Section totals
