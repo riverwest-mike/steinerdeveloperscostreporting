@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/header";
 import { SyncButton } from "./sync-button";
 import { BalanceSheetSyncButton } from "./balance-sheet-sync-button";
 import { LinkProjects } from "./link-projects";
+import { FieldInspector } from "./field-inspector";
 
 export default async function AppFolioSyncPage() {
   const { userId } = await auth();
@@ -222,6 +223,16 @@ export default async function AppFolioSyncPage() {
             The Project Cost Category on each bill is used to match transactions to cost categories.
           </p>
           <SyncButton />
+        </div>
+
+        {/* API field inspector */}
+        <div>
+          <h3 className="text-lg font-semibold mb-1">Inspect AppFolio API Fields</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Makes a live call to AppFolio and shows the exact JSON field names returned by the
+            vendor_ledger report — useful for confirming the cost category field name.
+          </p>
+          <FieldInspector />
         </div>
 
         {/* Sync history */}
