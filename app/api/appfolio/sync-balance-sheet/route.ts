@@ -96,6 +96,11 @@ export async function POST(request: Request) {
       // Fetch balance sheet from AppFolio
       const rows = await fetchBalanceSheet({ propertyIds, asOfDate, accountingBasis });
 
+      // Log the first raw row so field-name issues are visible in server logs
+      if (rows.length > 0) {
+        console.log("[sync-balance-sheet] First raw row from AppFolio:", JSON.stringify(rows[0]));
+      }
+
       // Upsert into gl_balances
       let upsertedCount = 0;
       const BATCH_SIZE = 100;
@@ -122,10 +127,12 @@ export async function POST(request: Request) {
           });
 
         if (upsertErr) {
-          console.error("[sync-balance-sheet] Upsert error:", upsertErr.message);
-        } else {
-          upsertedCount += upsertRows.length;
+          // Surface the error — include the first row so field-mapping issues are visible
+          throw new Error(
+            `gl_balances upsert failed: ${upsertErr.message} | first row: ${JSON.stringify(upsertRows[0])}`
+          );
         }
+        upsertedCount += upsertRows.length;
       }
 
       await supabase
