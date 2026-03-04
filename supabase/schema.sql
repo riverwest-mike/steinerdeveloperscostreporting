@@ -221,8 +221,12 @@ CREATE TABLE IF NOT EXISTS appfolio_transactions (
   appfolio_bill_id       TEXT NOT NULL UNIQUE,
   appfolio_property_id   TEXT NOT NULL,
   vendor_name            TEXT NOT NULL,
-  gl_account_id          TEXT NOT NULL,
-  gl_account_name        TEXT NOT NULL,
+  gl_account_id          TEXT NOT NULL DEFAULT '',
+  gl_account_name        TEXT NOT NULL DEFAULT '',
+  -- AppFolio Project Cost Category parsed from vendor_ledger report
+  -- e.g. raw "010700 Survey" → code "010700", name "Survey"
+  cost_category_code     TEXT,
+  cost_category_name     TEXT,
   bill_date              DATE,
   due_date               DATE,
   payment_date           DATE,
@@ -243,6 +247,7 @@ CREATE TABLE IF NOT EXISTS appfolio_transactions (
 CREATE INDEX IF NOT EXISTS idx_appfolio_transactions_property ON appfolio_transactions(appfolio_property_id);
 CREATE INDEX IF NOT EXISTS idx_appfolio_transactions_bill_date ON appfolio_transactions(bill_date);
 CREATE INDEX IF NOT EXISTS idx_appfolio_transactions_vendor ON appfolio_transactions(vendor_name);
+CREATE INDEX IF NOT EXISTS idx_appfolio_transactions_cost_code ON appfolio_transactions(cost_category_code);
 
 -- ============================================================
 -- TABLE 13: bridge_mappings

@@ -54,12 +54,12 @@ export default async function AppFolioSyncPage() {
     .from("appfolio_transactions")
     .select("id", { count: "exact", head: true });
 
-  // Diagnostic: distinct GL accounts across all stored transactions vs cost category codes
-  const [{ data: rawDistinctGl }, { data: rawCostCats }] = await Promise.all([
+  // Diagnostic: distinct cost category codes across all stored transactions vs system codes
+  const [{ data: rawDistinctCats }, { data: rawCostCats }] = await Promise.all([
     supabase
       .from("appfolio_transactions")
-      .select("gl_account_id, gl_account_name")
-      .order("gl_account_id"),
+      .select("cost_category_code, cost_category_name")
+      .order("cost_category_code"),
     supabase
       .from("cost_categories")
       .select("code, name")
@@ -70,21 +70,24 @@ export default async function AppFolioSyncPage() {
     (rawCostCats ?? []).map((c: { code: string }) => c.code.trim().toUpperCase())
   );
 
-  // Deduplicate by gl_account_id, sum counts
-  const glAccountMap = new Map<string, { name: string; matched: boolean }>();
-  for (const tx of (rawDistinctGl ?? []) as { gl_account_id: string; gl_account_name: string }[]) {
-    const glId = (tx.gl_account_id ?? "").trim().toUpperCase();
-    if (!glAccountMap.has(glId)) {
-      glAccountMap.set(glId, {
-        name: tx.gl_account_name ?? glId,
-        matched: catCodeSet.has(glId),
+  // Deduplicate by cost_category_code
+  const costCatMap = new Map<string, { name: string; matched: boolean }>();
+  for (const tx of (rawDistinctCats ?? []) as {
+    cost_category_code: string | null;
+    cost_category_name: string | null;
+  }[]) {
+    const code = (tx.cost_category_code ?? "").trim().toUpperCase();
+    if (!costCatMap.has(code)) {
+      costCatMap.set(code, {
+        name: tx.cost_category_name ?? code,
+        matched: code ? catCodeSet.has(code) : false,
       });
     }
   }
 
-  const distinctGlAccounts = Array.from(glAccountMap.entries())
+  const distinctCostCats = Array.from(costCatMap.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([glId, { name, matched }]) => ({ glId, name, matched }));
+    .map(([code, { name, matched }]) => ({ code, name, matched }));
 
   // Get projects without an AppFolio property ID
   const { data: unlinkedProjects } = await supabase
@@ -237,39 +240,39 @@ export default async function AppFolioSyncPage() {
             </div>
           )}
         </div>
-        {/* GL Account Diagnostics */}
+        {/* Cost Category Diagnostics */}
         <div>
-          <h3 className="text-lg font-semibold mb-1">GL Account Diagnostics</h3>
+          <h3 className="text-lg font-semibold mb-1">Cost Category Diagnostics</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Distinct GL account IDs stored from AppFolio syncs, compared against active cost category codes.
-            Unmatched accounts will show $0 in Cost to Date on reports.
+            Distinct AppFolio Project Cost Category codes from synced transactions, compared against
+            active cost category codes in this system. Unmatched codes will show $0 in Cost to Date.
           </p>
 
-          {distinctGlAccounts.length === 0 ? (
+          {distinctCostCats.length === 0 ? (
             <p className="text-sm text-muted-foreground">No transactions synced yet.</p>
           ) : (
             <>
               <div className="flex gap-4 mb-3 text-sm">
                 <span className="text-green-700 font-medium">
-                  ✓ {distinctGlAccounts.filter((g) => g.matched).length} matched
+                  ✓ {distinctCostCats.filter((c) => c.matched).length} matched
                 </span>
                 <span className="text-red-600 font-medium">
-                  ✗ {distinctGlAccounts.filter((g) => !g.matched).length} unmatched
+                  ✗ {distinctCostCats.filter((c) => !c.matched).length} unmatched
                 </span>
               </div>
               <div className="rounded-lg border overflow-hidden">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-muted/50 border-b">
-                      <th className="px-4 py-2 text-left font-medium">GL Account ID (as stored)</th>
-                      <th className="px-4 py-2 text-left font-medium">GL Account Name</th>
-                      <th className="px-4 py-2 text-left font-medium">Matches Cost Category?</th>
+                      <th className="px-4 py-2 text-left font-medium">AppFolio Cost Category Code</th>
+                      <th className="px-4 py-2 text-left font-medium">AppFolio Cost Category Name</th>
+                      <th className="px-4 py-2 text-left font-medium">Matches System Code?</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {distinctGlAccounts.map(({ glId, name, matched }) => (
-                      <tr key={glId} className="border-b last:border-0">
-                        <td className="px-4 py-2 font-mono">{glId || "(blank)"}</td>
+                    {distinctCostCats.map(({ code, name, matched }) => (
+                      <tr key={code} className="border-b last:border-0">
+                        <td className="px-4 py-2 font-mono">{code || "(none)"}</td>
                         <td className="px-4 py-2 text-muted-foreground">{name}</td>
                         <td className="px-4 py-2">
                           {matched ? (

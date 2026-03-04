@@ -230,95 +230,48 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   }
 
   // ── J: AppFolio actuals (bill_date <= asOf) ───────────
-  // Matching order: 1) direct cost_category.code  2) bridge_mappings (by priority)
+  // Match on cost_category_code stored from vendor_ledger sync.
+  // e.g. AppFolio "010700 Survey" → code "010700" matches cost_category.code "010700"
   const actualsMap = new Map<string, number>();
-  // Diagnostic tracking
   let txTotal = 0;
   let txMatched = 0;
-  // unmatched: gl_account_id -> { name, amount }
-  const unmatchedGl = new Map<string, { name: string; amount: number }>();
+  // unmatched: cost_category_code -> { name, amount }
+  const unmatchedCats = new Map<string, { name: string; amount: number }>();
 
   if (project.appfolio_property_id) {
-    // Direct code lookup map (case-insensitive)
+    // Build code → category id lookup (case-insensitive)
     const codeToCategory = new Map<string, string>();
     for (const cat of categories) {
       codeToCategory.set(cat.code.trim().toUpperCase(), cat.id);
     }
 
-    // Load bridge_mappings for this project (sorted by priority asc = highest priority first)
-    interface BridgeMapping {
-      cost_category_id: string;
-      gl_account_id: string | null;
-      vendor_name_pattern: string | null;
-      match_type: "exact" | "contains" | "starts_with";
-      priority: number;
-    }
-    const { data: rawBridges } = await supabase
-      .from("bridge_mappings")
-      .select("cost_category_id, gl_account_id, vendor_name_pattern, match_type, priority")
-      .eq("project_id", projectId)
-      .eq("is_active", true)
-      .order("priority", { ascending: true });
-    const bridges = (rawBridges ?? []) as BridgeMapping[];
-
-    function applyBridgeMapping(
-      glId: string,          // already trimmed + uppercased
-      vendorLower: string    // already lowercased
-    ): string | null {
-      for (const m of bridges) {
-        let glMatch = !m.gl_account_id; // no gl filter = matches all
-        if (m.gl_account_id) {
-          const mapGl = m.gl_account_id.trim().toUpperCase();
-          switch (m.match_type) {
-            case "exact":       glMatch = glId === mapGl; break;
-            case "starts_with": glMatch = glId.startsWith(mapGl); break;
-            case "contains":    glMatch = glId.includes(mapGl); break;
-          }
-        }
-        let vendorMatch = !m.vendor_name_pattern;
-        if (m.vendor_name_pattern) {
-          vendorMatch = vendorLower.includes(m.vendor_name_pattern.toLowerCase());
-        }
-        if (glMatch && vendorMatch) return m.cost_category_id;
-      }
-      return null;
-    }
-
-    // Fetch transactions — include rows where bill_date is null (undated) as well
+    // Fetch transactions — include rows where bill_date is null (undated)
     const { data: rawTx } = await supabase
       .from("appfolio_transactions")
-      .select("gl_account_id, gl_account_name, vendor_name, invoice_amount")
+      .select("cost_category_code, cost_category_name, vendor_name, invoice_amount")
       .eq("appfolio_property_id", project.appfolio_property_id)
       .or(`bill_date.lte.${asOf},bill_date.is.null`);
 
     for (const tx of (rawTx ?? []) as {
-      gl_account_id: string;
-      gl_account_name: string;
+      cost_category_code: string | null;
+      cost_category_name: string | null;
       vendor_name: string;
       invoice_amount: number;
     }[]) {
       txTotal++;
-      const glId = (tx.gl_account_id ?? "").trim().toUpperCase();
-      const vendorLower = (tx.vendor_name ?? "").toLowerCase();
+      const code = (tx.cost_category_code ?? "").trim().toUpperCase();
       const amount = Number(tx.invoice_amount);
 
-      // 1. Direct code match
-      let catId = codeToCategory.get(glId) ?? null;
-
-      // 2. Bridge mapping fallback
-      if (!catId && bridges.length > 0) {
-        catId = applyBridgeMapping(glId, vendorLower);
-      }
+      const catId = code ? (codeToCategory.get(code) ?? null) : null;
 
       if (catId) {
         txMatched++;
         actualsMap.set(catId, (actualsMap.get(catId) ?? 0) + amount);
       } else {
-        const prev = unmatchedGl.get(glId) ?? {
-          name: tx.gl_account_name || glId,
-          amount: 0,
-        };
-        unmatchedGl.set(glId, { name: prev.name, amount: prev.amount + amount });
+        const displayCode = code || "(no cost category)";
+        const displayName = tx.cost_category_name || tx.vendor_name || displayCode;
+        const prev = unmatchedCats.get(displayCode) ?? { name: displayName, amount: 0 };
+        unmatchedCats.set(displayCode, { name: prev.name, amount: prev.amount + amount });
       }
     }
   }
@@ -420,34 +373,35 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
           </div>
         )}
 
-        {project.appfolio_property_id && txTotal > 0 && unmatchedGl.size > 0 && (
+        {project.appfolio_property_id && txTotal > 0 && unmatchedCats.size > 0 && (
           <details className="mb-4 rounded-md border border-amber-200 bg-amber-50 text-sm text-amber-900">
             <summary className="cursor-pointer px-4 py-2 font-medium select-none">
-              ⚠ {unmatchedGl.size} GL account{unmatchedGl.size !== 1 ? "s" : ""} not matched to a cost category
+              ⚠ {unmatchedCats.size} cost category code{unmatchedCats.size !== 1 ? "s" : ""} from AppFolio not matched
               {" — "}
               {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(
-                Array.from(unmatchedGl.values()).reduce((s, v) => s + v.amount, 0)
+                Array.from(unmatchedCats.values()).reduce((s, v) => s + v.amount, 0)
               )}{" "}
               excluded from Cost to Date ({txMatched} of {txTotal} transactions matched)
             </summary>
             <div className="border-t border-amber-200 px-4 py-3">
               <p className="mb-2 text-xs text-amber-700">
-                Add bridge mappings in Admin → Bridge Mappings to map these GL accounts to cost categories.
+                These AppFolio cost category codes do not match any active cost categories in this system.
+                Ensure the cost category codes in AppFolio match those in Admin → Cost Categories.
               </p>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-amber-700">
-                    <th className="text-left pb-1 pr-4">GL Account ID</th>
-                    <th className="text-left pb-1 pr-4">GL Account Name</th>
+                    <th className="text-left pb-1 pr-4">AppFolio Cost Category Code</th>
+                    <th className="text-left pb-1 pr-4">AppFolio Cost Category Name</th>
                     <th className="text-right pb-1">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {Array.from(unmatchedGl.entries())
+                  {Array.from(unmatchedCats.entries())
                     .sort((a, b) => b[1].amount - a[1].amount)
-                    .map(([glId, { name, amount }]) => (
-                      <tr key={glId} className="border-t border-amber-100">
-                        <td className="py-1 pr-4 font-mono">{glId || "(blank)"}</td>
+                    .map(([code, { name, amount }]) => (
+                      <tr key={code} className="border-t border-amber-100">
+                        <td className="py-1 pr-4 font-mono">{code}</td>
                         <td className="py-1 pr-4">{name}</td>
                         <td className="py-1 text-right tabular-nums">
                           {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)}
