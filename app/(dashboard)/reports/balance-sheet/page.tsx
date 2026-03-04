@@ -12,37 +12,25 @@ function today(): string {
   return new Date().toISOString().split("T")[0];
 }
 
-function usd(n: number): string {
+/** Plain number with 2 decimal places, no currency symbol. Matches AppFolio style. */
+function fmt(n: number): string {
   if (n === 0) return "—";
   return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
-}
-
-function usdSigned(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(n);
 }
 
 /* ─── Account type ordering & display ─────────────────── */
 
-// Canonical order for balance sheet sections
 const SECTION_ORDER = ["Asset", "Liability", "Equity"];
 
-function sectionLabel(type: string): string {
-  switch (type.toLowerCase()) {
-    case "asset":    return "Assets";
-    case "liability": return "Liabilities";
-    case "equity":   return "Equity";
-    default:          return type;
-  }
+function normaliseType(t: string): string {
+  const lower = t.toLowerCase();
+  if (lower.startsWith("asset"))  return "Asset";
+  if (lower.startsWith("liab"))   return "Liability";
+  if (lower.startsWith("equit") || lower.startsWith("capital")) return "Equity";
+  return t;
 }
 
 /* ─── Types ───────────────────────────────────────────── */
@@ -63,13 +51,12 @@ interface Props {
 }
 
 export default async function BalanceSheetReportPage({ searchParams }: Props) {
-  const projectId   = searchParams.projectId ?? null;
-  const asOf        = searchParams.asOf ?? today();
-  const basis       = searchParams.basis === "Cash" ? "Cash" : "Accrual" as "Cash" | "Accrual";
+  const projectId = searchParams.projectId ?? null;
+  const asOf      = searchParams.asOf ?? today();
+  const basis     = searchParams.basis === "Cash" ? "Cash" : "Accrual" as "Cash" | "Accrual";
 
   const supabase = createAdminClient();
 
-  // Always load project list for the picker
   const { data: allProjects } = await supabase
     .from("projects")
     .select("id, name, code")
@@ -82,12 +69,7 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
       <div>
         <Header title="Balance Sheet Report" />
         <div className="p-6">
-          <ReportControls
-            projects={projects}
-            currentProjectId={null}
-            currentAsOf={asOf}
-            currentBasis={basis}
-          />
+          <ReportControls projects={projects} currentProjectId={null} currentAsOf={asOf} currentBasis={basis} />
           <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
             <p className="text-muted-foreground text-sm">Select a project above to generate the report.</p>
@@ -97,7 +79,6 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
     );
   }
 
-  // Load project
   const { data: project } = await supabase
     .from("projects")
     .select("id, name, code, appfolio_property_id")
@@ -117,12 +98,10 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
   }
 
   // ── Load GL balances ──────────────────────────────────
-  // Use the most recent snapshot on or before the selected date.
   let glRows: GlRow[] = [];
   let actualDate: string | null = null;
 
   if (project.appfolio_property_id) {
-    // Find the latest available as_of_date <= selected date for this property + basis
     const { data: dateRow } = await supabase
       .from("gl_balances")
       .select("as_of_date")
@@ -135,7 +114,6 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
 
     if (dateRow) {
       actualDate = dateRow.as_of_date as string;
-
       const { data: rawRows } = await supabase
         .from("gl_balances")
         .select("gl_account_id, gl_account_name, gl_account_number, account_type, balance, as_of_date")
@@ -148,16 +126,7 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
     }
   }
 
-  // ── Group by account_type ────────────────────────────
-  // Normalise type: capitalise first letter for grouping
-  function normaliseType(t: string): string {
-    const lower = t.toLowerCase();
-    if (lower.startsWith("asset"))     return "Asset";
-    if (lower.startsWith("liab"))      return "Liability";
-    if (lower.startsWith("equit"))     return "Equity";
-    return t; // preserve unknown types
-  }
-
+  // ── Group by normalised account_type ─────────────────
   const sectionMap = new Map<string, GlRow[]>();
   for (const row of glRows) {
     const type = normaliseType(row.account_type);
@@ -165,12 +134,10 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
     sectionMap.get(type)!.push(row);
   }
 
-  // Build display order: known types first (in order), then any unknown types
   const knownInData   = SECTION_ORDER.filter((t) => sectionMap.has(t));
   const unknownInData = Array.from(sectionMap.keys()).filter((t) => !SECTION_ORDER.includes(t));
   const displayOrder  = [...knownInData, ...unknownInData];
 
-  // Compute section totals and grand totals
   const sectionTotals = new Map<string, number>();
   for (const [type, rows] of sectionMap.entries()) {
     sectionTotals.set(type, rows.reduce((s, r) => s + Number(r.balance), 0));
@@ -182,8 +149,10 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
   const liabPlusEquity   = totalLiabilities + totalEquity;
   const balanceDiff      = totalAssets - liabPlusEquity;
   const isBalanced       = Math.abs(balanceDiff) < 0.01;
+  const hasData          = glRows.length > 0;
 
-  const hasData = glRows.length > 0;
+  // Liabilities and Equity are shown as one combined "LIABILITIES & CAPITAL" section
+  const hasLiabEquity    = sectionMap.has("Liability") || sectionMap.has("Equity");
 
   const displayDate = actualDate
     ? new Date(actualDate + "T00:00:00").toLocaleDateString("en-US", {
@@ -203,23 +172,12 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
           currentBasis={basis}
         />
 
-        {/* Report header */}
-        <div className="mb-4">
-          <h2 className="text-xl font-bold tracking-tight">Balance Sheet</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {project.code} — {project.name}
-            {displayDate && <> &nbsp;·&nbsp; As of {displayDate}</>}
-            &nbsp;·&nbsp; {basis} Basis
-          </p>
-        </div>
-
         {/* Warnings */}
         {!project.appfolio_property_id && (
           <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
             This project is not linked to an AppFolio property. Link it in Admin → AppFolio to enable balance sheet data.
           </div>
         )}
-
         {project.appfolio_property_id && !hasData && (
           <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
             No balance sheet data found for this property on or before{" "}
@@ -227,8 +185,6 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
             ({basis} basis). Run a Balance Sheet sync in Admin → AppFolio.
           </div>
         )}
-
-        {/* Date note when showing nearest available snapshot */}
         {hasData && actualDate && actualDate !== asOf && (
           <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
             Showing the most recent available snapshot ({displayDate}). To see data for{" "}
@@ -244,88 +200,154 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border" style={{ maxWidth: "640px" }}>
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-slate-800 text-white">
-                  <th className="px-4 py-2.5 text-left font-medium">Account</th>
-                  <th className="px-4 py-2.5 text-left font-medium text-slate-300 text-xs font-normal w-28">Number</th>
-                  <th className="px-4 py-2.5 text-right font-medium w-36">Balance</th>
-                </tr>
-              </thead>
+          <>
+            {/* ── Report title block ── */}
+            <div className="mb-4 text-center" style={{ maxWidth: 760 }}>
+              <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                {project.name}
+              </p>
+              <p className="text-base font-bold text-slate-900 mt-0.5">Balance Sheet</p>
+              {displayDate && (
+                <p className="text-sm text-slate-600 mt-0.5">As of {displayDate} &middot; {basis} Basis</p>
+              )}
+            </div>
 
-              <tbody>
-                {displayOrder.map((type) => {
-                  const rows = sectionMap.get(type) ?? [];
-                  const total = sectionTotals.get(type) ?? 0;
+            {/* ── Table ── */}
+            <div className="overflow-x-auto rounded border border-slate-200" style={{ maxWidth: 760 }}>
+              <table className="w-full text-sm border-collapse">
 
-                  return (
-                    <Fragment key={type}>
-                      {/* Section header */}
-                      <tr className="bg-slate-100 border-t-2 border-slate-300">
-                        <td
-                          colSpan={3}
-                          className="px-4 py-2 font-bold text-slate-700 uppercase tracking-wide text-xs"
-                        >
-                          {sectionLabel(type)}
-                        </td>
-                      </tr>
+                {/* Column header */}
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-300">
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide w-32">
+                      Account Number
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      Account Name
+                    </th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide w-40">
+                      Balance
+                    </th>
+                  </tr>
+                </thead>
 
-                      {/* Account rows */}
-                      {rows.map((row) => (
-                        <tr key={row.gl_account_id} className="border-t border-slate-100 hover:bg-slate-50/50">
-                          <td className="px-4 py-2">{row.gl_account_name}</td>
-                          <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
-                            {row.gl_account_number ?? "—"}
+                <tbody>
+                  {displayOrder.map((type) => {
+                    const rows        = sectionMap.get(type) ?? [];
+                    const sectionTotal = sectionTotals.get(type) ?? 0;
+
+                    // "Liability" and "Equity" are merged under LIABILITIES & CAPITAL.
+                    // Render the big section header only once — before Liability rows.
+                    const isLiab  = type === "Liability";
+                    const isEquity = type === "Equity";
+                    const showLiabCapHeader = isLiab || (isEquity && !sectionMap.has("Liability"));
+
+                    // Sub-section label for the individual type subtotal
+                    const subLabel =
+                      type === "Asset"     ? "Assets" :
+                      type === "Liability" ? "Liabilities" :
+                      type === "Equity"    ? "Capital" : type;
+
+                    return (
+                      <Fragment key={type}>
+
+                        {/* ── Big section header ── */}
+                        {type === "Asset" && (
+                          <SectionHeader label="ASSETS" />
+                        )}
+                        {showLiabCapHeader && (
+                          <SectionHeader label="LIABILITIES & CAPITAL" />
+                        )}
+                        {!["Asset", "Liability", "Equity"].includes(type) && (
+                          <SectionHeader label={type.toUpperCase()} />
+                        )}
+
+                        {/* ── Account rows ── */}
+                        {rows.map((row) => (
+                          <tr key={row.gl_account_id} className="border-t border-slate-100 hover:bg-slate-50/40">
+                            <td className="px-3 py-1.5 font-mono text-xs text-slate-400 align-top pt-2">
+                              {row.gl_account_number ?? ""}
+                            </td>
+                            <td className="px-3 py-1.5 text-blue-600">
+                              &nbsp;&nbsp;{row.gl_account_name}
+                            </td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-slate-700">
+                              {fmt(Number(row.balance))}
+                            </td>
+                          </tr>
+                        ))}
+
+                        {/* ── Sub-section subtotal ── */}
+                        <tr className="border-t border-slate-200">
+                          <td className="px-3 py-1.5" />
+                          <td className="px-3 py-1.5 font-semibold text-slate-700">
+                            Total {subLabel}
                           </td>
-                          <td className="px-4 py-2 text-right tabular-nums">
-                            {usdSigned(Number(row.balance))}
+                          <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-slate-800 border-t-2 border-t-slate-400">
+                            {fmt(sectionTotal)}
                           </td>
                         </tr>
-                      ))}
 
-                      {/* Section subtotal */}
-                      <tr className="border-t border-slate-300 bg-slate-50 font-semibold text-sm">
-                        <td className="px-4 py-2 text-xs text-muted-foreground uppercase tracking-wide" colSpan={2}>
-                          Total {sectionLabel(type)}
-                        </td>
-                        <td className="px-4 py-2 text-right tabular-nums border-t border-slate-300">
-                          {usdSigned(total)}
-                        </td>
-                      </tr>
-                    </Fragment>
-                  );
-                })}
-              </tbody>
+                        {/* ── TOTAL ASSETS grand total (after Asset section) ── */}
+                        {type === "Asset" && (
+                          <GrandTotal label="TOTAL ASSETS" value={totalAssets} />
+                        )}
 
-              {/* Balance check footer */}
-              <tfoot>
-                {/* Liabilities + Equity combined row (shown when both exist) */}
-                {sectionMap.has("Liability") && sectionMap.has("Equity") && (
-                  <tr className="border-t border-slate-300 bg-slate-100 text-sm font-semibold">
-                    <td className="px-4 py-2 text-xs text-muted-foreground uppercase tracking-wide" colSpan={2}>
-                      Total Liabilities + Equity
+                        {/* ── TOTAL LIABILITIES & CAPITAL grand total (after Equity, or after Liability if no Equity) ── */}
+                        {(isEquity || (isLiab && !sectionMap.has("Equity"))) && hasLiabEquity && (
+                          <GrandTotal label="TOTAL LIABILITIES & CAPITAL" value={liabPlusEquity} />
+                        )}
+
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+
+                {/* ── Balance check footer ── */}
+                <tfoot>
+                  <tr className={`border-t-2 ${isBalanced ? "border-slate-300" : "border-red-400"}`}>
+                    <td className="px-3 py-2" />
+                    <td className={`px-3 py-2 text-xs font-semibold uppercase tracking-wide ${isBalanced ? "text-slate-400" : "text-red-600"}`}>
+                      {isBalanced ? "In Balance" : "⚠ Out of Balance"}
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums">
-                      {usdSigned(liabPlusEquity)}
+                    <td className={`px-3 py-2 text-right tabular-nums text-xs ${isBalanced ? "text-slate-400" : "text-red-600 font-semibold"}`}>
+                      {isBalanced ? "" : fmt(balanceDiff)}
                     </td>
                   </tr>
-                )}
+                </tfoot>
 
-                {/* Balance check */}
-                <tr className={`border-t-2 text-sm font-bold ${isBalanced ? "bg-slate-800 text-white" : "bg-red-700 text-white"}`}>
-                  <td className="px-4 py-3" colSpan={2}>
-                    {isBalanced ? "✓ Balanced" : "⚠ Out of Balance"}
-                  </td>
-                  <td className={`px-4 py-3 text-right tabular-nums ${isBalanced ? "" : "text-red-200"}`}>
-                    {isBalanced ? usdSigned(totalAssets) : usdSigned(balanceDiff)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
+  );
+}
+
+/* ─── Sub-components ──────────────────────────────────── */
+
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <tr className="bg-slate-100 border-t border-b border-slate-300">
+      <td className="px-3 py-1.5" />
+      <td className="px-3 py-1.5 font-bold text-slate-800 text-xs uppercase tracking-wide" colSpan={2}>
+        {label}
+      </td>
+    </tr>
+  );
+}
+
+function GrandTotal({ label, value }: { label: string; value: number }) {
+  return (
+    <tr className="border-t-2 border-slate-400 border-b border-slate-300">
+      <td className="px-3 py-1.5" />
+      <td className="px-3 py-1.5 font-bold text-slate-900 text-xs uppercase tracking-wide">
+        {label}
+      </td>
+      <td className="px-3 py-2 text-right tabular-nums font-bold text-slate-900 border-t-2 border-slate-700">
+        {fmt(value)}
+      </td>
+    </tr>
   );
 }
