@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { fetchBillDetail, type BillDetailRow } from "@/lib/appfolio";
+import { fetchVendorLedger, parseCostCategory, type VendorLedgerRow } from "@/lib/appfolio";
 
 /**
  * POST /api/appfolio/sync
  *
  * Admin-only endpoint that:
  * 1. Creates an appfolio_syncs record
- * 2. Fetches bill_detail from AppFolio for all projects with appfolio_property_id
+ * 2. Fetches vendor_ledger from AppFolio for all projects with appfolio_property_id
+ *    (vendor_ledger includes the Project Cost Category field used for matching)
  * 3. Upserts into appfolio_transactions (keyed by appfolio_bill_id)
  * 4. Returns sync stats
  */
@@ -97,61 +98,58 @@ export async function POST(request: Request) {
         ),
       ];
 
-      // Fetch bill detail from AppFolio
-      const bills = await fetchBillDetail({
+      // Fetch vendor ledger from AppFolio (contains Project Cost Category)
+      const rows = await fetchVendorLedger({
         propertyIds,
         fromDate,
         toDate,
         paymentStatus: "All",
       });
 
-      // Build property-to-project lookup
-      const propertyToProject = new Map<string, string>();
-      for (const p of projects) {
-        if (p.appfolio_property_id) {
-          propertyToProject.set(p.appfolio_property_id, p.id);
-        }
-      }
-
-      // Upsert transactions into appfolio_transactions
+      // Upsert transactions
       let upsertedCount = 0;
+      let unmappedCount = 0;
       const BATCH_SIZE = 100;
 
-      for (let i = 0; i < bills.length; i += BATCH_SIZE) {
-        const batch = bills.slice(i, i + BATCH_SIZE);
-        const rows = batch.map((bill: BillDetailRow) => {
-          const paidAmt = parseFloat(bill.paid ?? "0") || 0;
-          const unpaidAmt = parseFloat(bill.unpaid ?? "0") || 0;
+      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+        const batch = rows.slice(i, i + BATCH_SIZE);
+        const upsertRows = batch.map((row: VendorLedgerRow) => {
+          const paidAmt = parseFloat(row.paid ?? "0") || 0;
+          const unpaidAmt = parseFloat(row.unpaid ?? "0") || 0;
+          const { code: costCode, name: costName } = parseCostCategory(row.cost_category);
+          if (!costCode) unmappedCount++;
           return {
-            appfolio_bill_id: String(bill.payable_invoice_detail_id),
-            appfolio_property_id: String(bill.property_id ?? ""),
-            vendor_name: bill.payee_name ?? "Unknown",
-            gl_account_id: bill.account_number ?? "",
-            gl_account_name: bill.account_name ?? "",
-            bill_date: bill.bill_date ?? null,
-            due_date: bill.due_date ?? null,
-            payment_date: bill.payment_date ?? null,
+            appfolio_bill_id: String(row.payable_invoice_detail_id),
+            appfolio_property_id: String(row.property_id ?? ""),
+            vendor_name: row.payee_name ?? "Unknown",
+            gl_account_id: row.account_number ?? "",
+            gl_account_name: row.account_name ?? "",
+            cost_category_code: costCode ?? null,
+            cost_category_name: costName ?? null,
+            bill_date: row.bill_date ?? null,
+            due_date: row.due_date ?? null,
+            payment_date: row.payment_date ?? null,
             invoice_amount: paidAmt + unpaidAmt,
             paid_amount: paidAmt,
             unpaid_amount: unpaidAmt,
-            payment_type: bill.other_payment_type ?? null,
-            check_number: bill.check_number ?? null,
+            payment_type: null,
+            check_number: row.check_number ?? null,
             payment_status: unpaidAmt === 0 ? "Paid" : paidAmt === 0 ? "Unpaid" : "Partial",
-            reference_number: bill.reference_number ?? null,
-            description: bill.description ?? null,
-            property_name: bill.property_name ?? null,
+            reference_number: null,
+            description: row.description ?? null,
+            property_name: row.property_name ?? null,
             sync_id: syncId,
           };
         });
 
         const { error: upsertErr } = await supabase
           .from("appfolio_transactions")
-          .upsert(rows, { onConflict: "appfolio_bill_id" });
+          .upsert(upsertRows, { onConflict: "appfolio_bill_id" });
 
         if (upsertErr) {
           console.error("[sync] Upsert batch error:", upsertErr.message);
         } else {
-          upsertedCount += rows.length;
+          upsertedCount += upsertRows.length;
         }
       }
 
@@ -160,9 +158,9 @@ export async function POST(request: Request) {
         .from("appfolio_syncs")
         .update({
           status: "completed",
-          records_fetched: bills.length,
+          records_fetched: rows.length,
           records_upserted: upsertedCount,
-          records_unmapped: 0,
+          records_unmapped: unmappedCount,
           completed_at: new Date().toISOString(),
         })
         .eq("id", syncId);
@@ -170,13 +168,13 @@ export async function POST(request: Request) {
       return NextResponse.json({
         syncId,
         status: "completed",
-        records_fetched: bills.length,
+        records_fetched: rows.length,
         records_upserted: upsertedCount,
+        records_unmapped: unmappedCount,
         projects_synced: projects.length,
         date_range: { fromDate, toDate },
       });
     } catch (err) {
-      // Mark sync failed
       await supabase
         .from("appfolio_syncs")
         .update({
@@ -200,7 +198,6 @@ export async function POST(request: Request) {
 /* ─── Helpers ──────────────────────────────────────────── */
 
 function getDefaultFromDate(): string {
-  // Default: 12 months ago
   const d = new Date();
   d.setFullYear(d.getFullYear() - 1);
   return d.toISOString().split("T")[0];

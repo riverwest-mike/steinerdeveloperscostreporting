@@ -148,6 +148,116 @@ export async function fetchBillDetail(
   return all;
 }
 
+/* ─── Vendor Ledger report ─────────────────────────────── */
+
+/**
+ * Row returned by AppFolio vendor_ledger.json report.
+ * The `cost_category` field contains the construction cost code + name,
+ * e.g. "010700 Survey" or "020300 Environmental".
+ */
+export interface VendorLedgerRow {
+  payable_invoice_detail_id: number;
+  txn_id: number;
+  property_id: number;
+  property_name: string;
+  payee_name: string;
+  account_number: string;
+  account_name: string;
+  bill_date: string;
+  due_date: string;
+  payment_date: string | null;
+  /** String like "3327.50" */
+  paid: string;
+  /** String like "0.00" */
+  unpaid: string;
+  check_number: string | null;
+  description: string | null;
+  /**
+   * AppFolio Project Cost Category, e.g. "010700 Survey".
+   * Split on first space: code = part[0], name = rest.
+   */
+  cost_category: string | null;
+  [key: string]: unknown;
+}
+
+export interface FetchVendorLedgerOptions {
+  propertyIds?: string[];
+  fromDate: string;
+  toDate: string;
+  paymentStatus?: "Paid" | "Unpaid" | "All";
+}
+
+export async function fetchVendorLedger(
+  opts: FetchVendorLedgerOptions
+): Promise<VendorLedgerRow[]> {
+  const baseUrl = getBaseUrl();
+
+  const params: Record<string, unknown> = {
+    occurred_on_from: opts.fromDate,
+    occurred_on_to: opts.toDate,
+    paginate_results: true,
+  };
+
+  if (opts.propertyIds && opts.propertyIds.length > 0) {
+    params.properties = { properties_ids: opts.propertyIds };
+  }
+
+  if (opts.paymentStatus && opts.paymentStatus !== "All") {
+    params.payment_status = opts.paymentStatus.toLowerCase();
+  }
+
+  const url = `${baseUrl}/vendor_ledger.json`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
+    body: JSON.stringify(params),
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`AppFolio vendor_ledger ${res.status}: ${text}`);
+  }
+
+  const data: PaginatedResponse<VendorLedgerRow> = await res.json();
+  const all = [...data.results];
+
+  let nextUrl = data.next_page_url;
+  while (nextUrl) {
+    const pageRes = await fetch(resolveNextUrl(nextUrl), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: getAuthHeader() },
+      cache: "no-store",
+    });
+    if (!pageRes.ok) break;
+    const pageData: PaginatedResponse<VendorLedgerRow> = await pageRes.json();
+    all.push(...pageData.results);
+    nextUrl = pageData.next_page_url;
+  }
+
+  return all;
+}
+
+/**
+ * Parse an AppFolio cost_category string like "010700 Survey" into
+ * { code: "010700", name: "Survey" }.
+ * Returns nulls if the value is blank or doesn't start with digits.
+ */
+export function parseCostCategory(raw: string | null | undefined): {
+  code: string | null;
+  name: string | null;
+} {
+  if (!raw || !raw.trim()) return { code: null, name: null };
+  const trimmed = raw.trim();
+  const spaceIdx = trimmed.indexOf(" ");
+  if (spaceIdx === -1) return { code: trimmed, name: null };
+  return {
+    code: trimmed.slice(0, spaceIdx),
+    name: trimmed.slice(spaceIdx + 1).trim() || null,
+  };
+}
+
 /* ─── General Ledger report ────────────────────────────── */
 
 export interface GLRow {
