@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { Fragment } from "react";
+import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
@@ -526,7 +527,18 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                           <td className="px-3 py-2 text-right tabular-nums border-l border-slate-100">{usd(row.g_committed)}</td>
                           <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{pct(row.h_pct_committed)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{usd(row.i_uncommitted)}</td>
-                          <td className="px-3 py-2 text-right tabular-nums border-l border-slate-100">{usd(row.j_cost_to_date)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums border-l border-slate-100">
+                            {row.j_cost_to_date !== 0 && project.appfolio_property_id ? (
+                              <Link
+                                href={`/reports/cost-detail?projectId=${projectId}&asOf=${asOf}&categoryCode=${row.code}`}
+                                className="text-primary underline underline-offset-2 hover:opacity-75"
+                              >
+                                {usd(row.j_cost_to_date)}
+                              </Link>
+                            ) : (
+                              usd(row.j_cost_to_date)
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-right tabular-nums">{usd(row.k_balance)}</td>
                         </tr>
                       ))}

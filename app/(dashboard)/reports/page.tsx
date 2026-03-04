@@ -11,6 +11,12 @@ const AVAILABLE_REPORTS = [
     description:
       "Tracks original budget, authorized adjustments, commitments, and cost-to-date by cost category — all gates rolled up.",
   },
+  {
+    href: "/reports/cost-detail",
+    title: "Cost Detail Report",
+    description:
+      "Transaction-level drill-down of AppFolio actuals for a selected project and cost category, pulled directly from AppFolio.",
+  },
 ];
 
 export default function ReportsPage() {
