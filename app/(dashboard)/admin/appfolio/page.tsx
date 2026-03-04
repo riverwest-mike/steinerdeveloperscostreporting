@@ -91,6 +91,25 @@ export default async function AppFolioSyncPage() {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([code, { name, matched }]) => ({ code, name, matched }));
 
+  // Per-property transaction diagnostic: show the 10 most recent stored transactions
+  // for each linked property so we can verify cost_category_code is being stored
+  const { data: recentTx } = await supabase
+    .from("appfolio_transactions")
+    .select("appfolio_bill_id, appfolio_property_id, vendor_name, bill_date, invoice_amount, cost_category_code, cost_category_name, gl_account_id")
+    .order("bill_date", { ascending: false })
+    .limit(20);
+
+  const recentTransactions = (recentTx ?? []) as {
+    appfolio_bill_id: string;
+    appfolio_property_id: string;
+    vendor_name: string;
+    bill_date: string | null;
+    invoice_amount: number;
+    cost_category_code: string | null;
+    cost_category_name: string | null;
+    gl_account_id: string;
+  }[];
+
   // GL Balances diagnostic: sample rows to verify field mapping
   const { data: glSample } = await supabase
     .from("gl_balances")
@@ -328,6 +347,58 @@ export default async function AppFolioSyncPage() {
             Results are keyed by property + account + date + basis, so multiple dates can coexist.
           </p>
           <BalanceSheetSyncButton />
+        </div>
+
+        {/* Recent stored transactions — key diagnostic */}
+        <div>
+          <h3 className="text-lg font-semibold mb-1">Most Recent Stored Transactions</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Last 20 transactions in the database. The <strong>Cost Category Code</strong> column
+            must be non-empty for the Cost Management Report to match them. If it&apos;s blank here,
+            the sync isn&apos;t storing the value from AppFolio.
+          </p>
+          {recentTransactions.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No transactions stored yet.</p>
+          ) : (
+            <div className="rounded-lg border overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/50 border-b">
+                    <th className="px-3 py-2 text-left font-medium">Bill ID</th>
+                    <th className="px-3 py-2 text-left font-medium">Property ID</th>
+                    <th className="px-3 py-2 text-left font-medium">Vendor</th>
+                    <th className="px-3 py-2 text-left font-medium">Bill Date</th>
+                    <th className="px-3 py-2 text-right font-medium">Amount</th>
+                    <th className="px-3 py-2 text-left font-medium">Cost Category Code</th>
+                    <th className="px-3 py-2 text-left font-medium">Cost Category Name</th>
+                    <th className="px-3 py-2 text-left font-medium">GL Account</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTransactions.map((tx, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className="px-3 py-2 font-mono text-muted-foreground">{tx.appfolio_bill_id}</td>
+                      <td className="px-3 py-2 font-mono">{tx.appfolio_property_id}</td>
+                      <td className="px-3 py-2 max-w-[160px] truncate" title={tx.vendor_name}>{tx.vendor_name}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{tx.bill_date ?? "—"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0 }).format(Number(tx.invoice_amount))}
+                      </td>
+                      <td className="px-3 py-2">
+                        {tx.cost_category_code ? (
+                          <code className="font-mono bg-green-100 text-green-800 px-1 rounded">{tx.cost_category_code}</code>
+                        ) : (
+                          <span className="text-red-600 italic">empty</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">{tx.cost_category_name ?? "—"}</td>
+                      <td className="px-3 py-2 font-mono text-muted-foreground">{tx.gl_account_id || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* GL Balances diagnostic */}
