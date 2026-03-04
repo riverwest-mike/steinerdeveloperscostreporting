@@ -240,10 +240,22 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   const unmatchedCats = new Map<string, { name: string; amount: number }>();
 
   if (project.appfolio_property_id) {
-    // Build code → category id lookup (case-insensitive)
+    // Build code → category id lookup (case-insensitive).
+    // Index by two keys per category to handle both formats:
+    //   1. Exact code as stored (e.g. "010700" or "010700 SURVEY")
+    //   2. The leading numeric prefix only (e.g. "010700") — so categories
+    //      whose code was entered as "010700 Survey" still match transactions
+    //      stored as "010700" by parseCostCategory.
     const codeToCategory = new Map<string, string>();
     for (const cat of categories) {
-      codeToCategory.set(cat.code.trim().toUpperCase(), cat.id);
+      const full = cat.code.trim().toUpperCase();
+      codeToCategory.set(full, cat.id);
+      // Also index by numeric prefix (everything before the first space)
+      const spaceIdx = full.indexOf(" ");
+      if (spaceIdx > 0) {
+        const prefix = full.slice(0, spaceIdx);
+        if (!codeToCategory.has(prefix)) codeToCategory.set(prefix, cat.id);
+      }
     }
 
     // Fetch transactions — include rows where bill_date is null (undated)
