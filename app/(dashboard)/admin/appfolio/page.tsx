@@ -89,13 +89,20 @@ export default async function AppFolioSyncPage() {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([code, { name, matched }]) => ({ code, name, matched }));
 
-  // Get projects without an AppFolio property ID
-  const { data: unlinkedProjects } = await supabase
+  // Get ALL active projects with their current AppFolio property ID (for the mapping table)
+  const { data: allActiveProjects } = await supabase
     .from("projects")
-    .select("id, name, code")
-    .or("appfolio_property_id.is.null,appfolio_property_id.eq.")
+    .select("id, name, code, appfolio_property_id")
     .eq("status", "active")
     .order("name");
+
+  const allProjects = (allActiveProjects ?? []) as {
+    id: string; name: string; code: string; appfolio_property_id: string | null;
+  }[];
+
+  const unlinkedProjects = allProjects.filter(
+    (p) => !p.appfolio_property_id || p.appfolio_property_id.trim() === ""
+  );
 
   return (
     <div>
@@ -138,20 +145,58 @@ export default async function AppFolioSyncPage() {
           </div>
         </div>
 
-        {/* Unlinked projects */}
-        {unlinkedProjects && unlinkedProjects.length > 0 && (
-          <LinkProjects
-            projects={unlinkedProjects}
-            appfolioBaseUrl={process.env.APPFOLIO_DATABASE_URL ?? "your AppFolio account"}
-          />
-        )}
+        {/* All project → property mappings */}
+        <div>
+          <h3 className="text-lg font-semibold mb-1">Project → AppFolio Property Mapping</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            All active projects and their linked AppFolio Property IDs. The sync only pulls transactions
+            for properties listed here. Use the{" "}
+            <span className="font-mono text-xs bg-muted px-1 rounded">Edit</span> link to update an ID.
+            Find a Property ID in AppFolio by opening the property and copying the number from the URL:
+            {" "}<span className="font-mono text-xs">…/properties/<strong>12345</strong>/edit</span>
+          </p>
+          <div className="rounded-lg border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted/50 border-b">
+                  <th className="px-4 py-2 text-left font-medium">Project</th>
+                  <th className="px-4 py-2 text-left font-medium">Code</th>
+                  <th className="px-4 py-2 text-left font-medium">AppFolio Property ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allProjects.map((p) => (
+                  <tr key={p.id} className="border-b last:border-0">
+                    <td className="px-4 py-2 font-medium">{p.name}</td>
+                    <td className="px-4 py-2 font-mono text-muted-foreground text-xs">{p.code}</td>
+                    <td className="px-4 py-2">
+                      {p.appfolio_property_id ? (
+                        <span className="font-mono text-green-700">{p.appfolio_property_id}</span>
+                      ) : (
+                        <span className="text-red-600 text-xs">Not set</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {unlinkedProjects.length > 0 && (
+            <div className="mt-4">
+              <LinkProjects
+                projects={unlinkedProjects}
+                appfolioBaseUrl={process.env.APPFOLIO_DATABASE_URL ?? "your AppFolio account"}
+              />
+            </div>
+          )}
+        </div>
 
         {/* Sync controls */}
         <div>
           <h3 className="text-lg font-semibold mb-3">Run Sync</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Pulls bill detail records from AppFolio for all projects that have an AppFolio Property ID configured.
-            The GL Account on each bill will be matched to cost categories by code.
+            Pulls vendor ledger records from AppFolio for all projects that have an AppFolio Property ID configured.
+            The Project Cost Category on each bill is used to match transactions to cost categories.
           </p>
           <SyncButton />
         </div>
