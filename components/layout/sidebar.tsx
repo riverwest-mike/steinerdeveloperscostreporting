@@ -19,6 +19,7 @@ const adminNavItems = [
 
 const reportItems = [
   { href: "/reports/cost-management", label: "Project Cost Management" },
+  { href: "/reports/cost-detail", label: "Cost Detail" },
   { href: "/reports/balance-sheet", label: "Balance Sheet" },
 ];
 
