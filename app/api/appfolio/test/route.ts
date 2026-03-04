@@ -78,18 +78,40 @@ export async function GET(request: Request) {
         }
       }
 
-      const withCostCategory = rows.filter(
-        (r: Record<string, unknown>) => r.project_cost_category != null && r.project_cost_category !== ""
+      // Detect which field name actually holds the cost category value
+      const COST_CAT_CANDIDATES = [
+        "project_cost_category",
+        "Project_Cost_Category",
+        "projectCostCategory",
+        "cost_category",
+        "Cost_Category",
+        "project_cost_code",
+        "cost_code",
+      ];
+      const detectedCostCatField = COST_CAT_CANDIDATES.find((f) =>
+        rows.some((r: Record<string, unknown>) => r[f] != null && r[f] !== "")
+      ) ?? null;
+      // Also collect any field whose name contains "cost" or "category"
+      const costRelatedFields = [...allFields].filter(
+        (k) => k.toLowerCase().includes("cost") || k.toLowerCase().includes("category")
       );
+
+      const withCostCategory = detectedCostCatField
+        ? rows.filter((r: Record<string, unknown>) => r[detectedCostCatField] != null && r[detectedCostCatField] !== "")
+        : [];
       results[endpoint] = {
         total_records: rows.length,
         has_next_page: !!data.next_page_url,
         all_field_names: [...allFields].sort(),
-        records_with_project_cost_category: withCostCategory.length,
+        cost_related_fields: costRelatedFields,
+        detected_cost_category_field: detectedCostCatField,
+        records_with_cost_category: withCostCategory.length,
         sample_with_cost_category: withCostCategory.slice(0, 3),
-        sample_without_cost_category: rows.filter(
-          (r: Record<string, unknown>) => !r.project_cost_category
-        ).slice(0, 2),
+        sample_without_cost_category: rows
+          .filter((r: Record<string, unknown>) =>
+            !detectedCostCatField || !r[detectedCostCatField]
+          )
+          .slice(0, 2),
       };
     }
 

@@ -152,8 +152,11 @@ export async function fetchBillDetail(
 
 /**
  * Row returned by AppFolio vendor_ledger.json report.
- * The `cost_category` field contains the construction cost code + name,
+ * The Project Cost Category field contains the construction cost code + name,
  * e.g. "010700 Survey" or "020300 Environmental".
+ *
+ * AppFolio may return this as "project_cost_category" or "Project_Cost_Category"
+ * depending on the API version. Use getProjectCostCategory() to read it safely.
  */
 export interface VendorLedgerRow {
   payable_invoice_detail_id: number;
@@ -172,13 +175,27 @@ export interface VendorLedgerRow {
   unpaid: string;
   check_number: string | null;
   description: string | null;
-  /**
-   * AppFolio Project Cost Category, e.g. "010700 Survey".
-   * Split on first space: code = part[0], name = rest.
-   * Only populated when the bill is linked to an AppFolio Project.
-   */
-  project_cost_category: string | null;
+  // Lowercase variant
+  project_cost_category?: string | null;
+  // Mixed-case variant (AppFolio sometimes returns Pascal_Snake_Case)
+  Project_Cost_Category?: string | null;
   [key: string]: unknown;
+}
+
+/**
+ * Read the Project Cost Category field from a VendorLedgerRow regardless of
+ * the capitalisation AppFolio uses in the JSON response.
+ * Tries every known variant; returns null when none is present.
+ */
+export function getProjectCostCategory(row: VendorLedgerRow): string | null {
+  return (
+    (row.project_cost_category as string | null | undefined) ??
+    (row.Project_Cost_Category as string | null | undefined) ??
+    // Catch any other mixed-case/camelCase variants via the index signature
+    (row["projectCostCategory"] as string | null | undefined) ??
+    (row["cost_category"] as string | null | undefined) ??
+    null
+  );
 }
 
 export interface FetchVendorLedgerOptions {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { fetchVendorLedger, parseCostCategory, type VendorLedgerRow } from "@/lib/appfolio";
+import { fetchVendorLedger, parseCostCategory, getProjectCostCategory, type VendorLedgerRow } from "@/lib/appfolio";
 
 /**
  * POST /api/appfolio/sync
@@ -121,6 +121,15 @@ export async function POST(request: Request) {
       let unmappedCount = 0;
       const BATCH_SIZE = 100;
 
+      // Log the actual field keys from the first row so we can confirm the
+      // AppFolio cost-category field name in the server logs.
+      if (rows.length > 0) {
+        const sampleKeys = Object.keys(rows[0] as object);
+        console.log("[sync] AppFolio vendor_ledger first-row keys:", sampleKeys.join(", "));
+        const costCatRaw = getProjectCostCategory(rows[0] as VendorLedgerRow);
+        console.log("[sync] project_cost_category sample value:", costCatRaw);
+      }
+
       for (let i = 0; i < rows.length; i += BATCH_SIZE) {
         const batch = rows.slice(i, i + BATCH_SIZE);
 
@@ -130,7 +139,7 @@ export async function POST(request: Request) {
         const prelimRows = batch.map((row: VendorLedgerRow) => {
           const paidAmt = parseFloat(row.paid ?? "0") || 0;
           const unpaidAmt = parseFloat(row.unpaid ?? "0") || 0;
-          const { code: costCode, name: costName } = parseCostCategory(row.project_cost_category);
+          const { code: costCode, name: costName } = parseCostCategory(getProjectCostCategory(row));
           return {
             appfolio_bill_id: String(row.payable_invoice_detail_id),
             appfolio_property_id: String(row.property_id ?? ""),
