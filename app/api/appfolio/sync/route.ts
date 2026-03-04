@@ -116,26 +116,29 @@ export async function POST(request: Request) {
         paymentStatus: "All",
       });
 
-      // Upsert transactions
+      // ── Upsert transactions ───────────────────────────────────────────────
       let upsertedCount = 0;
       let unmappedCount = 0;
       const BATCH_SIZE = 100;
 
       for (let i = 0; i < rows.length; i += BATCH_SIZE) {
         const batch = rows.slice(i, i + BATCH_SIZE);
-        const upsertRows = batch.map((row: VendorLedgerRow) => {
+
+        // Build rows using AppFolio's Project Cost Code as the source of truth.
+        // For rows where AppFolio returns no cost code, we look up and preserve
+        // the existing DB value so a re-sync never wipes a valid classification.
+        const prelimRows = batch.map((row: VendorLedgerRow) => {
           const paidAmt = parseFloat(row.paid ?? "0") || 0;
           const unpaidAmt = parseFloat(row.unpaid ?? "0") || 0;
           const { code: costCode, name: costName } = parseCostCategory(row.project_cost_category);
-          if (!costCode) unmappedCount++;
           return {
             appfolio_bill_id: String(row.payable_invoice_detail_id),
             appfolio_property_id: String(row.property_id ?? ""),
             vendor_name: row.payee_name ?? "Unknown",
             gl_account_id: row.account_number ?? "",
             gl_account_name: row.account_name ?? "",
-            cost_category_code: costCode ?? null,
-            cost_category_name: costName ?? null,
+            _appfolio_code: costCode ?? null,
+            _appfolio_name: costName ?? null,
             bill_date: row.bill_date ?? null,
             due_date: row.due_date ?? null,
             payment_date: row.payment_date ?? null,
@@ -149,6 +152,48 @@ export async function POST(request: Request) {
             description: row.description ?? null,
             property_name: row.property_name ?? null,
             sync_id: syncId,
+          };
+        });
+
+        // For rows AppFolio returned no cost code for, fetch the existing DB
+        // value so we can preserve it instead of overwriting with null.
+        const needsLookup = prelimRows
+          .filter((r) => !r._appfolio_code)
+          .map((r) => r.appfolio_bill_id);
+
+        const existingMap = new Map<string, { cost_category_code: string | null; cost_category_name: string | null }>();
+        if (needsLookup.length > 0) {
+          const { data: existing } = await supabase
+            .from("appfolio_transactions")
+            .select("appfolio_bill_id, cost_category_code, cost_category_name")
+            .in("appfolio_bill_id", needsLookup);
+          for (const e of (existing ?? []) as { appfolio_bill_id: string; cost_category_code: string | null; cost_category_name: string | null }[]) {
+            existingMap.set(e.appfolio_bill_id, e);
+          }
+        }
+
+        // Final pass: use AppFolio code if present, else fall back to existing DB value.
+        const upsertRows = prelimRows.map((row) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { _appfolio_code, _appfolio_name, ...rest } = row;
+
+          let finalCode = _appfolio_code;
+          let finalName = _appfolio_name;
+
+          if (!finalCode) {
+            const prev = existingMap.get(row.appfolio_bill_id);
+            if (prev?.cost_category_code) {
+              finalCode = prev.cost_category_code;
+              finalName = prev.cost_category_name ?? null;
+            }
+          }
+
+          if (!finalCode) unmappedCount++;
+
+          return {
+            ...rest,
+            cost_category_code: finalCode ?? null,
+            cost_category_name: finalName ?? null,
           };
         });
 
