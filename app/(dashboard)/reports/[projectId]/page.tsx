@@ -90,7 +90,7 @@ export default async function CostCategoryReportPage({ params }: Props) {
   const actualsMap = new Map<string, number>();
   let txCount = 0;
   let matchedTxCount = 0;
-  // unmatched: gl_account_id -> { name, amount }
+  // unmatched: cost_category_code (or "(no cost category)") -> { name, amount }
   const unmatchedGl = new Map<string, { name: string; amount: number }>();
 
   if (project.appfolio_property_id) {
@@ -101,24 +101,27 @@ export default async function CostCategoryReportPage({ params }: Props) {
 
     const { data: transactions } = await supabase
       .from("appfolio_transactions")
-      .select("gl_account_id, gl_account_name, invoice_amount")
+      .select("cost_category_code, cost_category_name, vendor_name, invoice_amount")
       .eq("appfolio_property_id", project.appfolio_property_id);
 
     txCount = (transactions ?? []).length;
 
     for (const tx of (transactions ?? []) as {
-      gl_account_id: string;
-      gl_account_name: string;
+      cost_category_code: string | null;
+      cost_category_name: string | null;
+      vendor_name: string;
       invoice_amount: number;
     }[]) {
-      const glId = (tx.gl_account_id ?? "").trim().toUpperCase();
-      const categoryId = codeToCategory.get(glId);
+      const code = (tx.cost_category_code ?? "").trim().toUpperCase();
+      const categoryId = code ? (codeToCategory.get(code) ?? null) : null;
       if (categoryId) {
         matchedTxCount++;
         actualsMap.set(categoryId, (actualsMap.get(categoryId) ?? 0) + Number(tx.invoice_amount));
       } else {
-        const prev = unmatchedGl.get(glId) ?? { name: tx.gl_account_name ?? glId, amount: 0 };
-        unmatchedGl.set(glId, { name: prev.name, amount: prev.amount + Number(tx.invoice_amount) });
+        const displayCode = code || "(no cost category)";
+        const displayName = tx.cost_category_name || tx.vendor_name || displayCode;
+        const prev = unmatchedGl.get(displayCode) ?? { name: displayName, amount: 0 };
+        unmatchedGl.set(displayCode, { name: prev.name, amount: prev.amount + Number(tx.invoice_amount) });
       }
     }
   }
@@ -195,7 +198,7 @@ export default async function CostCategoryReportPage({ params }: Props) {
               a cost category.
             </p>
             <p className="mb-2">
-              The GL Account ID on each bill must exactly match a cost category code. GL accounts found:
+              The Project Cost Code on each bill must match a cost category code. Codes found:
             </p>
             <ul className="font-mono text-xs space-y-0.5">
               {Array.from(unmatchedGl.entries()).map(([id, { name, amount }]) => (
@@ -215,7 +218,7 @@ export default async function CostCategoryReportPage({ params }: Props) {
             <p className="font-medium mb-1">
               {fmtUSD(unmatchedTotal)} in AppFolio transactions could not be matched to a cost category.
             </p>
-            <p className="mb-2 text-xs">Unmatched GL accounts (code — name — amount):</p>
+            <p className="mb-2 text-xs">Unmatched cost codes (code — name — amount):</p>
             <ul className="font-mono text-xs space-y-0.5">
               {Array.from(unmatchedGl.entries()).map(([id, { name, amount }]) => (
                 <li key={id}>
