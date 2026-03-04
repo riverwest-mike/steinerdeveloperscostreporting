@@ -25,11 +25,18 @@ function fmt(n: number): string {
 
 const SECTION_ORDER = ["Asset", "Liability", "Equity"];
 
-function normaliseType(t: string): string {
+function normaliseType(t: string, accountNumber?: string | null): string {
   const lower = t.toLowerCase();
   if (lower.startsWith("asset"))  return "Asset";
   if (lower.startsWith("liab"))   return "Liability";
   if (lower.startsWith("equit") || lower.startsWith("capital")) return "Equity";
+
+  // Fallback: derive from account number prefix (1=Asset, 2=Liability, 3=Equity)
+  const firstDigit = accountNumber?.trim().charAt(0);
+  if (firstDigit === "1") return "Asset";
+  if (firstDigit === "2") return "Liability";
+  if (firstDigit === "3") return "Equity";
+
   return t;
 }
 
@@ -129,7 +136,7 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
   // ── Group by normalised account_type ─────────────────
   const sectionMap = new Map<string, GlRow[]>();
   for (const row of glRows) {
-    const type = normaliseType(row.account_type);
+    const type = normaliseType(row.account_type, row.gl_account_number);
     if (!sectionMap.has(type)) sectionMap.set(type, []);
     sectionMap.get(type)!.push(row);
   }
