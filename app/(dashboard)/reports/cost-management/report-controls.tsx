@@ -56,13 +56,20 @@ export function ReportControls({
 
     startTransition(async () => {
       try {
-        // Use 1 year back — matches the sync-preview window that reliably returns
-        // project_cost_category. Wider ranges (3yr, 2000-01-01) cause AppFolio to
-        // return duplicate entries for the same bill ID: one with the cost code and
-        // one (older/payment record) without, and the null entry can win the upsert.
+        // Use 1 year back for fromDate.
         const syncFrom = new Date();
         syncFrom.setFullYear(syncFrom.getFullYear() - 1);
         const fromDate = syncFrom.toISOString().split("T")[0];
+
+        // Cap the AppFolio sync toDate at yesterday.
+        // When occurred_on_to equals today, AppFolio returns intraday/pending
+        // transactions that are not yet fully posted and therefore lack
+        // project_cost_category. Past and future toDate values only return
+        // fully-posted records. Using yesterday ensures we always query
+        // settled data regardless of what asOf date the user selected.
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const syncToDate = yesterday.toISOString().split("T")[0];
 
         const res = await fetch("/api/appfolio/sync", {
           method: "POST",
@@ -70,7 +77,7 @@ export function ReportControls({
           body: JSON.stringify({
             propertyId,
             fromDate,
-            toDate: asOf,
+            toDate: syncToDate,
           }),
         });
         const json = await res.json();
