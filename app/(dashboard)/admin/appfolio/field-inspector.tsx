@@ -23,11 +23,12 @@ interface TestResult {
   error?: string;
 }
 
-export function FieldInspector({ propertyId }: { propertyId?: string }) {
+export function FieldInspector({ propertyId: defaultPropertyId }: { propertyId?: string }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [vendor, setVendor] = useState("");
+  const [propertyIdInput, setPropertyIdInput] = useState(defaultPropertyId ?? "");
 
   async function handleInspect() {
     setLoading(true);
@@ -35,7 +36,7 @@ export function FieldInspector({ propertyId }: { propertyId?: string }) {
     setError(null);
     try {
       const params = new URLSearchParams({ days: "365" });
-      if (propertyId) params.set("property_id", propertyId);
+      if (propertyIdInput.trim()) params.set("property_id", propertyIdInput.trim());
       if (vendor.trim()) params.set("vendor", vendor.trim());
       const res = await fetch(`/api/appfolio/test?${params}`);
       const data: TestResult = await res.json();
@@ -55,7 +56,14 @@ export function FieldInspector({ propertyId }: { propertyId?: string }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2 items-center">
+      <div className="flex gap-2 items-center flex-wrap">
+        <input
+          type="text"
+          placeholder="AppFolio Property ID (e.g. 196)"
+          value={propertyIdInput}
+          onChange={(e) => setPropertyIdInput(e.target.value)}
+          className="rounded border border-input bg-background px-3 py-1.5 text-sm w-52"
+        />
         <input
           type="text"
           placeholder="Filter by vendor name (e.g. Kimley)"
