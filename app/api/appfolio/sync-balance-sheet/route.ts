@@ -77,69 +77,88 @@ export async function POST(request: Request) {
         });
       }
 
-      const propertyIds = [
-        ...new Set(
-          projects
-            .map((p: { appfolio_property_id: string | null }) => p.appfolio_property_id)
-            .filter(Boolean) as string[]
-        ),
-      ];
-
-      // Build property_id → project_id map (take first match if duplicates)
+      // Deduplicate property IDs; build property → project map
       const propertyToProject = new Map<string, string>();
       for (const p of projects as { id: string; appfolio_property_id: string }[]) {
         if (!propertyToProject.has(p.appfolio_property_id)) {
           propertyToProject.set(p.appfolio_property_id, p.id);
         }
       }
+      const uniqueProperties = Array.from(propertyToProject.keys());
 
-      // Fetch balance sheet from AppFolio
-      const rows = await fetchBalanceSheet({ propertyIds, asOfDate, accountingBasis });
-
-      // Log the first raw row so field-name issues are visible in server logs
-      if (rows.length > 0) {
-        console.log("[sync-balance-sheet] First raw row from AppFolio:", JSON.stringify(rows[0]));
-      }
-
-      // Upsert into gl_balances
+      // Fetch and upsert one property at a time so we always know which
+      // property the rows belong to (AppFolio doesn't include property_id per row).
+      let totalFetched = 0;
       let upsertedCount = 0;
       const BATCH_SIZE = 100;
 
-      for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-        const batch = rows.slice(i, i + BATCH_SIZE);
-        const upsertRows = batch.map((row) => ({
-          appfolio_property_id: String(row.property_id),
-          project_id: propertyToProject.get(String(row.property_id)) ?? null,
-          gl_account_id: String(row.account_id),
-          gl_account_name: row.account_name ?? "",
-          gl_account_number: row.account_number ?? null,
-          account_type: row.account_type ?? "Other",
-          balance: Number(row.balance ?? 0),
-          as_of_date: asOfDate,
-          accounting_basis: accountingBasis,
-          sync_id: syncId,
-        }));
+      for (const propertyId of uniqueProperties) {
+        const rows = await fetchBalanceSheet({
+          propertyIds: [propertyId],
+          asOfDate,
+          accountingBasis,
+        });
 
-        const { error: upsertErr } = await supabase
-          .from("gl_balances")
-          .upsert(upsertRows, {
-            onConflict: "appfolio_property_id,gl_account_id,as_of_date,accounting_basis",
+        totalFetched += rows.length;
+
+        // Log all field names from the first row of the first property to aid debugging
+        if (rows.length > 0 && upsertedCount === 0 && totalFetched === rows.length) {
+          console.log(
+            "[sync-balance-sheet] Raw field names from AppFolio:",
+            Object.keys(rows[0] as object).join(", ")
+          );
+          console.log("[sync-balance-sheet] First raw row:", JSON.stringify(rows[0]));
+        }
+
+        for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+          const batch = rows.slice(i, i + BATCH_SIZE);
+          const upsertRows = batch.map((row) => {
+            const r = row as Record<string, unknown>;
+            // account_number is confirmed present; use it as the stable unique key.
+            const accountId = String(
+              r.account_number ?? r.account_id ?? r.gl_account_id ?? r.id ?? ""
+            );
+            // Try every plausible field name AppFolio might use for the account type/section.
+            const accountType = String(
+              r.account_type ?? r.type ?? r.account_class ?? r.classification ??
+              r.category ?? r.section ?? r.account_section ?? "Other"
+            );
+            return {
+              appfolio_property_id: propertyId,
+              project_id: propertyToProject.get(propertyId) ?? null,
+              gl_account_id: accountId,
+              gl_account_name: String(r.account_name ?? r.gl_account_name ?? ""),
+              gl_account_number: r.account_number != null ? String(r.account_number) : null,
+              account_type: accountType,
+              balance: Number(r.balance ?? 0),
+              as_of_date: asOfDate,
+              accounting_basis: accountingBasis,
+              sync_id: syncId,
+            };
           });
 
-        if (upsertErr) {
-          // Surface the error — include the first row so field-mapping issues are visible
-          throw new Error(
-            `gl_balances upsert failed: ${upsertErr.message} | first row: ${JSON.stringify(upsertRows[0])}`
-          );
+          const { error: upsertErr } = await supabase
+            .from("gl_balances")
+            .upsert(upsertRows, {
+              onConflict: "appfolio_property_id,gl_account_id,as_of_date,accounting_basis",
+            });
+
+          if (upsertErr) {
+            throw new Error(
+              `gl_balances upsert failed: ${upsertErr.message} | ` +
+              `raw keys: ${Object.keys(rows[0] as object).join(", ")} | ` +
+              `first mapped row: ${JSON.stringify(upsertRows[0])}`
+            );
+          }
+          upsertedCount += upsertRows.length;
         }
-        upsertedCount += upsertRows.length;
       }
 
       await supabase
         .from("appfolio_syncs")
         .update({
           status: "completed",
-          records_fetched: rows.length,
+          records_fetched: totalFetched,
           records_upserted: upsertedCount,
           records_unmapped: 0,
           completed_at: new Date().toISOString(),
@@ -149,7 +168,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         syncId,
         status: "completed",
-        records_fetched: rows.length,
+        records_fetched: totalFetched,
         records_upserted: upsertedCount,
         projects_synced: projects.length,
         as_of_date: asOfDate,
