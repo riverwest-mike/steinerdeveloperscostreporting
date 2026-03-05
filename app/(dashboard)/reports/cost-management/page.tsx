@@ -177,31 +177,43 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   const categories = (rawCategories ?? []) as CatRecord[];
 
   // ── Load gates for this project ───────────────────────
-  const { data: rawGates } = await supabase
+  const { data: rawGates, error: gatesError } = await supabase
     .from("gates")
-    .select("id")
-    .eq("project_id", projectId);
+    .select("id, name, sequence_number, status")
+    .eq("project_id", projectId)
+    .order("sequence_number");
 
   const gateIds = (rawGates ?? []).map((g: { id: string }) => g.id);
+  const gateCount = gateIds.length;
 
   // ── A + B: gate_budgets (all gates, all time) ─────────
   const budgetMap = new Map<string, { a: number; b: number }>();
-  if (gateIds.length > 0) {
-    const { data: rawBudgets } = await supabase
+  let budgetRowCount = 0;
+  let budgetError: string | null = null;
+
+  if (gatesError) {
+    budgetError = `Could not load gates: ${gatesError.message}`;
+  } else if (gateIds.length > 0) {
+    const { data: rawBudgets, error: rawBudgetsError } = await supabase
       .from("gate_budgets")
       .select("cost_category_id, original_budget, approved_co_amount")
       .in("gate_id", gateIds);
 
-    for (const b of (rawBudgets ?? []) as {
-      cost_category_id: string;
-      original_budget: number;
-      approved_co_amount: number;
-    }[]) {
-      const prev = budgetMap.get(b.cost_category_id) ?? { a: 0, b: 0 };
-      budgetMap.set(b.cost_category_id, {
-        a: prev.a + Number(b.original_budget),
-        b: prev.b + Number(b.approved_co_amount),
-      });
+    if (rawBudgetsError) {
+      budgetError = `Could not load gate budgets: ${rawBudgetsError.message}`;
+    } else {
+      budgetRowCount = (rawBudgets ?? []).length;
+      for (const b of (rawBudgets ?? []) as {
+        cost_category_id: string;
+        original_budget: number;
+        approved_co_amount: number;
+      }[]) {
+        const prev = budgetMap.get(b.cost_category_id) ?? { a: 0, b: 0 };
+        budgetMap.set(b.cost_category_id, {
+          a: prev.a + Number(b.original_budget),
+          b: prev.b + Number(b.approved_co_amount),
+        });
+      }
     }
   }
 
@@ -445,6 +457,28 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         </div>
 
         <div className="print:hidden">
+          {/* Gate budget diagnostics */}
+          {budgetError && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800">
+              <span className="font-semibold">Budget load error:</span> {budgetError}
+            </div>
+          )}
+          {!budgetError && gateCount === 0 && (
+            <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+              No gates found for this project — Budget columns A–F will show $0. Create a gate and enter budget amounts to populate this report.
+            </div>
+          )}
+          {!budgetError && gateCount > 0 && budgetRowCount === 0 && (
+            <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+              {gateCount} gate{gateCount !== 1 ? "s" : ""} found but no budget amounts have been saved yet — open each gate and click &ldquo;Save Budgets&rdquo; after entering amounts.
+            </div>
+          )}
+          {!budgetError && gateCount > 0 && budgetRowCount > 0 && (
+            <div className="mb-2 text-xs text-muted-foreground">
+              {gateCount} gate{gateCount !== 1 ? "s" : ""} · {budgetRowCount} budget line{budgetRowCount !== 1 ? "s" : ""} loaded
+            </div>
+          )}
+
           {!project.appfolio_property_id && (
             <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
               This project is not linked to an AppFolio property — Cost columns J, K, and L will show $0.
