@@ -11,6 +11,7 @@ import {
   updateContractLineItem,
   deleteContractLineItem,
 } from "../actions";
+import { InfoTip } from "@/components/info-tip";
 
 interface Gate { id: string; name: string; sequence_number: number }
 interface Category { id: string; name: string; code: string }
@@ -277,10 +278,13 @@ function SOVSection({
     <div className="rounded-lg border">
       <div className="px-4 py-3 border-b bg-muted/50 flex items-center justify-between">
         <div>
-          <h3 className="font-semibold text-sm">Schedule of Values</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="font-semibold text-sm">Schedule of Values</h3>
+            <InfoTip text="Use this section when one contract covers multiple cost codes — for example, a general contractor contract that includes sitework, concrete, and framing. Add a line for each cost code with the allocated dollar amount. The PCM Report's column G (Total Committed) will then split the contract's value across those cost codes. Approved change orders are added on top per their own cost code. Leave empty if this contract covers only one cost code." />
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Break this contract&apos;s value across multiple cost codes for PCM Report attribution.
-            When line items are present they replace the top-level cost category for column G.
+            Allocate this contract&apos;s value by cost code. When line items exist, the PCM Report
+            uses them for column G instead of the top-level cost category.
           </p>
         </div>
         <button
@@ -415,7 +419,10 @@ function SOVLineForm({
   return (
     <form onSubmit={handleSubmit} className="flex items-end gap-3 flex-wrap">
       <div className="space-y-1 flex-1 min-w-40">
-        <label className="text-xs font-medium">Cost Category <span className="text-destructive">*</span></label>
+        <label className="text-xs font-medium">
+          Cost Category <span className="text-destructive">*</span>
+          <InfoTip text="Pick the cost code that this portion of the contract's value should appear under on the PCM Report. Each line item maps directly to one row in the report." />
+        </label>
         <select
           name="cost_category_id"
           required
@@ -591,6 +598,7 @@ function AddCOForm({
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="co-gate">
             Gate <span className="text-destructive">*</span>
+            <InfoTip text="This contract spans multiple gates. Select the phase where this change order's work is occurring. The gate's budget will be updated when the CO is approved." />
           </label>
           <select
             id="co-gate"
@@ -779,6 +787,7 @@ function EditContractForm({
         <div className="space-y-1">
           <p className="text-xs font-medium">
             Gates <span className="text-destructive">*</span>
+            <InfoTip text="Select every project phase (gate) this contract's work falls within. If the work spans more than one phase, check all that apply. When you add a change order later you will pick which specific gate it applies to." />
           </p>
           {/* Pre-check gates from the contract_gates junction */}
           <div className="max-h-28 overflow-y-auto rounded border border-input bg-background p-1.5 space-y-0.5">
@@ -798,7 +807,8 @@ function EditContractForm({
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="ec-cat">
-            Category <span className="text-destructive">*</span>
+            Cost Category <span className="text-destructive">*</span>
+            <InfoTip text="This cost code determines which row of the PCM Report this contract appears in (column G – Total Committed). If the contract covers only one cost code, select it here. If it covers multiple cost codes, select the primary code and use the Schedule of Values section below to allocate amounts by code." />
           </label>
           <select
             id="ec-cat"
