@@ -7,6 +7,7 @@ import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
 import { ArrowLeft } from "lucide-react";
 import { ExportButtons } from "./export-buttons";
+import { HELP } from "@/lib/help";
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -104,7 +105,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   if (!projectId) {
     return (
       <div>
-        <Header title="Cost Detail Report" />
+        <Header title="Cost Detail Report" helpContent={HELP.costDetail} />
         <div className="p-6">
           <ReportControls
             projects={projects}
@@ -134,7 +135,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   if (!project) {
     return (
       <div>
-        <Header title="Cost Detail Report" />
+        <Header title="Cost Detail Report" helpContent={HELP.costDetail} />
         <div className="p-6">
           <ReportControls
             projects={projects}
@@ -202,7 +203,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
 
   return (
     <div>
-      <Header title="Cost Detail Report" />
+      <Header title="Cost Detail Report" helpContent={HELP.costDetail} />
       <div className="p-6">
         <div className="print:hidden">
           <ReportControls

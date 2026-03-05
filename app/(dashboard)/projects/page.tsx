@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
+import { HELP } from "@/lib/help";
 
 interface Project {
   id: string;
@@ -65,7 +66,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
 
   return (
     <div>
-      <Header title="Projects" />
+      <Header title="Projects" helpContent={HELP.projects} />
       <div className="p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-2xl font-bold tracking-tight">Projects</h2>

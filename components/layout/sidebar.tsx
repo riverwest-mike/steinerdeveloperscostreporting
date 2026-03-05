@@ -27,10 +27,10 @@ const reportItems = [
 ];
 
 const adminItems = [
-  { href: "/admin/users", label: "Users & Access", icon: Users, exact: false },
-  { href: "/admin/cost-categories", label: "Cost Categories", icon: Tag, exact: false },
-  { href: "/admin/appfolio", label: "AppFolio", icon: RefreshCw, exact: false },
-  { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText, exact: false },
+  { href: "/admin/users", label: "Users & Access", icon: Users },
+  { href: "/admin/cost-categories", label: "Cost Categories", icon: Tag },
+  { href: "/admin/appfolio", label: "AppFolio", icon: RefreshCw },
+  { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
 ];
 
 interface SidebarProps {
@@ -47,82 +47,90 @@ export function Sidebar({ role }: SidebarProps) {
   const reportsActive = pathname.startsWith("/reports");
   const adminActive = pathname.startsWith("/admin");
 
+  function navItem(active: boolean) {
+    return cn(
+      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+      active
+        ? "bg-[hsl(var(--sidebar-active-bg))] text-white"
+        : "text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-hover-bg))] hover:text-white"
+    );
+  }
+
+  function subItem(active: boolean) {
+    return cn(
+      "flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
+      active
+        ? "font-semibold text-white"
+        : "text-[hsl(var(--sidebar-muted))] hover:text-[hsl(var(--sidebar-fg))] hover:bg-[hsl(var(--sidebar-hover-bg))]"
+    );
+  }
+
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-card print:hidden">
+    <aside
+      className="flex h-full w-64 flex-col print:hidden"
+      style={{ background: "hsl(var(--sidebar-bg))" }}
+    >
       {/* Logo */}
-      <div className="flex h-16 items-center border-b px-6">
-        <span className="text-lg font-bold tracking-tight">
-          Steiner Developers Cost Tracker
-        </span>
+      <div
+        className="flex h-16 items-center gap-2.5 px-5 shrink-0"
+        style={{ borderBottom: "1px solid hsl(var(--sidebar-border))" }}
+      >
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[hsl(var(--sidebar-active-bg))]">
+          <span className="text-xs font-black text-white leading-none">SD</span>
+        </div>
+        <div className="min-w-0">
+          <p className="text-[13px] font-bold leading-tight text-white truncate">
+            Steiner Developers
+          </p>
+          <p className="text-[10px] leading-tight" style={{ color: "hsl(var(--sidebar-muted))" }}>
+            Cost Tracker
+          </p>
+        </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-4">
-        {/* Dashboard */}
-        <Link
-          href="/dashboard"
-          className={cn(
-            "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-            pathname === "/dashboard"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-          )}
-        >
-          <LayoutDashboard className="h-4 w-4" />
+      <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
+
+        <Link href="/dashboard" className={navItem(pathname === "/dashboard")}>
+          <LayoutDashboard className="h-4 w-4 shrink-0" />
           Dashboard
         </Link>
 
-        {/* Projects */}
-        <Link
-          href="/projects"
-          className={cn(
-            "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-            pathname.startsWith("/projects")
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-          )}
-        >
-          <FolderKanban className="h-4 w-4" />
+        <Link href="/projects" className={navItem(pathname.startsWith("/projects"))}>
+          <FolderKanban className="h-4 w-4 shrink-0" />
           Projects
         </Link>
 
-        {/* Reports — expandable */}
+        <div className="my-2" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }} />
+
+        {/* Reports */}
         <div>
           <Link
             href="/reports"
             onClick={() => setReportsOpen(true)}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              reportsActive
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            )}
+            className={navItem(reportsActive)}
           >
             <BarChart3 className="h-4 w-4 shrink-0" />
-            <span className="flex-1 text-left">Reports</span>
+            <span className="flex-1">Reports</span>
             <ChevronDown
               onClick={(e) => { e.preventDefault(); setReportsOpen((o) => !o); }}
-              className={cn(
-                "h-4 w-4 shrink-0 transition-transform duration-200",
-                reportsOpen && "rotate-180"
-              )}
+              className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", reportsOpen && "rotate-180")}
+              style={{ color: "hsl(var(--sidebar-muted))" }}
             />
           </Link>
 
           {reportsOpen && (
-            <div className="mt-1 ml-3 space-y-0.5 border-l pl-3">
+            <div
+              className="mt-1 ml-4 space-y-0.5 pl-3"
+              style={{ borderLeft: "1px solid hsl(var(--sidebar-border))" }}
+            >
               {reportItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-                    pathname.startsWith(item.href)
-                      ? "font-medium text-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                  )}
+                  className={subItem(pathname.startsWith(item.href))}
                 >
-                  <FileBarChart2 className="h-3.5 w-3.5 shrink-0" />
+                  <FileBarChart2 className="h-3 w-3 shrink-0 opacity-60" />
                   {item.label}
                 </Link>
               ))}
@@ -130,69 +138,65 @@ export function Sidebar({ role }: SidebarProps) {
           )}
         </div>
 
-        {/* Admin — expandable */}
+        {/* Admin */}
         {isAdmin && (
-          <div>
-            <Link
-              href="/admin"
-              onClick={() => setAdminOpen(true)}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                adminActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <ShieldCheck className="h-4 w-4 shrink-0" />
-              <span className="flex-1 text-left">Admin</span>
-              <ChevronDown
-                onClick={(e) => { e.preventDefault(); setAdminOpen((o) => !o); }}
-                className={cn(
-                  "h-4 w-4 shrink-0 transition-transform duration-200",
-                  adminOpen && "rotate-180"
-                )}
-              />
-            </Link>
+          <>
+            <div className="my-2" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }} />
+            <div>
+              <Link
+                href="/admin"
+                onClick={() => setAdminOpen(true)}
+                className={navItem(adminActive)}
+              >
+                <ShieldCheck className="h-4 w-4 shrink-0" />
+                <span className="flex-1">Admin</span>
+                <ChevronDown
+                  onClick={(e) => { e.preventDefault(); setAdminOpen((o) => !o); }}
+                  className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", adminOpen && "rotate-180")}
+                  style={{ color: "hsl(var(--sidebar-muted))" }}
+                />
+              </Link>
 
-            {adminOpen && (
-              <div className="mt-1 ml-3 space-y-0.5 border-l pl-3">
-                {adminItems.map((item) => {
-                  const isActive = item.exact
-                    ? pathname === item.href
-                    : pathname.startsWith(item.href);
-                  return (
+              {adminOpen && (
+                <div
+                  className="mt-1 ml-4 space-y-0.5 pl-3"
+                  style={{ borderLeft: "1px solid hsl(var(--sidebar-border))" }}
+                >
+                  {adminItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={cn(
-                        "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-                        isActive
-                          ? "font-medium text-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                      )}
+                      className={subItem(pathname.startsWith(item.href))}
                     >
-                      <item.icon className="h-3.5 w-3.5 shrink-0" />
+                      <item.icon className="h-3 w-3 shrink-0 opacity-60" />
                       {item.label}
                     </Link>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </nav>
 
-      {/* Bottom: role badge + quick start link */}
-      <div className="border-t p-4 space-y-2">
+      {/* Footer */}
+      <div
+        className="shrink-0 p-4 space-y-2"
+        style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }}
+      >
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-green-500" />
-          <span className="text-xs text-muted-foreground capitalize">
+          <span
+            className="h-1.5 w-1.5 rounded-full"
+            style={{ background: "hsl(var(--sidebar-active-bg))" }}
+          />
+          <span className="text-[11px] capitalize" style={{ color: "hsl(var(--sidebar-muted))" }}>
             {role?.replace("_", " ")}
           </span>
         </div>
         <button
           onClick={() => window.dispatchEvent(new Event("open-quickstart"))}
-          className="flex w-full items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          className="flex w-full items-center gap-1.5 text-[11px] transition-colors hover:text-white"
+          style={{ color: "hsl(var(--sidebar-muted))" }}
         >
           <BookOpen className="h-3 w-3 shrink-0" />
           Quick Start Guide

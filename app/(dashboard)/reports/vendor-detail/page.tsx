@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
 import { ExportButtons } from "./export-buttons";
+import { HELP } from "@/lib/help";
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -125,7 +126,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
   if (!hasRunParam) {
     return (
       <div>
-        <Header title="Vendor Detail Report" />
+        <Header title="Vendor Detail Report" helpContent={HELP.vendorDetail} />
         <div className="p-6">
           <ReportControls
             projects={projects}
@@ -221,7 +222,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
 
   return (
     <div>
-      <Header title="Vendor Detail Report" />
+      <Header title="Vendor Detail Report" helpContent={HELP.vendorDetail} />
       <div className="p-6">
         <div className="print:hidden">
           <ReportControls

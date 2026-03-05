@@ -7,6 +7,7 @@ import { TimeGreeting } from "@/components/time-greeting";
 import { ProjectGrid, type ProjectCard } from "./project-grid";
 import { RecentBills, type BillRow } from "./recent-bills";
 import { PendingCOs, type PendingCO } from "./pending-cos";
+import { HELP } from "@/lib/help";
 
 interface RawProject {
   id: string;
@@ -70,7 +71,7 @@ export default async function DashboardPage() {
   if (projectIds.length === 0) {
     return (
       <div>
-        <Header title="Dashboard" />
+        <Header title="Dashboard" helpContent={HELP.dashboard} />
         <div className="p-6 space-y-6">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">
@@ -227,7 +228,7 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <Header title="Dashboard" />
+      <Header title="Dashboard" helpContent={HELP.dashboard} />
       <div className="p-6 space-y-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { AuditLogFilters } from "./audit-log-filters";
 import { LocalTime } from "@/components/local-time";
+import { HELP } from "@/lib/help";
 
 const PAGE_SIZE = 100;
 
@@ -132,7 +133,7 @@ export default async function AuditLogPage({ searchParams }: Props) {
 
   return (
     <div>
-      <Header title="Audit Log" />
+      <Header title="Audit Log" helpContent={HELP.auditLog} />
       <div className="p-6">
         <div className="mb-6">
           <h2 className="text-2xl font-bold tracking-tight">Audit Log</h2>

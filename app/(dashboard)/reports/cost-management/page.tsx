@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
 import { ExportButtons } from "./export-buttons";
+import { HELP } from "@/lib/help";
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -129,7 +130,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   if (projectIds.length === 0) {
     return (
       <div>
-        <Header title="Project Cost Management Report" />
+        <Header title="Project Cost Management Report" helpContent={HELP.pcmReport} />
         <div className="p-6">
           <ReportControls
             projects={projects}
@@ -446,7 +447,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
 
   return (
     <div>
-      <Header title="Project Cost Management Report" />
+      <Header title="Project Cost Management Report" helpContent={HELP.pcmReport} />
       <div className="p-6">
 
         <div className="print:hidden">
