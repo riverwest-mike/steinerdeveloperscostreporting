@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
+import { ExportButtons } from "./export-buttons";
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -210,14 +211,32 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
         ) : (
           <>
             {/* ── Report title block ── */}
-            <div className="mb-4 text-center" style={{ maxWidth: 760 }}>
-              <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                {project.name}
-              </p>
-              <p className="text-base font-bold text-slate-900 mt-0.5">Balance Sheet</p>
-              {displayDate && (
-                <p className="text-sm text-slate-600 mt-0.5">As of {displayDate} &middot; {basis} Basis</p>
-              )}
+            <div className="mb-4 flex items-start justify-between gap-4" style={{ maxWidth: 760 }}>
+              <div className="text-center flex-1">
+                <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                  {project.name}
+                </p>
+                <p className="text-base font-bold text-slate-900 mt-0.5">Balance Sheet</p>
+                {displayDate && (
+                  <p className="text-sm text-slate-600 mt-0.5">As of {displayDate} &middot; {basis} Basis</p>
+                )}
+              </div>
+              <ExportButtons
+                sections={[
+                  ...(sectionMap.has("Asset") ? [{ label: "Assets", rows: sectionMap.get("Asset")!, total: totalAssets }] : []),
+                  ...(sectionMap.has("Liability") ? [{ label: "Liabilities", rows: sectionMap.get("Liability")!, total: totalLiabilities }] : []),
+                  ...(sectionMap.has("Equity") ? [{ label: "Capital", rows: sectionMap.get("Equity")!, total: totalEquity }] : []),
+                  ...unknownTypes.map((t) => ({ label: t, rows: sectionMap.get(t)!, total: sectionTotals.get(t) ?? 0 })),
+                ]}
+                totalAssets={totalAssets}
+                totalLiabilities={totalLiabilities}
+                totalEquity={totalEquity}
+                projectCode={project.code}
+                projectName={project.name}
+                displayDate={displayDate ?? asOf}
+                basis={basis}
+                isBalanced={isBalanced}
+              />
             </div>
 
             {/* ── Table ── */}
