@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ArrowLeft } from "lucide-react";
+import { ExportButtons } from "./export-buttons";
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -200,13 +201,24 @@ export default async function CostDetailPage({ searchParams }: Props) {
               })}
             </p>
           </div>
-          <Link
-            href={backUrl}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to PCMR
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            {transactions.length > 0 && (
+              <ExportButtons
+                transactions={transactions}
+                projectCode={project.code}
+                projectName={project.name}
+                categoryLabel={categoryLabel}
+                asOf={asOf}
+              />
+            )}
+            <Link
+              href={backUrl}
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to PCMR
+            </Link>
+          </div>
         </div>
 
         {noAppFolio && (

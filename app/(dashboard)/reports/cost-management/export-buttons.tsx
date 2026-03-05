@@ -1,6 +1,25 @@
 "use client";
 
 import { useCallback } from "react";
+import { Printer } from "lucide-react";
+
+/* ── Excel icon (Microsoft Excel green) ─────────────────── */
+function ExcelIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+      <rect width="24" height="24" rx="4" fill="#1D6F42" />
+      {/* White "X" mark representing Excel */}
+      <path
+        d="M7 7.5L12 12L17 7.5M7 16.5L12 12L17 16.5"
+        stroke="white"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
 
 interface ReportRow {
   id: string;
@@ -76,7 +95,6 @@ export function ExportButtons({ rows, sectionOrder, projectName, projectCode, as
       );
       if (sectionRows.length === 0) continue;
 
-      // Section header
       data.push([section]);
 
       const sub = { a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, g: 0, i: 0, j: 0, k: 0 };
@@ -92,7 +110,6 @@ export function ExportButtons({ rows, sectionOrder, projectName, projectCode, as
         grand.j += r.j_cost_to_date; grand.k += r.k_balance;
       }
 
-      // Section subtotal
       data.push([
         "", `${section} — Subtotal`,
         fmt(sub.a), fmt(sub.b), fmt(sub.c),
@@ -103,7 +120,6 @@ export function ExportButtons({ rows, sectionOrder, projectName, projectCode, as
       data.push([]);
     }
 
-    // Grand total
     data.push([
       "", "GRAND TOTAL",
       fmt(grand.a), fmt(grand.b), fmt(grand.c),
@@ -113,37 +129,28 @@ export function ExportButtons({ rows, sectionOrder, projectName, projectCode, as
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
-
-    // Column widths
-    ws["!cols"] = [
-      { wch: 12 }, { wch: 36 },
-      ...Array(11).fill({ wch: 20 }),
-    ];
+    ws["!cols"] = [{ wch: 12 }, { wch: 36 }, ...Array(11).fill({ wch: 20 })];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Cost Management Report");
-
-    const filename = `${projectCode}_Cost_Management_${asOf}.xlsx`;
-    XLSX.writeFile(wb, filename);
+    XLSX.writeFile(wb, `${projectCode}_Cost_Management_${asOf}.xlsx`);
   }, [rows, sectionOrder, projectName, projectCode, asOf]);
 
-  const handlePrint = useCallback(() => {
-    window.print();
-  }, []);
-
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 print:hidden">
       <button
         onClick={handleExcelExport}
         className="inline-flex items-center gap-1.5 rounded border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
       >
-        <span>⬇</span> Excel
+        <ExcelIcon className="h-4 w-4" />
+        Excel
       </button>
       <button
-        onClick={handlePrint}
-        className="inline-flex items-center gap-1.5 rounded border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors print:hidden"
+        onClick={() => window.print()}
+        className="inline-flex items-center gap-1.5 rounded border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
       >
-        <span>🖨</span> Print / PDF
+        <Printer className="h-4 w-4" />
+        Print / PDF
       </button>
     </div>
   );
