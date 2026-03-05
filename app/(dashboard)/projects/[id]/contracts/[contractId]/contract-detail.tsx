@@ -163,7 +163,14 @@ export function ContractDetail({
                 : "—"
             }
           />
-          <InfoCard label="Cost Category" value={contract.category ? `${contract.category.code} — ${contract.category.name}` : "—"} />
+          {contract.contract_line_items.length > 0 ? (
+            <InfoCard
+              label="Cost Category"
+              value={`${contract.contract_line_items.length} categories via Schedule of Values`}
+            />
+          ) : (
+            <InfoCard label="Cost Category" value={contract.category ? `${contract.category.code} — ${contract.category.name}` : "—"} />
+          )}
           <InfoCard label="Original Value" value={fmtCurrency(contract.original_value)} mono />
           <InfoCard label="Revised Value" value={fmtCurrency(contract.revised_value)} mono />
           <InfoCard label="Approved COs" value={contract.approved_co_amount !== 0 ? fmtCurrency(contract.approved_co_amount) : "—"} mono />
@@ -835,10 +842,15 @@ function EditContractForm({
         </div>
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground">Cost Category</p>
-          <p className="text-sm py-1.5">
-            {contract.category ? `${contract.category.code} — ${contract.category.name}` : "—"}
-          </p>
-          <p className="text-xs text-muted-foreground">To change, update the first line in the Schedule of Values below.</p>
+          {contract.contract_line_items.length > 0 ? (
+            <p className="text-sm py-1.5 text-muted-foreground italic">
+              Defined by Schedule of Values below ({contract.contract_line_items.length} line{contract.contract_line_items.length !== 1 ? "s" : ""})
+            </p>
+          ) : (
+            <p className="text-sm py-1.5">
+              {contract.category ? `${contract.category.code} — ${contract.category.name}` : "—"}
+            </p>
+          )}
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="ec-value">

@@ -27,7 +27,7 @@ const reportItems = [
 ];
 
 const adminItems = [
-  { href: "/admin", label: "Users & Access", icon: Users, exact: true },
+  { href: "/admin/users", label: "Users & Access", icon: Users, exact: false },
   { href: "/admin/cost-categories", label: "Cost Categories", icon: Tag, exact: false },
   { href: "/admin/appfolio", label: "AppFolio", icon: RefreshCw, exact: false },
   { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText, exact: false },
@@ -133,8 +133,9 @@ export function Sidebar({ role }: SidebarProps) {
         {/* Admin — expandable */}
         {isAdmin && (
           <div>
-            <button
-              onClick={() => setAdminOpen((o) => !o)}
+            <Link
+              href="/admin"
+              onClick={() => setAdminOpen(true)}
               className={cn(
                 "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 adminActive
@@ -145,12 +146,13 @@ export function Sidebar({ role }: SidebarProps) {
               <ShieldCheck className="h-4 w-4 shrink-0" />
               <span className="flex-1 text-left">Admin</span>
               <ChevronDown
+                onClick={(e) => { e.preventDefault(); setAdminOpen((o) => !o); }}
                 className={cn(
                   "h-4 w-4 shrink-0 transition-transform duration-200",
                   adminOpen && "rotate-180"
                 )}
               />
-            </button>
+            </Link>
 
             {adminOpen && (
               <div className="mt-1 ml-3 space-y-0.5 border-l pl-3">

@@ -5,6 +5,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { AuditLogFilters } from "./audit-log-filters";
+import { LocalTime } from "@/components/local-time";
 
 const PAGE_SIZE = 100;
 
@@ -181,13 +182,11 @@ export default async function AuditLogPage({ searchParams }: Props) {
                   const project = row.project_id ? projectMap.get(row.project_id) : null;
                   const actionLabel = ACTION_LABELS[row.action] ?? row.action;
                   const actionColor = ACTION_COLORS[row.action] ?? "bg-gray-100 text-gray-600";
-                  const ts = new Date(row.created_at);
 
                   return (
                     <tr key={row.id} className="border-b last:border-0 hover:bg-muted/20">
                       <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap font-mono">
-                        <div>{ts.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
-                        <div className="text-[10px]">{ts.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>
+                        <LocalTime iso={row.created_at} timeClassName="text-[10px]" />
                       </td>
                       <td className="px-4 py-3">
                         {user ? (
