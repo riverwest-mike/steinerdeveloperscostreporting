@@ -67,19 +67,23 @@ interface CategoryRow {
   h_pct_committed: number | null;
   // I = C-G
   i_uncommitted: number;
-  // J
-  j_cost_to_date: number;
-  // K = C-J
-  k_balance: number;
+  // J = paid incurred costs
+  j_paid: number;
+  // K = unpaid incurred costs
+  k_unpaid: number;
+  // L = J+K total incurred
+  l_total_incurred: number;
+  // M = C-L balance to complete
+  m_balance: number;
 }
 
 interface SectionTotals {
   a: number; b: number; c: number; d: number; e: number; f: number;
-  g: number; i: number; j: number; k: number;
+  g: number; i: number; j: number; k: number; l: number; m: number;
 }
 
 function emptyTotals(): SectionTotals {
-  return { a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, g: 0, i: 0, j: 0, k: 0 };
+  return { a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, g: 0, i: 0, j: 0, k: 0, l: 0, m: 0 };
 }
 
 function addToTotals(t: SectionTotals, r: CategoryRow): SectionTotals {
@@ -92,8 +96,10 @@ function addToTotals(t: SectionTotals, r: CategoryRow): SectionTotals {
     f: t.f + r.f_variance,
     g: t.g + r.g_committed,
     i: t.i + r.i_uncommitted,
-    j: t.j + r.j_cost_to_date,
-    k: t.k + r.k_balance,
+    j: t.j + r.j_paid,
+    k: t.k + r.k_unpaid,
+    l: t.l + r.l_total_incurred,
+    m: t.m + r.m_balance,
   };
 }
 
@@ -244,14 +250,15 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     }
   }
 
-  // ── J: AppFolio actuals (bill_date <= asOf) ───────────
+  // ── J/K: AppFolio actuals (bill_date <= asOf) — paid and unpaid separately ──
   // Match on cost_category_code stored from vendor_ledger sync.
   // e.g. AppFolio "010700 Survey" → code "010700" matches cost_category.code "010700"
-  const actualsMap = new Map<string, number>();
+  const paidMap = new Map<string, number>();
+  const unpaidMap = new Map<string, number>();
   let txTotal = 0;
   let txMatched = 0;
-  // unmatched: cost_category_code -> { name, amount }
-  const unmatchedCats = new Map<string, { name: string; amount: number }>();
+  // unmatched: cost_category_code -> { name, paid, unpaid }
+  const unmatchedCats = new Map<string, { name: string; paid: number; unpaid: number }>();
 
   if (project.appfolio_property_id) {
     // Build code → category id lookup (case-insensitive).
@@ -280,7 +287,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     const txDateCap = asOf < appfolioDateCap() ? asOf : appfolioDateCap();
     const { data: rawTx } = await supabase
       .from("appfolio_transactions")
-      .select("cost_category_code, cost_category_name, vendor_name, invoice_amount")
+      .select("cost_category_code, cost_category_name, vendor_name, paid_amount, unpaid_amount")
       .eq("appfolio_property_id", project.appfolio_property_id)
       .lte("bill_date", txDateCap);
 
@@ -288,22 +295,25 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
       cost_category_code: string | null;
       cost_category_name: string | null;
       vendor_name: string;
-      invoice_amount: number;
+      paid_amount: number;
+      unpaid_amount: number;
     }[]) {
       txTotal++;
       const code = (tx.cost_category_code ?? "").trim().toUpperCase();
-      const amount = Number(tx.invoice_amount);
+      const paid = Number(tx.paid_amount);
+      const unpaid = Number(tx.unpaid_amount);
 
       const catId = code ? (codeToCategory.get(code) ?? null) : null;
 
       if (catId) {
         txMatched++;
-        actualsMap.set(catId, (actualsMap.get(catId) ?? 0) + amount);
+        paidMap.set(catId, (paidMap.get(catId) ?? 0) + paid);
+        unpaidMap.set(catId, (unpaidMap.get(catId) ?? 0) + unpaid);
       } else {
         const displayCode = code || "(no cost category)";
         const displayName = tx.vendor_name || tx.cost_category_name || displayCode;
-        const prev = unmatchedCats.get(displayCode) ?? { name: displayName, amount: 0 };
-        unmatchedCats.set(displayCode, { name: prev.name, amount: prev.amount + amount });
+        const prev = unmatchedCats.get(displayCode) ?? { name: displayName, paid: 0, unpaid: 0 };
+        unmatchedCats.set(displayCode, { name: prev.name, paid: prev.paid + paid, unpaid: prev.unpaid + unpaid });
       }
     }
   }
@@ -320,8 +330,10 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     const g = committedMap.get(cat.id) ?? 0;
     const h_pct = c > 0 ? (g / c) * 100 : null;
     const i = c - g;
-    const j = actualsMap.get(cat.id) ?? 0;
-    const k = c - j;
+    const j = paidMap.get(cat.id) ?? 0;
+    const k = unpaidMap.get(cat.id) ?? 0;
+    const l = j + k;
+    const m = c - l;
 
     return {
       id: cat.id,
@@ -337,14 +349,17 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
       g_committed: g,
       h_pct_committed: h_pct,
       i_uncommitted: i,
-      j_cost_to_date: j,
-      k_balance: k,
+      j_paid: j,
+      k_unpaid: k,
+      l_total_incurred: l,
+      m_balance: m,
     };
   });
 
   // Phantom rows for AppFolio transactions whose code has no matching cost category
   const UNMATCHED_SECTION = "AppFolio — Unmatched Costs";
-  for (const [code, { name, amount }] of unmatchedCats.entries()) {
+  for (const [code, { name, paid, unpaid }] of unmatchedCats.entries()) {
+    const total = paid + unpaid;
     rows.push({
       id: `appfolio-unmatched-${code}`,
       code,
@@ -359,8 +374,10 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
       g_committed: 0,
       h_pct_committed: null,
       i_uncommitted: 0,
-      j_cost_to_date: amount,
-      k_balance: -amount,
+      j_paid: paid,
+      k_unpaid: unpaid,
+      l_total_incurred: total,
+      m_balance: -total,
     });
   }
 
@@ -379,7 +396,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   function rowHasData(r: CategoryRow): boolean {
     return (
       r.a_original !== 0 || r.b_authorized !== 0 || r.d_proposed !== 0 ||
-      r.g_committed !== 0 || r.j_cost_to_date !== 0
+      r.g_committed !== 0 || r.l_total_incurred !== 0
     );
   }
 
@@ -430,7 +447,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         <div className="print:hidden">
           {!project.appfolio_property_id && (
             <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-              This project is not linked to an AppFolio property — Cost to Date (J) will show $0.
+              This project is not linked to an AppFolio property — Cost columns J, K, and L will show $0.
             </div>
           )}
 
@@ -456,7 +473,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                 ⚠ {unmatchedCats.size} cost category code{unmatchedCats.size !== 1 ? "s" : ""} from AppFolio not matched
                 {" — "}
                 {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(
-                  Array.from(unmatchedCats.values()).reduce((s, v) => s + v.amount, 0)
+                  Array.from(unmatchedCats.values()).reduce((s, v) => s + v.paid + v.unpaid, 0)
                 )}{" "}
                 shown below as &ldquo;AppFolio — Unmatched Costs&rdquo; ({txMatched} of {txTotal} transactions matched)
               </summary>
@@ -475,13 +492,13 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                   </thead>
                   <tbody>
                     {Array.from(unmatchedCats.entries())
-                      .sort((a, b) => b[1].amount - a[1].amount)
-                      .map(([code, { name, amount }]) => (
+                      .sort((a, b) => (b[1].paid + b[1].unpaid) - (a[1].paid + a[1].unpaid))
+                      .map(([code, { name, paid, unpaid }]) => (
                         <tr key={code} className="border-t border-amber-100">
                           <td className="py-1 pr-4 font-mono">{code}</td>
                           <td className="py-1 pr-4">{name}</td>
                           <td className="py-1 text-right tabular-nums">
-                            {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)}
+                            {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(paid + unpaid)}
                           </td>
                         </tr>
                       ))}
@@ -499,8 +516,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
             </p>
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-xs border-collapse" style={{ minWidth: "1100px" }}>
+            <table className="w-full text-xs border-collapse" style={{ minWidth: "1300px" }}>
               <thead>
                 {/* Column letter row */}
                 <tr className="bg-slate-800 text-white">
@@ -519,7 +537,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                   <th className="px-3 py-2 text-right font-medium">I = C-G</th>
                   {/* Costs block */}
                   <th className="px-3 py-2 text-right font-medium border-l border-slate-600">J</th>
-                  <th className="px-3 py-2 text-right font-medium">K = C-J</th>
+                  <th className="px-3 py-2 text-right font-medium">K</th>
+                  <th className="px-3 py-2 text-right font-medium">L = J+K</th>
+                  <th className="px-3 py-2 text-right font-medium">M = C-L</th>
                 </tr>
                 {/* Column name row */}
                 <tr className="bg-slate-700 text-slate-100 text-[10px]">
@@ -533,7 +553,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                   <th className="px-3 py-1.5 text-right font-normal border-l border-slate-600 whitespace-nowrap">Total Committed</th>
                   <th className="px-3 py-1.5 text-right font-normal whitespace-nowrap">% Committed</th>
                   <th className="px-3 py-1.5 text-right font-normal whitespace-nowrap">Uncommitted</th>
-                  <th className="px-3 py-1.5 text-right font-normal border-l border-slate-600 whitespace-nowrap">Cost to Date</th>
+                  <th className="px-3 py-1.5 text-right font-normal border-l border-slate-600 whitespace-nowrap">Costs to Date Paid</th>
+                  <th className="px-3 py-1.5 text-right font-normal whitespace-nowrap">Costs to Date Unpaid</th>
+                  <th className="px-3 py-1.5 text-right font-normal whitespace-nowrap">Total Costs Incurred</th>
                   <th className="px-3 py-1.5 text-right font-normal whitespace-nowrap">Balance to Complete</th>
                 </tr>
               </thead>
@@ -552,7 +574,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                       {/* Section header */}
                       <tr className="bg-slate-100 border-t-2 border-slate-300">
                         <td
-                          colSpan={13}
+                          colSpan={15}
                           className="px-3 py-2 font-bold text-slate-700 uppercase tracking-wide text-[10px]"
                         >
                           {section}
@@ -580,18 +602,42 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                           <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{pct(row.h_pct_committed)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{usd(row.i_uncommitted)}</td>
                           <td className="px-3 py-2 text-right tabular-nums border-l border-slate-100">
-                            {row.j_cost_to_date !== 0 && project.appfolio_property_id ? (
+                            {row.j_paid !== 0 && project.appfolio_property_id ? (
+                              <Link
+                                href={`/reports/cost-detail?projectId=${projectId}&asOf=${asOf}&categoryCode=${row.code}&paymentFilter=paid`}
+                                className="text-primary underline underline-offset-2 hover:opacity-75"
+                              >
+                                {usd(row.j_paid)}
+                              </Link>
+                            ) : (
+                              usd(row.j_paid)
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {row.k_unpaid !== 0 && project.appfolio_property_id ? (
+                              <Link
+                                href={`/reports/cost-detail?projectId=${projectId}&asOf=${asOf}&categoryCode=${row.code}&paymentFilter=unpaid`}
+                                className="text-primary underline underline-offset-2 hover:opacity-75"
+                              >
+                                {usd(row.k_unpaid)}
+                              </Link>
+                            ) : (
+                              usd(row.k_unpaid)
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums font-medium">
+                            {row.l_total_incurred !== 0 && project.appfolio_property_id ? (
                               <Link
                                 href={`/reports/cost-detail?projectId=${projectId}&asOf=${asOf}&categoryCode=${row.code}`}
                                 className="text-primary underline underline-offset-2 hover:opacity-75"
                               >
-                                {usd(row.j_cost_to_date)}
+                                {usd(row.l_total_incurred)}
                               </Link>
                             ) : (
-                              usd(row.j_cost_to_date)
+                              usd(row.l_total_incurred)
                             )}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums">{usd(row.k_balance)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{usd(row.m_balance)}</td>
                         </tr>
                       ))}
 
@@ -616,6 +662,8 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                         <td className="px-3 py-2 text-right tabular-nums">{usd(st.i)}</td>
                         <td className="px-3 py-2 text-right tabular-nums border-l border-slate-200">{usd(st.j)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{usd(st.k)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums font-semibold">{usd(st.l)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{usd(st.m)}</td>
                       </tr>
                     </Fragment>
                   );
@@ -645,10 +693,33 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                   <td className="px-3 py-3 text-right tabular-nums">{usd(grand.i)}</td>
                   <td className="px-3 py-3 text-right tabular-nums border-l border-slate-600">{usd(grand.j)}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{usd(grand.k)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{usd(grand.l)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums">{usd(grand.m)}</td>
                 </tr>
               </tfoot>
             </table>
           </div>
+
+          {/* Legend */}
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+            <p className="font-semibold text-slate-700 mb-2 uppercase tracking-wide text-[10px]">Column Definitions</p>
+            <div className="grid grid-cols-2 gap-x-8 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
+              <div><span className="font-semibold text-slate-800">A</span> — Original Budget (sum of all approved gates)</div>
+              <div><span className="font-semibold text-slate-800">B</span> — Authorized Adjustments (approved change orders)</div>
+              <div><span className="font-semibold text-slate-800">C = A+B</span> — Current Budget</div>
+              <div><span className="font-semibold text-slate-800">D</span> — Proposed Adjustments (pending change orders)</div>
+              <div><span className="font-semibold text-slate-800">E = C+D</span> — Projected Budget</div>
+              <div><span className="font-semibold text-slate-800">F = A−E</span> — Variance (original vs. projected)</div>
+              <div><span className="font-semibold text-slate-800">G</span> — Total Committed (active contract values)</div>
+              <div><span className="font-semibold text-slate-800">H = G÷C</span> — % of Budget Committed</div>
+              <div><span className="font-semibold text-slate-800">I = C−G</span> — Uncommitted Budget</div>
+              <div><span className="font-semibold text-slate-800">J</span> — Incurred and Paid Costs (through report date)</div>
+              <div><span className="font-semibold text-slate-800">K</span> — Incurred and Unpaid Costs (through report date)</div>
+              <div><span className="font-semibold text-slate-800">L = J+K</span> — Total Costs Incurred</div>
+              <div><span className="font-semibold text-slate-800">M = C−L</span> — Remaining Gate Spend (Balance to Complete)</div>
+            </div>
+          </div>
+          </>
         )}
       </div>
     </div>
