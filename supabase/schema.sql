@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS projects (
   status                 TEXT NOT NULL DEFAULT 'active'
                            CHECK (status IN ('active', 'on_hold', 'completed', 'archived')),
   description            TEXT,
+  image_url              TEXT,
   created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   created_by             TEXT NOT NULL REFERENCES users(id)
