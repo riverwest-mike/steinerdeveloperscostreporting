@@ -88,8 +88,9 @@ export function Sidebar({ role }: SidebarProps) {
 
         {/* Reports — expandable */}
         <div>
-          <button
-            onClick={() => setReportsOpen((o) => !o)}
+          <Link
+            href="/reports"
+            onClick={() => setReportsOpen(true)}
             className={cn(
               "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
               reportsActive
@@ -100,12 +101,13 @@ export function Sidebar({ role }: SidebarProps) {
             <BarChart3 className="h-4 w-4 shrink-0" />
             <span className="flex-1 text-left">Reports</span>
             <ChevronDown
+              onClick={(e) => { e.preventDefault(); setReportsOpen((o) => !o); }}
               className={cn(
                 "h-4 w-4 shrink-0 transition-transform duration-200",
                 reportsOpen && "rotate-180"
               )}
             />
-          </button>
+          </Link>
 
           {reportsOpen && (
             <div className="mt-1 ml-3 space-y-0.5 border-l pl-3">
