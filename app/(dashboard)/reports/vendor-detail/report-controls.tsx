@@ -43,7 +43,7 @@ export function ReportControls({
   const [isPending, startTransition] = useTransition();
 
   const selectedProject = projects.find((p) => p.id === projectId) ?? null;
-  const canRun = vendorName.trim().length >= 2 || !!projectId;
+  const canRun = true; // "All Projects" with no other filter is valid
 
   function buildUrl(pid: string, vendor: string, code: string, date: string) {
     const params = new URLSearchParams();
@@ -172,11 +172,6 @@ export function ReportControls({
         </div>
       </div>
 
-      {!canRun && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          Select a project or enter a vendor name (at least 2 characters) to run the report.
-        </p>
-      )}
       {syncStatus === "error" && (
         <p className="mt-2 text-xs text-destructive">{syncMsg}</p>
       )}

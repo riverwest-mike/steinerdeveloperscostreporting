@@ -101,6 +101,11 @@ export function ReportControls({
       }
 
       router.push(buildUrl(projectId, asOf));
+      // Bust the Next.js client-side router cache so the server component
+      // always re-fetches fresh data after the AppFolio sync completes.
+      // Without this, navigating to the same URL can serve the pre-sync
+      // cached payload, making gate budget amounts appear to disappear.
+      router.refresh();
     });
   }
 

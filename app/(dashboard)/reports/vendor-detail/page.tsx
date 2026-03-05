@@ -111,10 +111,17 @@ export default async function VendorDetailPage({ searchParams }: Props) {
     if (p.appfolio_property_id) propertyToProject.set(p.appfolio_property_id, p);
   }
 
-  const canRun = (vendorName && vendorName.length >= 2) || !!projectId;
+  // Show empty state only when the page is freshly opened with no URL params.
+  // The Run Report button always adds at least ?asOf=..., so any param presence
+  // means the user has explicitly triggered the report. "All Projects" with no
+  // other filter is valid — it returns all transactions across all projects.
+  const hasRunParam = searchParams.asOf !== undefined ||
+    searchParams.projectId !== undefined ||
+    searchParams.vendorName !== undefined ||
+    searchParams.categoryCode !== undefined;
 
   // ── No query params yet ───────────────────────────────
-  if (!canRun) {
+  if (!hasRunParam) {
     return (
       <div>
         <Header title="Vendor Detail Report" />
@@ -129,7 +136,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
           />
           <div className="rounded-lg border border-dashed p-16 text-center">
             <p className="text-muted-foreground text-sm">
-              Select a project or enter a vendor name above, then click Run Report.
+              Select a project or filter above, then click Run Report.
             </p>
           </div>
         </div>
