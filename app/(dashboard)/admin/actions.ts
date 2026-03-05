@@ -6,6 +6,30 @@ import { revalidatePath } from "next/cache";
 
 type Role = "admin" | "project_manager" | "read_only";
 
+export async function inviteUser(
+  email: string,
+  role: Role
+): Promise<{ error?: string }> {
+  try {
+    await requireAdminCaller();
+    const clerk = await clerkClient();
+    await clerk.invitations.createInvitation({
+      emailAddress: email,
+      publicMetadata: { role },
+      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/sign-up`,
+      ignoreExisting: false,
+    });
+    revalidatePath("/admin");
+    return {};
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("already been invited") || msg.includes("duplicate")) {
+      return { error: "An invitation has already been sent to that address." };
+    }
+    return { error: msg || "Failed to send invitation" };
+  }
+}
+
 async function requireAdminCaller() {
   const { userId } = await auth();
   if (!userId) throw new Error("Not authenticated");

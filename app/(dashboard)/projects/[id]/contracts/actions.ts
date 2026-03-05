@@ -52,11 +52,19 @@ export async function createContract(
     const gateIds = formData.getAll("gate_ids") as string[];
     if (!gateIds.length) throw new Error("At least one gate must be selected");
 
+    // SOV lines are always required — cost_category_id is derived from the first line
+    const sovRaw = formData.get("sov_lines") as string | null;
+    if (!sovRaw) throw new Error("Schedule of Values is required");
+    const sovLines = JSON.parse(sovRaw) as { cost_category_id: string; description: string | null; amount: number }[];
+    if (!sovLines.length) throw new Error("At least one Schedule of Values line is required");
+    if (!sovLines[0].cost_category_id) throw new Error("Each Schedule of Values line must have a cost category");
+
     const payload = {
       project_id: projectId,
       // Keep gate_id as the first selected gate for CO creation defaults
       gate_id: gateIds[0],
-      cost_category_id: formData.get("cost_category_id") as string,
+      // Derive primary cost category from the first SOV line
+      cost_category_id: sovLines[0].cost_category_id,
       vendor_name: (formData.get("vendor_name") as string).trim(),
       contract_number: (formData.get("contract_number") as string)?.trim() || null,
       description: (formData.get("description") as string).trim(),
@@ -83,22 +91,16 @@ export async function createContract(
     );
     if (cgErr) throw new Error(cgErr.message);
 
-    // Insert SOV line items if provided at creation time
-    const sovRaw = formData.get("sov_lines") as string | null;
-    if (sovRaw) {
-      const sovLines = JSON.parse(sovRaw) as { cost_category_id: string; description: string | null; amount: number }[];
-      if (sovLines.length > 0) {
-        const { error: sovErr } = await supabase.from("contract_line_items").insert(
-          sovLines.map((l) => ({
-            contract_id: contract.id,
-            cost_category_id: l.cost_category_id,
-            description: l.description ?? null,
-            amount: l.amount,
-          }))
-        );
-        if (sovErr) throw new Error(`SOV: ${sovErr.message}`);
-      }
-    }
+    // Insert SOV line items
+    const { error: sovErr } = await supabase.from("contract_line_items").insert(
+      sovLines.map((l) => ({
+        contract_id: contract.id,
+        cost_category_id: l.cost_category_id,
+        description: l.description ?? null,
+        amount: l.amount,
+      }))
+    );
+    if (sovErr) throw new Error(`SOV: ${sovErr.message}`);
 
     await insertAuditLog({
       user_id: userId,
@@ -130,7 +132,6 @@ export async function updateContract(
 
     const payload = {
       gate_id: gateIds[0],
-      cost_category_id: formData.get("cost_category_id") as string,
       vendor_name: (formData.get("vendor_name") as string).trim(),
       contract_number: (formData.get("contract_number") as string)?.trim() || null,
       description: (formData.get("description") as string).trim(),
@@ -422,6 +423,22 @@ export async function voidChangeOrder(
 
 // ── Schedule of Values (SOV) line items ──────────────────────
 
+async function syncContractCostCategory(supabase: ReturnType<typeof createAdminClient>, contractId: string) {
+  // Keep the contract's top-level cost_category_id in sync with the first (oldest) SOV line
+  const { data: lines } = await supabase
+    .from("contract_line_items")
+    .select("cost_category_id, created_at")
+    .eq("contract_id", contractId)
+    .order("created_at", { ascending: true })
+    .limit(1);
+  if (lines && lines.length > 0) {
+    await supabase
+      .from("contracts")
+      .update({ cost_category_id: lines[0].cost_category_id, updated_at: new Date().toISOString() })
+      .eq("id", contractId);
+  }
+}
+
 export async function addContractLineItem(
   contractId: string,
   projectId: string,
@@ -436,6 +453,7 @@ export async function addContractLineItem(
       amount: parseFloat(formData.get("amount") as string) || 0,
     });
     if (error) throw new Error(error.message);
+    await syncContractCostCategory(supabase, contractId);
     revalidateProject(projectId, contractId);
     return {};
   } catch (err) {
@@ -462,6 +480,7 @@ export async function updateContractLineItem(
       })
       .eq("id", lineItemId);
     if (error) throw new Error(error.message);
+    await syncContractCostCategory(supabase, contractId);
     revalidateProject(projectId, contractId);
     return {};
   } catch (err) {
@@ -482,6 +501,7 @@ export async function deleteContractLineItem(
       .delete()
       .eq("id", lineItemId);
     if (error) throw new Error(error.message);
+    await syncContractCostCategory(supabase, contractId);
     revalidateProject(projectId, contractId);
     return {};
   } catch (err) {

@@ -47,33 +47,68 @@ export async function POST(req: Request) {
   const supabase = createAdminClient();
   const { type: eventType, data } = evt;
 
-  if (eventType === "user.created" || eventType === "user.updated") {
-    const {
-      id,
-      email_addresses,
-      first_name,
-      last_name,
-      public_metadata,
-    } = data;
+  if (eventType === "user.created") {
+    const { id, email_addresses, first_name, last_name, public_metadata } = data;
+
+    // Only provision users who signed up via an admin invitation.
+    // Invitations carry a `role` in publicMetadata; direct sign-ups have none.
+    const role = public_metadata?.role as string | undefined;
+    if (!role) {
+      // No invitation metadata — leave this Clerk user without a Supabase record.
+      // The dashboard layout will redirect them to /not-invited.
+      console.log(`[webhook] user.created for ${id} has no invitation metadata — skipping provisioning`);
+      return NextResponse.json({ received: true });
+    }
 
     const email = email_addresses?.[0]?.email_address ?? "";
     const full_name = [first_name, last_name].filter(Boolean).join(" ") || email;
-    const role = (public_metadata?.role as string) || "read_only";
 
-    const { error } = await supabase.from("users").upsert(
-      {
-        id,
-        email,
-        full_name,
-        role,
-        is_active: true,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "id" }
-    );
+    const { error } = await supabase.from("users").insert({
+      id,
+      email,
+      full_name,
+      role,
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    });
 
     if (error) {
-      console.error("Supabase upsert error:", error);
+      console.error("Supabase insert error:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+  }
+
+  if (eventType === "user.updated") {
+    const { id, email_addresses, first_name, last_name, public_metadata } = data;
+
+    // Only update records that already exist (invited users).
+    // Never auto-create on update — that would bypass the invite gate.
+    const { data: existing } = await supabase
+      .from("users")
+      .select("id")
+      .eq("id", id)
+      .single();
+
+    if (!existing) {
+      return NextResponse.json({ received: true });
+    }
+
+    const email = email_addresses?.[0]?.email_address ?? "";
+    const full_name = [first_name, last_name].filter(Boolean).join(" ") || email;
+    const role = (public_metadata?.role as string) || undefined;
+
+    const { error } = await supabase
+      .from("users")
+      .update({
+        email,
+        full_name,
+        ...(role ? { role } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Supabase update error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
   }

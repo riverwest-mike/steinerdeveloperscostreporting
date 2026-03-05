@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { RoleSelect } from "./role-select";
 import { ActiveToggle } from "./active-toggle";
 import { ProjectAccessSection } from "./project-access";
+import { InviteUserForm } from "./invite-user-form";
 
 export default async function AdminPage() {
   const { userId } = await auth();
@@ -38,6 +39,11 @@ export default async function AdminPage() {
           <p className="text-muted-foreground mt-1">
             Manage users, cost categories, and system settings.
           </p>
+        </div>
+
+        {/* Invite User */}
+        <div className="rounded-lg border p-6">
+          <InviteUserForm />
         </div>
 
         {/* Users table */}
@@ -88,7 +94,7 @@ export default async function AdminPage() {
             </table>
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Users are created automatically when someone signs up via Clerk. Use the Actions column to change a user&apos;s role — you cannot change your own. Click the Status badge to activate or deactivate a user.
+            Users appear here after accepting an invitation and completing sign-up. Use the Actions column to change a user&apos;s role — you cannot change your own. Click the Status badge to activate or deactivate a user.
           </p>
         </div>
 
