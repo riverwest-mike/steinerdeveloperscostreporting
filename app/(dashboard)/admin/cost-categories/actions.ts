@@ -86,6 +86,7 @@ export async function deleteCategory(id: string) {
     { count: changeOrderCount },
     { count: bridgeCount },
     { count: txMappingCount },
+    { count: lineItemCount },
   ] = await Promise.all([
     supabase
       .from("gate_budgets")
@@ -107,6 +108,10 @@ export async function deleteCategory(id: string) {
       .from("transaction_mappings")
       .select("id", { count: "exact", head: true })
       .eq("cost_category_id", id),
+    supabase
+      .from("contract_line_items")
+      .select("id", { count: "exact", head: true })
+      .eq("cost_category_id", id),
   ]);
 
   const uses: string[] = [];
@@ -115,6 +120,7 @@ export async function deleteCategory(id: string) {
   if (changeOrderCount) uses.push(`${changeOrderCount} change order${changeOrderCount > 1 ? "s" : ""}`);
   if (bridgeCount) uses.push(`${bridgeCount} bridge mapping${bridgeCount > 1 ? "s" : ""}`);
   if (txMappingCount) uses.push(`${txMappingCount} transaction mapping${txMappingCount > 1 ? "s" : ""}`);
+  if (lineItemCount) uses.push(`${lineItemCount} schedule-of-values line item${lineItemCount > 1 ? "s" : ""}`);
 
   if (uses.length > 0) {
     throw new Error(

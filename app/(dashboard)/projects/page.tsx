@@ -4,6 +4,18 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 
+interface Project {
+  id: string;
+  name: string;
+  code: string;
+  status: string;
+  property_type: string | null;
+  city: string | null;
+  state: string | null;
+  expected_completion: string | null;
+  image_url: string | null;
+}
+
 const STATUS_OPTIONS = [
   { value: "", label: "All" },
   { value: "active", label: "Active" },
@@ -36,18 +48,20 @@ export default async function ProjectsPage({ searchParams }: Props) {
     query = query.eq("status", statusFilter);
   }
 
-  const { data: projects } = await query;
+  const { data: rawProjects } = await query;
+  const projects = (rawProjects ?? []) as Project[];
 
   // Count per status for tab badges
-  const { data: counts } = await supabase
+  const { data: rawCounts } = await supabase
     .from("projects")
     .select("status");
+  const counts = (rawCounts ?? []) as { status: string }[];
 
   const countByStatus = new Map<string, number>();
-  for (const p of counts ?? []) {
+  for (const p of counts) {
     countByStatus.set(p.status, (countByStatus.get(p.status) ?? 0) + 1);
   }
-  const totalCount = counts?.length ?? 0;
+  const totalCount = counts.length;
 
   return (
     <div>
@@ -91,7 +105,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
           })}
         </div>
 
-        {projects && projects.length > 0 ? (
+        {projects.length > 0 ? (
           <div className="rounded-lg border">
             <table className="w-full text-sm">
               <thead>

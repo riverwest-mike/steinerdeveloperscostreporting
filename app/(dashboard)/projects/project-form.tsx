@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createProject, updateProject } from "./actions";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 
 interface Project {
   id: string;
@@ -182,45 +183,11 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormP
       </div>
 
       {/* Row 3: Address + City + State */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="col-span-2 space-y-1">
-          <label className="text-xs font-medium" htmlFor="address">
-            Street Address
-          </label>
-          <input
-            id="address"
-            name="address"
-            defaultValue={editing?.address ?? ""}
-            placeholder="e.g. 123 Main St"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="city">
-            City
-          </label>
-          <input
-            id="city"
-            name="city"
-            defaultValue={editing?.city ?? ""}
-            placeholder="e.g. Milwaukee"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="state">
-            State
-          </label>
-          <input
-            id="state"
-            name="state"
-            maxLength={2}
-            defaultValue={editing?.state ?? ""}
-            placeholder="WI"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm uppercase"
-          />
-        </div>
-      </div>
+      <AddressAutocomplete
+        defaultAddress={editing?.address ?? ""}
+        defaultCity={editing?.city ?? ""}
+        defaultState={editing?.state ?? ""}
+      />
 
       {/* Row 4: Units + SF + Acquisition Date + Expected Completion */}
       <div className="grid grid-cols-4 gap-4">
