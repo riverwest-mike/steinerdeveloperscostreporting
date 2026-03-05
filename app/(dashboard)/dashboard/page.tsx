@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
+import { TimeGreeting } from "@/components/time-greeting";
 
 export default async function DashboardPage() {
   const { userId } = await auth();
@@ -25,7 +26,7 @@ export default async function DashboardPage() {
       <div className="p-6 space-y-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
-            Welcome back{user?.full_name ? `, ${user.full_name}` : ""}
+            <TimeGreeting name={user?.full_name} />
           </h2>
           <p className="text-muted-foreground mt-1">
             Here&apos;s an overview of your construction projects.

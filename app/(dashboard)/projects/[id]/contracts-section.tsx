@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { createContract } from "./contracts/actions";
+import { InfoTip } from "@/components/info-tip";
 
 interface Gate {
   id: string;
@@ -238,6 +239,7 @@ function AddContractForm({
         <div className="space-y-1">
           <p className="text-xs font-medium">
             Gates <span className="text-destructive">*</span>
+            <InfoTip text="Select every project phase (gate) this contract's work falls within. If the work spans more than one phase, check all that apply. When you add a change order later you will pick which specific gate it applies to." />
           </p>
           <div className="max-h-28 overflow-y-auto rounded border border-input bg-background p-1.5 space-y-0.5">
             {gates.map((g) => (
@@ -251,6 +253,7 @@ function AddContractForm({
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="c-cat">
             Cost Category <span className="text-destructive">*</span>
+            <InfoTip text="This cost code determines which row of the PCM Report this contract appears in (column G – Total Committed). If the contract covers only one cost code, select it here and you're done. If it covers multiple cost codes (e.g. a general contractor contract), select the primary code here, save, then open the contract and use the Schedule of Values section to allocate amounts by cost code." />
           </label>
           <select
             id="c-cat"
