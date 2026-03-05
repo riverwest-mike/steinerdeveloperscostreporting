@@ -35,8 +35,10 @@ interface ReportRow {
   g_committed: number;
   h_pct_committed: number | null;
   i_uncommitted: number;
-  j_cost_to_date: number;
-  k_balance: number;
+  j_paid: number;
+  k_unpaid: number;
+  l_total_incurred: number;
+  m_balance: number;
 }
 
 interface ExportButtonsProps {
@@ -52,7 +54,7 @@ const HEADERS = [
   "A - Original Budget", "B - Authorized Adj.", "C - Current Budget",
   "D - Proposed Adj.", "E - Projected Budget", "F - Variance",
   "G - Total Committed", "H - % Committed", "I - Uncommitted",
-  "J - Cost to Date", "K - Balance to Complete",
+  "J - Costs to Date Paid", "K - Costs to Date Unpaid", "L - Total Costs Incurred", "M - Balance to Complete",
 ];
 
 function fmt(n: number): number { return Math.round(n * 100) / 100; }
@@ -64,7 +66,7 @@ function toRowArr(r: ReportRow): (string | number)[] {
     fmt(r.a_original), fmt(r.b_authorized), fmt(r.c_current),
     fmt(r.d_proposed), fmt(r.e_projected), fmt(r.f_variance),
     fmt(r.g_committed), fmtPct(r.h_pct_committed), fmt(r.i_uncommitted),
-    fmt(r.j_cost_to_date), fmt(r.k_balance),
+    fmt(r.j_paid), fmt(r.k_unpaid), fmt(r.l_total_incurred), fmt(r.m_balance),
   ];
 }
 
@@ -87,27 +89,27 @@ export function ExportButtons({ rows, sectionOrder, projectName, projectCode, as
     for (const s of sectionOrder) sectionMap.set(s, []);
     for (const r of rows) sectionMap.get(r.section)?.push(r);
 
-    const grand = { a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, g: 0, i: 0, j: 0, k: 0 };
+    const grand = { a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, g: 0, i: 0, j: 0, k: 0, l: 0, m: 0 };
 
     for (const section of sectionOrder) {
       const sectionRows = (sectionMap.get(section) ?? []).filter(
-        (r) => r.a_original || r.b_authorized || r.d_proposed || r.g_committed || r.j_cost_to_date
+        (r) => r.a_original || r.b_authorized || r.d_proposed || r.g_committed || r.l_total_incurred
       );
       if (sectionRows.length === 0) continue;
 
       data.push([section]);
 
-      const sub = { a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, g: 0, i: 0, j: 0, k: 0 };
+      const sub = { a: 0, b: 0, c: 0, d: 0, e: 0, f: 0, g: 0, i: 0, j: 0, k: 0, l: 0, m: 0 };
       for (const r of sectionRows) {
         data.push(toRowArr(r));
         sub.a += r.a_original; sub.b += r.b_authorized; sub.c += r.c_current;
         sub.d += r.d_proposed; sub.e += r.e_projected; sub.f += r.f_variance;
         sub.g += r.g_committed; sub.i += r.i_uncommitted;
-        sub.j += r.j_cost_to_date; sub.k += r.k_balance;
+        sub.j += r.j_paid; sub.k += r.k_unpaid; sub.l += r.l_total_incurred; sub.m += r.m_balance;
         grand.a += r.a_original; grand.b += r.b_authorized; grand.c += r.c_current;
         grand.d += r.d_proposed; grand.e += r.e_projected; grand.f += r.f_variance;
         grand.g += r.g_committed; grand.i += r.i_uncommitted;
-        grand.j += r.j_cost_to_date; grand.k += r.k_balance;
+        grand.j += r.j_paid; grand.k += r.k_unpaid; grand.l += r.l_total_incurred; grand.m += r.m_balance;
       }
 
       data.push([
@@ -115,7 +117,7 @@ export function ExportButtons({ rows, sectionOrder, projectName, projectCode, as
         fmt(sub.a), fmt(sub.b), fmt(sub.c),
         fmt(sub.d), fmt(sub.e), fmt(sub.f),
         fmt(sub.g), "", fmt(sub.i),
-        fmt(sub.j), fmt(sub.k),
+        fmt(sub.j), fmt(sub.k), fmt(sub.l), fmt(sub.m),
       ]);
       data.push([]);
     }
@@ -125,11 +127,11 @@ export function ExportButtons({ rows, sectionOrder, projectName, projectCode, as
       fmt(grand.a), fmt(grand.b), fmt(grand.c),
       fmt(grand.d), fmt(grand.e), fmt(grand.f),
       fmt(grand.g), "", fmt(grand.i),
-      fmt(grand.j), fmt(grand.k),
+      fmt(grand.j), fmt(grand.k), fmt(grand.l), fmt(grand.m),
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
-    ws["!cols"] = [{ wch: 12 }, { wch: 36 }, ...Array(11).fill({ wch: 20 })];
+    ws["!cols"] = [{ wch: 12 }, { wch: 36 }, ...Array(13).fill({ wch: 20 })];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Cost Management Report");

@@ -516,6 +516,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
             </p>
           </div>
         ) : (
+          <>
           <div className="overflow-x-auto rounded-lg border">
             <table className="w-full text-xs border-collapse" style={{ minWidth: "1300px" }}>
               <thead>
@@ -718,6 +719,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
               <div><span className="font-semibold text-slate-800">M = C−L</span> — Remaining Gate Spend (Balance to Complete)</div>
             </div>
           </div>
+          </>
         )}
       </div>
     </div>
