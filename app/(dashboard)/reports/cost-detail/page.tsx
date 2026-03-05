@@ -157,6 +157,11 @@ export default async function CostDetailPage({ searchParams }: Props) {
     transactions = (rawTx ?? []) as Transaction[];
   }
 
+  // AppFolio base URL for bill deep-links (server-side only — env var never reaches client)
+  const appfolioBaseUrl = process.env.APPFOLIO_DATABASE_URL
+    ? `https://${process.env.APPFOLIO_DATABASE_URL}`
+    : null;
+
   // ── Totals ────────────────────────────────────────────
   const totalInvoice = transactions.reduce((s, t) => s + Number(t.invoice_amount), 0);
   const totalPaid = transactions.reduce((s, t) => s + Number(t.paid_amount), 0);
@@ -284,7 +289,17 @@ export default async function CostDetailPage({ searchParams }: Props) {
                       )}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums font-medium">
-                      {usd(Number(tx.invoice_amount))}
+                      {appfolioBaseUrl ? (
+                        <a
+                          href={`${appfolioBaseUrl}/payable_bills/${tx.appfolio_bill_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                          title="Open in AppFolio"
+                        >
+                          {usd(Number(tx.invoice_amount))}
+                        </a>
+                      ) : usd(Number(tx.invoice_amount))}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums text-green-700">
                       {usd(Number(tx.paid_amount))}
