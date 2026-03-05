@@ -21,7 +21,6 @@ export default async function ProjectPage({ params }: Props) {
     { data: project },
     { data: gates },
     { data: contracts },
-    { data: categories },
     userRole,
   ] = await Promise.all([
     supabase.from("projects").select("*").eq("id", id).single(),
@@ -35,11 +34,6 @@ export default async function ProjectPage({ params }: Props) {
       .select("id, vendor_name, contract_number, description, original_value, approved_co_amount, revised_value, status, gate_id, cost_category_id, contract_gates(gate:gates(id,name,sequence_number)), cost_categories(name, code)")
       .eq("project_id", id)
       .order("created_at"),
-    supabase
-      .from("cost_categories")
-      .select("id, name, code")
-      .eq("is_active", true)
-      .order("display_order"),
     getMyRole(),
   ]);
 
@@ -83,12 +77,6 @@ export default async function ProjectPage({ params }: Props) {
     category_name: c.cost_categories ? `${c.cost_categories.code} — ${c.cost_categories.name}` : undefined,
   }));
 
-  const gatesList = (gates ?? []).map((g: { id: string; name: string; sequence_number: number }) => ({
-    id: g.id, name: g.name, sequence_number: g.sequence_number,
-  }));
-
-  const categoriesList = (categories ?? []) as { id: string; name: string; code: string }[];
-
   return (
     <div>
       <Header title={project.name} />
@@ -108,8 +96,6 @@ export default async function ProjectPage({ params }: Props) {
         <ContractsSection
           projectId={id}
           contracts={contractsWithNames}
-          gates={gatesList}
-          categories={categoriesList}
         />
       </div>
     </div>

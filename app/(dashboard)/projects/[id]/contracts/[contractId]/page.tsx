@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ContractDetail } from "./contract-detail";
+import { getMyRole } from "../../gates/actions";
 
 interface Props {
   params: Promise<{ id: string; contractId: string }>;
@@ -26,7 +27,7 @@ export default async function ContractPage({ params }: Props) {
   const { id: projectId, contractId } = await params;
   const supabase = createAdminClient();
 
-  const [{ data: contract }, { data: project }, { data: gates }, { data: categories }, { data: changeOrders }] =
+  const [{ data: contract }, { data: project }, { data: gates }, { data: categories }, { data: changeOrders }, userRole] =
     await Promise.all([
       supabase
         .from("contracts")
@@ -49,6 +50,7 @@ export default async function ContractPage({ params }: Props) {
         .select("id, co_number, description, amount, status, proposed_date, approved_date, teams_url, notes")
         .eq("contract_id", contractId)
         .order("proposed_date", { ascending: false }),
+      getMyRole(),
     ]);
 
   if (!contract || !project) notFound();
@@ -73,6 +75,7 @@ export default async function ContractPage({ params }: Props) {
           gates={(gates ?? []) as { id: string; name: string; sequence_number: number }[]}
           categories={(categories ?? []) as { id: string; name: string; code: string }[]}
           changeOrders={(changeOrders ?? []) as ChangeOrderRow[]}
+          isAdmin={userRole === "admin"}
         />
       </div>
     </div>

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   updateContract,
+  deleteContract,
   createChangeOrder,
   approveChangeOrder,
   rejectChangeOrder,
@@ -73,16 +75,30 @@ function fmtDate(d: string | null) {
 }
 
 export function ContractDetail({
-  contract, projectId, gates, categories, changeOrders,
+  contract, projectId, gates, categories, changeOrders, isAdmin,
 }: {
   contract: Contract;
   projectId: string;
   gates: Gate[];
   categories: Category[];
   changeOrders: ChangeOrder[];
+  isAdmin?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
   const [showCoForm, setShowCoForm] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, startDeleteTransition] = useTransition();
+  const router = useRouter();
+
+  function handleDelete() {
+    if (!confirm(`Delete contract "${contract.vendor_name}"? This will permanently remove all change orders and line items. This cannot be undone.`)) return;
+    setDeleteError(null);
+    startDeleteTransition(async () => {
+      const result = await deleteContract(contract.id, projectId);
+      if (result?.error) { setDeleteError(result.error); return; }
+      router.push(`/projects/${projectId}`);
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -100,13 +116,25 @@ export function ContractDetail({
           </div>
           <p className="text-muted-foreground mt-0.5 text-sm">{contract.description}</p>
         </div>
-        <button
-          onClick={() => setEditing((v) => !v)}
-          className="rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
-        >
-          {editing ? "Cancel" : "Edit Contract"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditing((v) => !v)}
+            className="rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            {editing ? "Cancel" : "Edit Contract"}
+          </button>
+          {isAdmin && !editing && (
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="rounded border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-50"
+            >
+              {isDeleting ? "Deleting…" : "Delete"}
+            </button>
+          )}
+        </div>
       </div>
+      {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
 
       {/* Edit form */}
       {editing && (

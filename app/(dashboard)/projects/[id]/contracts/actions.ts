@@ -19,6 +19,21 @@ async function requirePM() {
   return { userId, supabase };
 }
 
+async function requireAdmin() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Not authenticated");
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  if (!data || data.role !== "admin") {
+    throw new Error(`Admin role required (role: ${data?.role ?? "none"})`);
+  }
+  return { userId, supabase };
+}
+
 function revalidateProject(projectId: string, contractId?: string) {
   revalidatePath(`/projects/${projectId}`);
   if (contractId) revalidatePath(`/projects/${projectId}/contracts/${contractId}`);
@@ -120,6 +135,29 @@ export async function updateContract(
   } catch (err) {
     console.error("[updateContract]", err);
     return { error: err instanceof Error ? err.message : "Failed to update contract" };
+  }
+}
+
+export async function deleteContract(
+  contractId: string,
+  projectId: string
+): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await requireAdmin();
+
+    // Delete dependent rows first (in case FK cascade is not configured)
+    await supabase.from("change_orders").delete().eq("contract_id", contractId);
+    await supabase.from("contract_gates").delete().eq("contract_id", contractId);
+    await supabase.from("contract_line_items").delete().eq("contract_id", contractId);
+
+    const { error } = await supabase.from("contracts").delete().eq("id", contractId);
+    if (error) throw new Error(error.message);
+
+    revalidatePath(`/projects/${projectId}`);
+    return {};
+  } catch (err) {
+    console.error("[deleteContract]", err);
+    return { error: err instanceof Error ? err.message : "Failed to delete contract" };
   }
 }
 
