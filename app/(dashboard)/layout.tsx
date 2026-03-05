@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
 
@@ -25,30 +25,12 @@ export default async function DashboardLayout({
     .eq("id", userId)
     .single();
 
-  // Self-registration fallback: if the webhook hasn't fired yet (or failed),
-  // create the user record now so the app never crashes on first login.
+  // If the user signed up without an invitation they won't have a Supabase
+  // record yet (the webhook only creates one when the Clerk user.created event
+  // fires, which requires the invitation flow). Redirect them to a "not invited"
+  // page rather than auto-provisioning them.
   if (!user) {
-    try {
-      const clerkUser = await currentUser();
-      if (clerkUser) {
-        const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
-        const full_name =
-          [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") ||
-          email;
-        // INSERT only — never overwrite a role that was manually assigned
-        await admin
-          .from("users")
-          .insert({ id: userId, email, full_name, role: "read_only", is_active: true });
-        const { data: newUser } = await admin
-          .from("users")
-          .select("role, full_name, is_active")
-          .eq("id", userId)
-          .single();
-        user = newUser;
-      }
-    } catch (err) {
-      console.error("[layout] self-registration fallback failed:", err);
-    }
+    redirect("/not-invited");
   }
 
   const role = user?.role ?? "read_only";

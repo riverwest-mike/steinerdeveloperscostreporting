@@ -834,21 +834,11 @@ function EditContractForm({
           </div>
         </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="ec-cat">
-            Cost Category <span className="text-destructive">*</span>
-            <InfoTip text="This cost code determines which row of the PCM Report this contract appears in (column G – Total Committed). If the contract covers only one cost code, select it here. If it covers multiple cost codes, select the primary code and use the Schedule of Values section below to allocate amounts by code." />
-          </label>
-          <select
-            id="ec-cat"
-            name="cost_category_id"
-            required
-            defaultValue={contract.cost_category_id}
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          >
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>{cat.code} — {cat.name}</option>
-            ))}
-          </select>
+          <p className="text-xs font-medium text-muted-foreground">Cost Category</p>
+          <p className="text-sm py-1.5">
+            {contract.category ? `${contract.category.code} — ${contract.category.name}` : "—"}
+          </p>
+          <p className="text-xs text-muted-foreground">To change, update the first line in the Schedule of Values below.</p>
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="ec-value">
