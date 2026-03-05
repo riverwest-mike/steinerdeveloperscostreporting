@@ -13,6 +13,7 @@ import {
   Users,
   Tag,
   RefreshCw,
+  ScrollText,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -27,6 +28,7 @@ const adminItems = [
   { href: "/admin", label: "Users & Access", icon: Users, exact: true },
   { href: "/admin/cost-categories", label: "Cost Categories", icon: Tag, exact: false },
   { href: "/admin/appfolio", label: "AppFolio", icon: RefreshCw, exact: false },
+  { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText, exact: false },
 ];
 
 interface SidebarProps {

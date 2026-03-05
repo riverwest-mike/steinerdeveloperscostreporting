@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { insertAuditLog } from "@/lib/audit";
 
 async function requirePM() {
   const { userId } = await auth();
@@ -82,6 +83,15 @@ export async function createContract(
     );
     if (cgErr) throw new Error(cgErr.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "contract.create",
+      entity_type: "contract",
+      entity_id: contract.id,
+      project_id: projectId,
+      label: payload.vendor_name,
+      payload: { vendor_name: payload.vendor_name, contract_number: payload.contract_number, original_value: payload.original_value },
+    });
     revalidateProject(projectId);
     return {};
   } catch (err) {
@@ -96,7 +106,7 @@ export async function updateContract(
   formData: FormData
 ): Promise<{ error?: string }> {
   try {
-    const { supabase } = await requirePM();
+    const { userId, supabase } = await requirePM();
 
     const gateIds = formData.getAll("gate_ids") as string[];
     if (!gateIds.length) throw new Error("At least one gate must be selected");
@@ -130,6 +140,15 @@ export async function updateContract(
     );
     if (cgErr) throw new Error(cgErr.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "contract.update",
+      entity_type: "contract",
+      entity_id: contractId,
+      project_id: projectId,
+      label: payload.vendor_name,
+      payload: { vendor_name: payload.vendor_name, contract_number: payload.contract_number, original_value: payload.original_value },
+    });
     revalidateProject(projectId, contractId);
     return {};
   } catch (err) {
@@ -143,7 +162,7 @@ export async function deleteContract(
   projectId: string
 ): Promise<{ error?: string }> {
   try {
-    const { supabase } = await requireAdmin();
+    const { userId, supabase } = await requireAdmin();
 
     // Delete dependent rows first (in case FK cascade is not configured)
     await supabase.from("change_orders").delete().eq("contract_id", contractId);
@@ -153,6 +172,13 @@ export async function deleteContract(
     const { error } = await supabase.from("contracts").delete().eq("id", contractId);
     if (error) throw new Error(error.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "contract.delete",
+      entity_type: "contract",
+      entity_id: contractId,
+      project_id: projectId,
+    });
     revalidatePath(`/projects/${projectId}`);
     return {};
   } catch (err) {
@@ -193,6 +219,14 @@ export async function createChangeOrder(
     const { error } = await supabase.from("change_orders").insert(payload);
     if (error) throw new Error(error.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "change_order.create",
+      entity_type: "change_order",
+      project_id: projectId,
+      label: `${payload.co_number} — ${payload.description}`,
+      payload: { co_number: payload.co_number, description: payload.description, amount: payload.amount },
+    });
     revalidateProject(projectId, contractId);
     return {};
   } catch (err) {
@@ -258,6 +292,13 @@ export async function approveChangeOrder(
       .eq("gate_id", co.gate_id)
       .eq("cost_category_id", co.cost_category_id);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "change_order.approve",
+      entity_type: "change_order",
+      entity_id: coId,
+      project_id: projectId,
+    });
     revalidateProject(projectId, contractId);
     return {};
   } catch (err) {
@@ -272,7 +313,7 @@ export async function rejectChangeOrder(
   projectId: string
 ): Promise<{ error?: string }> {
   try {
-    const { supabase } = await requirePM();
+    const { userId, supabase } = await requirePM();
 
     const { error } = await supabase
       .from("change_orders")
@@ -282,6 +323,13 @@ export async function rejectChangeOrder(
 
     if (error) throw new Error(error.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "change_order.reject",
+      entity_type: "change_order",
+      entity_id: coId,
+      project_id: projectId,
+    });
     revalidateProject(projectId, contractId);
     return {};
   } catch (err) {
@@ -296,7 +344,7 @@ export async function voidChangeOrder(
   projectId: string
 ): Promise<{ error?: string }> {
   try {
-    const { supabase } = await requirePM();
+    const { userId, supabase } = await requirePM();
 
     const { data: co, error: coErr } = await supabase
       .from("change_orders")
@@ -340,6 +388,13 @@ export async function voidChangeOrder(
       .eq("gate_id", co.gate_id)
       .eq("cost_category_id", co.cost_category_id);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "change_order.void",
+      entity_type: "change_order",
+      entity_id: coId,
+      project_id: projectId,
+    });
     revalidateProject(projectId, contractId);
     return {};
   } catch (err) {
