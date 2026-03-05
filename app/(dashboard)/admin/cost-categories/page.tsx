@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { CategoriesTable } from "./categories-table";
 import { ExportButton } from "./export-button";
+import { HELP } from "@/lib/help";
 
 export default async function CostCategoriesPage() {
   const { userId } = await auth();
@@ -28,7 +29,7 @@ export default async function CostCategoriesPage() {
 
   return (
     <div>
-      <Header title="Cost Categories" />
+      <Header title="Cost Categories" helpContent={HELP.costCategories} />
       <div className="p-6 space-y-6">
         <div className="flex items-start justify-between">
           <div>

@@ -4,72 +4,181 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
+    /* ── RiverWest Brand Colors ──────────────────────────────────────────────
+     * To match your exact brand, replace these HSL values.
+     * In browser devtools: Inspect any colored button or header on
+     * riverwestpartners.com → Computed → look for `color` or `background-color`.
+     *
+     * Current palette: Deep Navy sidebar + River Teal primary + warm backgrounds
+     * ────────────────────────────────────────────────────────────────────── */
+
+    --background:       216 33% 97%;   /* #f5f7fb  warm off-white            */
+    --foreground:       215 30% 13%;   /* #18263a  near-black                 */
+    --card:             0   0% 100%;   /* #ffffff  white cards                */
+    --card-foreground:  215 30% 13%;
+    --popover:          0   0% 100%;
+    --popover-foreground: 215 30% 13%;
+
+    --primary:          165 68% 28%;   /* #157060  River Teal — main action   */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary:        210 20% 94%;
+    --secondary-foreground: 215 30% 13%;
+
+    --muted:            210 20% 95%;
+    --muted-foreground: 215 16% 46%;
+
+    --accent:           210 20% 92%;
+    --accent-foreground: 215 30% 13%;
+
+    --destructive:      0 82% 57%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border:           214 20% 88%;
+    --input:            214 20% 88%;
+    --ring:             165 68% 28%;
+    --radius:           0.5rem;
+
+    /* ── Sidebar tokens (always dark regardless of light/dark mode) ────── */
+    --sidebar-bg:       215 45% 11%;   /* #0e1c2d  deep navy                  */
+    --sidebar-fg:       215 20% 82%;   /* #c3cdd9  light text                 */
+    --sidebar-muted:    215 20% 52%;   /* #708499  dimmed text                */
+    --sidebar-active-bg: 165 68% 28%; /* matches --primary                   */
+    --sidebar-hover-bg: 215 45% 16%;  /* slightly lighter navy on hover       */
+    --sidebar-border:   215 45% 18%;  /* inner divider lines                  */
+
+    /* ── Status colors ─────────────────────────────────────────────────── */
+    --status-active:    142 71% 30%;
+    --status-hold:      38  90% 45%;
+    --status-complete:  210 70% 45%;
+    --status-archived:  215 16% 55%;
   }
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
-  }
-}
+  /* No dark mode overrides — the app is light-only with a dark sidebar */
 
-@layer base {
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
 
+/* ── Shared table header utility ─────────────────────────────────────────
+   Add class="rw-table" to any <table> for consistent branded headers.
+   The print styles below ensure colored headers survive printing.
+   ──────────────────────────────────────────────────────────────────────── */
+@layer components {
+  .rw-table thead tr {
+    @apply border-b;
+    background-color: hsl(var(--sidebar-bg));
+    color: hsl(var(--sidebar-fg));
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .rw-table thead th {
+    @apply px-4 py-3 text-left text-xs font-semibold tracking-wide uppercase;
+    color: hsl(215 20% 75%);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .rw-table tbody tr {
+    @apply border-b transition-colors last:border-0;
+  }
+
+  .rw-table tbody tr:nth-child(even) {
+    @apply bg-muted/30;
+  }
+
+  .rw-table tbody tr:hover {
+    @apply bg-accent/60;
+  }
+}
+
+/* ── Print styles ─────────────────────────────────────────────────────────
+   Applied to ALL pages when printing / saving PDF.
+   ──────────────────────────────────────────────────────────────────────── */
 @media print {
   html, body {
     height: auto;
     overflow: visible;
+    background: white !important;
+    font-size: 11pt;
   }
 
   @page {
     size: landscape;
-    margin: 0.35in;
+    margin: 0.4in;
   }
 
-  /* PCM Report — all 15 columns visible in landscape */
+  /* ── Hide chrome ── */
+  aside,
+  header,
+  nav,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /* ── Print header injected by report pages ── */
+  .print-header {
+    display: block !important;
+    margin-bottom: 16pt;
+    padding-bottom: 8pt;
+    border-bottom: 2pt solid #0e1c2d;
+  }
+
+  .print-header h1 {
+    font-size: 14pt;
+    font-weight: 700;
+    color: #0e1c2d;
+  }
+
+  .print-header p {
+    font-size: 9pt;
+    color: #555;
+  }
+
+  /* ── Borders / backgrounds render in print ── */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* ── All table headers get brand dark background ── */
+  table thead tr,
+  .rw-table thead tr {
+    background-color: #0e1c2d !important;
+    color: white !important;
+  }
+
+  table thead th,
+  .rw-table thead th {
+    color: #c3cdd9 !important;
+    font-size: 7pt !important;
+    padding: 4pt 6pt !important;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  table tbody td {
+    font-size: 8pt !important;
+    padding: 3pt 6pt !important;
+  }
+
+  table tbody tr:nth-child(even) {
+    background-color: #f5f7fb !important;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  /* ── PCM Report — all 15 columns visible in landscape ── */
   #pcm-report {
     overflow: visible !important;
   }
@@ -100,4 +209,9 @@
     font-size: 5pt !important;
     line-height: 1.1 !important;
   }
+
+  /* ── Page break hints ── */
+  .page-break-before { page-break-before: always; }
+  .page-break-after  { page-break-after: always; }
+  .avoid-break       { page-break-inside: avoid; }
 }

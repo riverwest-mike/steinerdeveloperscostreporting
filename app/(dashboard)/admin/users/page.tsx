@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { ProjectAccessSection } from "../project-access";
 import { UsersSection } from "../users-section";
 import { BudgetImportHistory } from "../budget-import-history";
+import { HELP } from "@/lib/help";
 
 export default async function AdminUsersPage() {
   const { userId } = await auth();
@@ -56,7 +57,7 @@ export default async function AdminUsersPage() {
 
   return (
     <div>
-      <Header title="Users & Access" />
+      <Header title="Users & Access" helpContent={HELP.adminUsers} />
       <div className="p-6 space-y-8">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Users & Access</h2>

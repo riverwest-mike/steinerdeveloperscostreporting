@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { FileBarChart2 } from "lucide-react";
+import { HELP } from "@/lib/help";
 
 const AVAILABLE_REPORTS = [
   {
@@ -40,7 +41,7 @@ const AVAILABLE_REPORTS = [
 export default function ReportsPage() {
   return (
     <div>
-      <Header title="Reports" />
+      <Header title="Reports" helpContent={HELP.reports} />
       <div className="p-6">
         <h2 className="text-2xl font-bold tracking-tight mb-1">Reports</h2>
         <p className="text-muted-foreground mb-8">Select a report to run.</p>

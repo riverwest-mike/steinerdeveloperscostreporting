@@ -6,6 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { Users, Tag, RefreshCw, ScrollText, Upload, ArrowRight } from "lucide-react";
+import { HELP } from "@/lib/help";
 
 const ADMIN_SECTIONS = [
   {
@@ -66,7 +67,7 @@ export default async function AdminPage() {
 
   return (
     <div>
-      <Header title="Admin" />
+      <Header title="Admin" helpContent={HELP.adminIndex} />
       <div className="p-6">
         <div className="mb-8">
           <h2 className="text-2xl font-bold tracking-tight">Admin Panel</h2>

@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { GateDetail } from "./gate-detail";
 import { getMyRole } from "../actions";
+import { HELP } from "@/lib/help";
 
 interface Props {
   params: Promise<{ id: string; gateId: string }>;
@@ -102,7 +103,7 @@ export default async function GatePage({ params }: Props) {
 
   return (
     <div>
-      <Header title={`${project.name} — ${gate.name}`} />
+      <Header title={`${project.name} — ${gate.name}`} helpContent={HELP.gateDetail} />
       <div className="p-6">
         <nav className="text-sm text-muted-foreground mb-4 flex items-center gap-1.5">
           <Link href="/projects" className="hover:text-foreground transition-colors">

@@ -8,6 +8,7 @@ import { ProjectDetail } from "./project-detail";
 import { GatesSection } from "./gates-section";
 import { ContractsSection } from "./contracts-section";
 import { getMyRole } from "./gates/actions";
+import { HELP } from "@/lib/help";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -79,7 +80,7 @@ export default async function ProjectPage({ params }: Props) {
 
   return (
     <div>
-      <Header title={project.name} />
+      <Header title={project.name} helpContent={HELP.projectDetail} />
       <div className="p-6">
         <nav className="text-sm text-muted-foreground mb-4">
           <Link href="/projects" className="hover:text-foreground transition-colors">Projects</Link>

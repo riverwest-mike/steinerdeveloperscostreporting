@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/header";
 import { SyncButton } from "./sync-button";
 import { BalanceSheetSyncButton } from "./balance-sheet-sync-button";
 import { LinkProjects } from "./link-projects";
+import { HELP } from "@/lib/help";
 
 export default async function AppFolioSyncPage() {
   const { userId } = await auth();
@@ -72,7 +73,7 @@ export default async function AppFolioSyncPage() {
 
   return (
     <div>
-      <Header title="AppFolio Sync" />
+      <Header title="AppFolio Sync" helpContent={HELP.appfolio} />
       <div className="p-6 space-y-8">
         <div>
           <nav className="text-sm text-muted-foreground mb-4">

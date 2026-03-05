@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
 import { ExportButtons } from "./export-buttons";
+import { HELP } from "@/lib/help";
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -76,7 +77,7 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
   if (projectIds.length === 0) {
     return (
       <div>
-        <Header title="Balance Sheet Report" />
+        <Header title="Balance Sheet Report" helpContent={HELP.balanceSheet} />
         <div className="p-6">
           <ReportControls projects={projects} currentProjectIds={[]} currentAsOf={asOf} currentBasis={basis} />
           <ReportRestorer />
@@ -199,7 +200,7 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
 
   return (
     <div>
-      <Header title="Balance Sheet Report" />
+      <Header title="Balance Sheet Report" helpContent={HELP.balanceSheet} />
       <div className="p-6">
 
         <div className="print:hidden">
