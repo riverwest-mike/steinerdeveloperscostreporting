@@ -57,6 +57,10 @@ export function ReportControls({
   function handleRun() {
     if (!canRun) return;
 
+    try {
+      localStorage.setItem("vendor_detail_last_filter", JSON.stringify({ projectId, vendorName, categoryCode, asOf }));
+    } catch { /* ignore */ }
+
     const propertyId = selectedProject?.appfolio_property_id ?? null;
 
     if (!propertyId) {
