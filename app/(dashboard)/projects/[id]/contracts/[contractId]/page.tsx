@@ -30,7 +30,7 @@ export default async function ContractPage({ params }: Props) {
     await Promise.all([
       supabase
         .from("contracts")
-        .select("*, gate:gates(id,name,sequence_number), category:cost_categories(id,name,code)")
+        .select("*, contract_gates(gate:gates(id,name,sequence_number)), category:cost_categories(id,name,code)")
         .eq("id", contractId)
         .single(),
       supabase.from("projects").select("id, name, code").eq("id", projectId).single(),

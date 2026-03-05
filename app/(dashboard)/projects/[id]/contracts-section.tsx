@@ -25,9 +25,9 @@ interface Contract {
   approved_co_amount: number;
   revised_value: number;
   status: string;
-  gate_id: string;
+  gate_id: string | null;
   cost_category_id: string;
-  gate_name?: string;
+  gate_names?: string;
   category_name?: string;
 }
 
@@ -83,7 +83,7 @@ export function ContractsSection({ projectId, contracts, gates, categories }: Co
               <tr className="border-b bg-muted/30">
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Vendor</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Contract #</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Gate</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Gates</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Category</th>
                 <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Original</th>
                 <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Approved COs</th>
@@ -105,7 +105,7 @@ export function ContractsSection({ projectId, contracts, gates, categories }: Co
                   <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
                     {c.contract_number ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{c.gate_name ?? "—"}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{c.gate_names ?? "—"}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">{c.category_name ?? "—"}</td>
                   <td className="px-4 py-3 text-right font-mono text-xs">{fmtCurrency(c.original_value)}</td>
                   <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
@@ -236,20 +236,17 @@ function AddContractForm({
       {/* Row 3 */}
       <div className="grid grid-cols-4 gap-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-gate">
-            Gate <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="c-gate"
-            name="gate_id"
-            required
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          >
-            <option value="">— Select —</option>
+          <p className="text-xs font-medium">
+            Gates <span className="text-destructive">*</span>
+          </p>
+          <div className="max-h-28 overflow-y-auto rounded border border-input bg-background p-1.5 space-y-0.5">
             {gates.map((g) => (
-              <option key={g.id} value={g.id}>{g.sequence_number}. {g.name}</option>
+              <label key={g.id} className="flex items-center gap-2 px-1.5 py-1 rounded text-xs cursor-pointer hover:bg-accent/50 select-none">
+                <input type="checkbox" name="gate_ids" value={g.id} className="rounded" />
+                {g.sequence_number}. {g.name}
+              </label>
             ))}
-          </select>
+          </div>
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="c-cat">
