@@ -272,16 +272,17 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
       }
     }
 
-    // Fetch transactions — include rows where bill_date is null (undated).
     // Cap at yesterday: AppFolio intraday transactions (occurred_on = today) are
     // not yet fully posted and lack project_cost_category. Using min(asOf, yesterday)
     // ensures we never surface them regardless of the user-selected report date.
+    // Null-date rows are also intraday artifacts — exclude them by filtering only
+    // on bill_date (dropping the previous bill_date.is.null branch).
     const txDateCap = asOf < appfolioDateCap() ? asOf : appfolioDateCap();
     const { data: rawTx } = await supabase
       .from("appfolio_transactions")
       .select("cost_category_code, cost_category_name, vendor_name, invoice_amount")
       .eq("appfolio_property_id", project.appfolio_property_id)
-      .or(`bill_date.lte.${txDateCap},bill_date.is.null`);
+      .lte("bill_date", txDateCap);
 
     for (const tx of (rawTx ?? []) as {
       cost_category_code: string | null;
