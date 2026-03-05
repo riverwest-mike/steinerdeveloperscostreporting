@@ -14,6 +14,7 @@ import {
   Tag,
   RefreshCw,
   ScrollText,
+  BookOpen,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -177,14 +178,21 @@ export function Sidebar({ role }: SidebarProps) {
         )}
       </nav>
 
-      {/* Role badge at bottom */}
-      <div className="border-t p-4">
+      {/* Bottom: role badge + quick start link */}
+      <div className="border-t p-4 space-y-2">
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-green-500" />
           <span className="text-xs text-muted-foreground capitalize">
             {role?.replace("_", " ")}
           </span>
         </div>
+        <button
+          onClick={() => window.dispatchEvent(new Event("open-quickstart"))}
+          className="flex w-full items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <BookOpen className="h-3 w-3 shrink-0" />
+          Quick Start Guide
+        </button>
       </div>
     </aside>
   );
