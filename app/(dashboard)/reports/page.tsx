@@ -23,6 +23,18 @@ const AVAILABLE_REPORTS = [
     description:
       "Look up all costs and transactions associated with a particular vendor — filter by project, vendor name, cost category, and date.",
   },
+  {
+    href: "/reports/commitment-detail",
+    title: "Commitment Detail Report",
+    description:
+      "Lists every contract and its approved change orders by cost category — showing base amount, approved COs, and total committed.",
+  },
+  {
+    href: "/reports/balance-sheet",
+    title: "Balance Sheet Report",
+    description:
+      "AppFolio balance sheet data by property — assets, liabilities, and equity as of a selected date.",
+  },
 ];
 
 export default function ReportsPage() {
