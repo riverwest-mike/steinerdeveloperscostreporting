@@ -9,8 +9,18 @@ import { ExportButtons } from "./export-buttons";
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function today(): string {
-  return new Date().toISOString().split("T")[0];
+  return localDateStr(new Date());
+}
+
+function appfolioDateCap(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return localDateStr(d);
 }
 
 function usd(n: number): string {
@@ -147,7 +157,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
         "check_number, reference_number, description"
       )
       .eq("appfolio_property_id", project.appfolio_property_id)
-      .or(`bill_date.lte.${asOf},bill_date.is.null`);
+      .lte("bill_date", asOf < appfolioDateCap() ? asOf : appfolioDateCap());
 
     if (categoryCode) {
       query = query.ilike("cost_category_code", categoryCode);
