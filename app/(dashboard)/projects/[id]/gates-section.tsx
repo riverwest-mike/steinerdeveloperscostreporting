@@ -91,8 +91,7 @@ export function GatesSection({ projectId, gates }: GatesSectionProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/30 sticky top-0">
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Gate #</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Name</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Gate</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Status</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Start</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">End</th>
@@ -102,15 +101,13 @@ export function GatesSection({ projectId, gates }: GatesSectionProps) {
             <tbody>
               {gates.map((gate) => (
                 <tr key={gate.id} className="border-b last:border-0 hover:bg-muted/20">
-                  <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
-                    {gate.sequence_number}
-                  </td>
                   <td className="px-4 py-3 font-medium">
                     <Link
                       href={`/projects/${projectId}/gates/${gate.id}`}
                       className="hover:text-primary hover:underline underline-offset-2 transition-colors"
                     >
-                      {gate.name}
+                      <span className="font-mono">#{gate.sequence_number}</span>
+                      {gate.name && <span className="ml-2 text-muted-foreground font-normal">{gate.name}</span>}
                     </Link>
                     {gate.is_locked && (
                       <span className="ml-2 text-xs text-muted-foreground">🔒</span>
