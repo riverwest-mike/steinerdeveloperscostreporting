@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { RoleSelect } from "./role-select";
 import { ActiveToggle } from "./active-toggle";
@@ -100,33 +99,6 @@ export default async function AdminPage() {
           assignments={(projectUsers ?? []) as { project_id: string; user_id: string }[]}
         />
 
-        {/* Admin section links */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Link
-            href="/admin/cost-categories"
-            className="rounded-lg border p-6 hover:bg-muted/40 transition-colors"
-          >
-            <h4 className="font-semibold text-sm">Cost Categories</h4>
-            <p className="text-xs text-muted-foreground mt-1">
-              Manage standardized cost classifications
-            </p>
-          </Link>
-          <Link
-            href="/admin/appfolio"
-            className="rounded-lg border p-6 hover:bg-muted/40 transition-colors"
-          >
-            <h4 className="font-semibold text-sm">AppFolio Sync</h4>
-            <p className="text-xs text-muted-foreground mt-1">
-              Pull bill data and sync transactions
-            </p>
-          </Link>
-          <div className="rounded-lg border border-dashed p-6">
-            <h4 className="font-semibold text-sm">Audit Log</h4>
-            <p className="text-xs text-muted-foreground mt-1">
-              Phase 6 — View all system changes
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );

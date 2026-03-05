@@ -4,6 +4,30 @@ import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
+const IMAGE_BUCKET = "project-images";
+
+async function uploadProjectImage(
+  supabase: ReturnType<typeof createAdminClient>,
+  projectId: string,
+  file: File
+): Promise<string> {
+  // Ensure bucket exists (no-op if already created)
+  await supabase.storage.createBucket(IMAGE_BUCKET, { public: true }).catch(() => {});
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const path = `${projectId}/cover.${ext}`;
+
+  const { error } = await supabase.storage
+    .from(IMAGE_BUCKET)
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (error) throw new Error(`Image upload failed: ${error.message}`);
+
+  const { data } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path);
+  // Append cache-busting timestamp so the browser picks up a newly replaced image
+  return `${data.publicUrl}?t=${Date.now()}`;
+}
+
 async function requirePM() {
   const { userId } = await auth();
   if (!userId) throw new Error("Not authenticated");
@@ -46,8 +70,19 @@ export async function createProject(
       created_by: userId,
     };
 
-    const { error } = await supabase.from("projects").insert(payload);
+    const { data: newProject, error } = await supabase
+      .from("projects")
+      .insert(payload)
+      .select("id")
+      .single();
     if (error) throw new Error(error.message);
+
+    // Upload cover image if provided
+    const imageFile = formData.get("image") as File | null;
+    if (imageFile && imageFile.size > 0 && newProject) {
+      const imageUrl = await uploadProjectImage(supabase, newProject.id, imageFile);
+      await supabase.from("projects").update({ image_url: imageUrl }).eq("id", newProject.id);
+    }
 
     revalidatePath("/projects");
     return {};
@@ -64,7 +99,7 @@ export async function updateProject(
   try {
     const { supabase } = await requirePM();
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: (formData.get("name") as string).trim(),
       code: (formData.get("code") as string).trim().toUpperCase(),
       appfolio_property_id: (formData.get("appfolio_property_id") as string)?.trim() || null,
@@ -80,6 +115,12 @@ export async function updateProject(
       description: (formData.get("description") as string)?.trim() || null,
       updated_at: new Date().toISOString(),
     };
+
+    // Upload cover image if a new file was provided
+    const imageFile = formData.get("image") as File | null;
+    if (imageFile && imageFile.size > 0) {
+      payload.image_url = await uploadProjectImage(supabase, id, imageFile);
+    }
 
     const { error } = await supabase.from("projects").update(payload).eq("id", id);
     if (error) throw new Error(error.message);
