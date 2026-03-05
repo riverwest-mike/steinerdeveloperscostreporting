@@ -556,28 +556,15 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
           </div>
         ) : (
           <>
-          <style>{`
-            @media print {
-              @page { size: landscape; margin: 0.35in; }
-              .overflow-x-auto { overflow: visible !important; }
-              table {
-                font-size: 6pt !important;
-                min-width: 0 !important;
-                width: 100% !important;
-                table-layout: fixed !important;
-              }
-              th, td {
-                padding: 1pt 2pt !important;
-                white-space: normal !important;
-                word-break: break-word !important;
-                overflow: hidden !important;
-              }
-              th { font-size: 5pt !important; line-height: 1.1 !important; }
-              td { line-height: 1.2 !important; }
-            }
-          `}</style>
-          <div className="overflow-x-auto rounded-lg border">
+          <div id="pcm-report" className="overflow-x-auto rounded-lg border">
             <table className="w-full text-xs border-collapse">
+              <colgroup>
+                <col />{/* Cost Code */}
+                <col />{/* Description */}
+                <col /><col /><col /><col /><col /><col />{/* A B C D E F */}
+                <col /><col /><col />{/* G H I */}
+                <col /><col /><col /><col />{/* J K L M */}
+              </colgroup>
               <thead>
                 {/* Column letter row */}
                 <tr className="bg-slate-800 text-white">

@@ -63,4 +63,41 @@
     height: auto;
     overflow: visible;
   }
+
+  @page {
+    size: landscape;
+    margin: 0.35in;
+  }
+
+  /* PCM Report — all 15 columns visible in landscape */
+  #pcm-report {
+    overflow: visible !important;
+  }
+
+  #pcm-report table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+  }
+
+  /* Column widths: Cost Code 7%, Description 14%, 13 data cols share remaining 79% (~6.08% each) */
+  #pcm-report col:nth-child(1) { width: 7%; }
+  #pcm-report col:nth-child(2) { width: 14%; }
+  #pcm-report col:nth-child(n+3) { width: 6.08%; }
+
+  #pcm-report th,
+  #pcm-report td {
+    padding: 1pt 2pt !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow: hidden !important;
+    font-size: 6pt !important;
+    line-height: 1.2 !important;
+  }
+
+  #pcm-report th {
+    font-size: 5pt !important;
+    line-height: 1.1 !important;
+  }
 }
