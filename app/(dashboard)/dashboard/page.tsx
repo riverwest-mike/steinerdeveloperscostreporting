@@ -2,12 +2,15 @@ export const dynamic = "force-dynamic";
 
 import { auth } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { TimeGreeting } from "@/components/time-greeting";
+import { RecentBills, type BillRow } from "./recent-bills";
 
 export default async function DashboardPage() {
   const { userId } = await auth();
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
   const { data: user } = await supabase
     .from("users")
@@ -17,8 +20,43 @@ export default async function DashboardPage() {
 
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, name, code, status")
+    .select("id, name, code, status, appfolio_property_id")
     .order("name");
+
+  // Build property_id → project name map for bill display
+  const propertyToProject = new Map<string, string>();
+  for (const p of projects ?? []) {
+    if (p.appfolio_property_id) {
+      propertyToProject.set(p.appfolio_property_id, p.name);
+    }
+  }
+
+  // Fetch last 30 days of AppFolio transactions (max window — client filters down from here)
+  const thirtyDaysAgo = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const { data: rawBills } = await adminSupabase
+    .from("appfolio_transactions")
+    .select("id, bill_date, vendor_name, cost_category_code, cost_category_name, paid_amount, unpaid_amount, payment_status, appfolio_property_id, description")
+    .gte("bill_date", thirtyDaysAgo)
+    .order("bill_date", { ascending: false })
+    .limit(500);
+
+  const bills: BillRow[] = (rawBills ?? []).map((b) => ({
+    id: String(b.id),
+    bill_date: b.bill_date,
+    vendor_name: b.vendor_name,
+    cost_category_code: b.cost_category_code,
+    cost_category_name: b.cost_category_name,
+    paid_amount: Number(b.paid_amount),
+    unpaid_amount: Number(b.unpaid_amount),
+    payment_status: b.payment_status,
+    project_name: propertyToProject.get(b.appfolio_property_id) ?? null,
+    description: b.description,
+  }));
 
   return (
     <div>
@@ -61,7 +99,10 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Recent projects */}
+        {/* Recent bills from AppFolio */}
+        <RecentBills bills={bills} />
+
+        {/* Projects table */}
         <div>
           <h3 className="text-lg font-semibold mb-4">Projects</h3>
           {projects && projects.length > 0 ? (
