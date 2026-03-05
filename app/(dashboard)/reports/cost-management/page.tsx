@@ -189,6 +189,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   // ── A + B: gate_budgets (all gates, all time) ─────────
   const budgetMap = new Map<string, { a: number; b: number }>();
   let budgetRowCount = 0;
+  let budgetTotalOriginal = 0;
   let budgetError: string | null = null;
 
   if (gatesError) {
@@ -213,6 +214,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
           a: prev.a + Number(b.original_budget),
           b: prev.b + Number(b.approved_co_amount),
         });
+        budgetTotalOriginal += Number(b.original_budget);
       }
     }
   }
@@ -473,9 +475,14 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
               {gateCount} gate{gateCount !== 1 ? "s" : ""} found but no budget amounts have been saved yet — open each gate and click &ldquo;Save Budgets&rdquo; after entering amounts.
             </div>
           )}
-          {!budgetError && gateCount > 0 && budgetRowCount > 0 && (
+          {!budgetError && gateCount > 0 && budgetRowCount > 0 && budgetTotalOriginal === 0 && (
+            <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+              {gateCount} gate{gateCount !== 1 ? "s" : ""} · {budgetRowCount} budget line{budgetRowCount !== 1 ? "s" : ""} found but all original budget amounts are $0 — open each gate, enter the budget amounts, and click &ldquo;Save Budgets&rdquo;.
+            </div>
+          )}
+          {!budgetError && gateCount > 0 && budgetRowCount > 0 && budgetTotalOriginal > 0 && (
             <div className="mb-2 text-xs text-muted-foreground">
-              {gateCount} gate{gateCount !== 1 ? "s" : ""} · {budgetRowCount} budget line{budgetRowCount !== 1 ? "s" : ""} loaded
+              {gateCount} gate{gateCount !== 1 ? "s" : ""} · {budgetRowCount} budget line{budgetRowCount !== 1 ? "s" : ""} · {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(budgetTotalOriginal)} original budget loaded
             </div>
           )}
 
