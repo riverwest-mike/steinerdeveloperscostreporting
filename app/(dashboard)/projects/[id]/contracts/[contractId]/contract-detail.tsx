@@ -7,6 +7,9 @@ import {
   approveChangeOrder,
   rejectChangeOrder,
   voidChangeOrder,
+  addContractLineItem,
+  updateContractLineItem,
+  deleteContractLineItem,
 } from "../actions";
 
 interface Gate { id: string; name: string; sequence_number: number }
@@ -31,6 +34,8 @@ interface Contract {
   // junction table — all gates this contract spans
   contract_gates: { gate: { id: string; name: string; sequence_number: number } | null }[];
   category: { id: string; name: string; code: string } | null;
+  // schedule of values line items
+  contract_line_items: { id: string; cost_category_id: string; description: string | null; amount: number }[];
 }
 
 interface ChangeOrder {
@@ -224,7 +229,240 @@ export function ContractDetail({
           </div>
         ) : null}
       </div>
+
+      {/* Schedule of Values */}
+      <SOVSection
+        contractId={contract.id}
+        projectId={projectId}
+        originalValue={contract.original_value}
+        lineItems={contract.contract_line_items}
+        categories={categories}
+      />
     </div>
+  );
+}
+
+// ── Schedule of Values section ────────────────────────────────
+
+interface LineItem { id: string; cost_category_id: string; description: string | null; amount: number }
+
+function SOVSection({
+  contractId, projectId, originalValue, lineItems, categories,
+}: {
+  contractId: string;
+  projectId: string;
+  originalValue: number;
+  lineItems: LineItem[];
+  categories: { id: string; name: string; code: string }[];
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const sovTotal = lineItems.reduce((s, li) => s + Number(li.amount), 0);
+  const diff = originalValue - sovTotal;
+  const balanced = Math.abs(diff) < 0.01;
+
+  function doDelete(lineItemId: string) {
+    if (!confirm("Remove this line item?")) return;
+    setError(null);
+    startTransition(async () => {
+      const r = await deleteContractLineItem(lineItemId, contractId, projectId);
+      if (r?.error) setError(r.error);
+    });
+  }
+
+  return (
+    <div className="rounded-lg border">
+      <div className="px-4 py-3 border-b bg-muted/50 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-sm">Schedule of Values</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Break this contract&apos;s value across multiple cost codes for PCM Report attribution.
+            When line items are present they replace the top-level cost category for column G.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowForm((v) => !v)}
+          className="rounded border px-2.5 py-1 text-xs font-medium hover:bg-accent transition-colors shrink-0"
+        >
+          {showForm ? "Cancel" : "+ Add Line"}
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="border-b px-4 py-4 bg-muted/20">
+          <SOVLineForm
+            contractId={contractId}
+            projectId={projectId}
+            categories={categories}
+            onDone={() => setShowForm(false)}
+          />
+        </div>
+      )}
+
+      {lineItems.length > 0 ? (
+        <>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-muted/30">
+                <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Cost Code</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Description</th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">Amount</th>
+                <th className="px-4 py-2 text-xs font-medium text-muted-foreground w-20"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {lineItems.map((li) => {
+                const cat = categories.find((c) => c.id === li.cost_category_id);
+                return editingId === li.id ? (
+                  <tr key={li.id} className="border-b last:border-0 bg-muted/10">
+                    <td colSpan={4} className="px-4 py-3">
+                      <SOVLineForm
+                        contractId={contractId}
+                        projectId={projectId}
+                        categories={categories}
+                        lineItem={li}
+                        onDone={() => setEditingId(null)}
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={li.id} className="border-b last:border-0 hover:bg-muted/10">
+                    <td className="px-4 py-2.5 font-mono text-xs">
+                      {cat ? `${cat.code}` : "—"}
+                      <span className="ml-1.5 text-muted-foreground font-sans">{cat?.name}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground">{li.description ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-xs">{fmtCurrency(li.amount)}</td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <button
+                          onClick={() => setEditingId(li.id)}
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                        >Edit</button>
+                        <button
+                          disabled={isPending}
+                          onClick={() => doDelete(li.id)}
+                          className="text-xs text-destructive hover:text-destructive/80 disabled:opacity-50"
+                        >Remove</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className={`border-t font-medium ${balanced ? "bg-muted/30" : "bg-amber-50"}`}>
+                <td className="px-4 py-2 text-xs" colSpan={2}>
+                  SOV Total
+                  {!balanced && (
+                    <span className="ml-2 text-amber-700 font-normal">
+                      ({diff > 0 ? `${fmtCurrency(diff)} unallocated` : `${fmtCurrency(Math.abs(diff))} over contract`})
+                    </span>
+                  )}
+                </td>
+                <td className={`px-4 py-2 text-right font-mono text-xs ${!balanced ? "text-amber-700" : ""}`}>
+                  {fmtCurrency(sovTotal)}
+                  <span className="ml-1.5 text-muted-foreground font-sans font-normal">of {fmtCurrency(originalValue)}</span>
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+          {error && <p className="px-4 pb-2 text-xs text-destructive">{error}</p>}
+        </>
+      ) : !showForm ? (
+        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+          No line items yet. Without a Schedule of Values, the full contract value is
+          attributed to its top-level cost category on the PCM Report.
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function SOVLineForm({
+  contractId, projectId, categories, lineItem, onDone,
+}: {
+  contractId: string;
+  projectId: string;
+  categories: { id: string; name: string; code: string }[];
+  lineItem?: LineItem;
+  onDone: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    startTransition(async () => {
+      try {
+        const result = lineItem
+          ? await updateContractLineItem(lineItem.id, contractId, projectId, fd)
+          : await addContractLineItem(contractId, projectId, fd);
+        if (result?.error) { setError(result.error); return; }
+        onDone();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex items-end gap-3 flex-wrap">
+      <div className="space-y-1 flex-1 min-w-40">
+        <label className="text-xs font-medium">Cost Category <span className="text-destructive">*</span></label>
+        <select
+          name="cost_category_id"
+          required
+          defaultValue={lineItem?.cost_category_id ?? ""}
+          className="w-full rounded border border-input bg-background px-3 py-1.5 text-xs"
+        >
+          <option value="">— Select —</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>{cat.code} — {cat.name}</option>
+          ))}
+        </select>
+      </div>
+      <div className="space-y-1 flex-1 min-w-32">
+        <label className="text-xs font-medium">Description</label>
+        <input
+          name="description"
+          defaultValue={lineItem?.description ?? ""}
+          placeholder="Optional"
+          className="w-full rounded border border-input bg-background px-3 py-1.5 text-xs"
+        />
+      </div>
+      <div className="space-y-1 w-36">
+        <label className="text-xs font-medium">Amount ($) <span className="text-destructive">*</span></label>
+        <input
+          name="amount"
+          type="number"
+          step="0.01"
+          required
+          defaultValue={lineItem?.amount ?? ""}
+          placeholder="0.00"
+          className="w-full rounded border border-input bg-background px-3 py-1.5 text-xs"
+        />
+      </div>
+      {error && <p className="text-xs text-destructive w-full">{error}</p>}
+      <div className="flex gap-2 pb-0.5">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+        >
+          {isPending ? "Saving…" : lineItem ? "Update" : "Add"}
+        </button>
+        <button type="button" onClick={onDone} className="rounded border px-3 py-1.5 text-xs font-medium">
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 

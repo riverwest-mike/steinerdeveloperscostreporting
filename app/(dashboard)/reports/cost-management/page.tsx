@@ -230,29 +230,64 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   }
 
   // ── G: contract commitments (execution_date <= asOf or null) ──
+  // If a contract has SOV line items, distribute committed value by line item cost codes
+  // (+ approved COs on that contract per cost code).
+  // Contracts without line items use revised_value under their single cost_category_id.
   const committedMap = new Map<string, number>();
   {
     let contractQuery = supabase
       .from("contracts")
-      .select("cost_category_id, revised_value")
+      .select("id, cost_category_id, revised_value, contract_line_items(cost_category_id, amount)")
       .in("project_id", projectIds)
       .neq("status", "terminated");
 
-    // Include contracts with no execution_date OR execution_date <= asOf
     contractQuery = contractQuery.or(
       `execution_date.is.null,execution_date.lte.${asOf}`
     );
 
     const { data: rawContracts } = await contractQuery;
 
+    // For SOV contracts, fetch approved COs so we can attribute them by cost code
+    const sovContractIds = (rawContracts ?? [])
+      .filter((c: { contract_line_items: unknown[] }) => c.contract_line_items?.length > 0)
+      .map((c: { id: string }) => c.id);
+
+    const approvedCosByContract = new Map<string, { cost_category_id: string; amount: number }[]>();
+    if (sovContractIds.length > 0) {
+      const { data: approvedCOs } = await supabase
+        .from("change_orders")
+        .select("contract_id, cost_category_id, amount")
+        .in("contract_id", sovContractIds)
+        .eq("status", "approved");
+      for (const co of (approvedCOs ?? []) as { contract_id: string; cost_category_id: string; amount: number }[]) {
+        const list = approvedCosByContract.get(co.contract_id) ?? [];
+        list.push({ cost_category_id: co.cost_category_id, amount: co.amount });
+        approvedCosByContract.set(co.contract_id, list);
+      }
+    }
+
     for (const c of (rawContracts ?? []) as {
+      id: string;
       cost_category_id: string;
       revised_value: number;
+      contract_line_items: { cost_category_id: string; amount: number }[];
     }[]) {
-      committedMap.set(
-        c.cost_category_id,
-        (committedMap.get(c.cost_category_id) ?? 0) + Number(c.revised_value)
-      );
+      if (c.contract_line_items.length > 0) {
+        // SOV: each line item's amount goes to its own cost code
+        for (const li of c.contract_line_items) {
+          committedMap.set(li.cost_category_id,
+            (committedMap.get(li.cost_category_id) ?? 0) + Number(li.amount));
+        }
+        // Approved COs are on top of the base line item amounts
+        for (const co of (approvedCosByContract.get(c.id) ?? [])) {
+          committedMap.set(co.cost_category_id,
+            (committedMap.get(co.cost_category_id) ?? 0) + Number(co.amount));
+        }
+      } else {
+        // No SOV: revised_value (already includes approved COs) → single cost category
+        committedMap.set(c.cost_category_id,
+          (committedMap.get(c.cost_category_id) ?? 0) + Number(c.revised_value));
+      }
     }
   }
 

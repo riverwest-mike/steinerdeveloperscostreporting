@@ -309,3 +309,73 @@ export async function voidChangeOrder(
     return { error: err instanceof Error ? err.message : "Failed to void change order" };
   }
 }
+
+// ── Schedule of Values (SOV) line items ──────────────────────
+
+export async function addContractLineItem(
+  contractId: string,
+  projectId: string,
+  formData: FormData
+): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await requirePM();
+    const { error } = await supabase.from("contract_line_items").insert({
+      contract_id: contractId,
+      cost_category_id: formData.get("cost_category_id") as string,
+      description: (formData.get("description") as string)?.trim() || null,
+      amount: parseFloat(formData.get("amount") as string) || 0,
+    });
+    if (error) throw new Error(error.message);
+    revalidateProject(projectId, contractId);
+    return {};
+  } catch (err) {
+    console.error("[addContractLineItem]", err);
+    return { error: err instanceof Error ? err.message : "Failed to add line item" };
+  }
+}
+
+export async function updateContractLineItem(
+  lineItemId: string,
+  contractId: string,
+  projectId: string,
+  formData: FormData
+): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await requirePM();
+    const { error } = await supabase
+      .from("contract_line_items")
+      .update({
+        cost_category_id: formData.get("cost_category_id") as string,
+        description: (formData.get("description") as string)?.trim() || null,
+        amount: parseFloat(formData.get("amount") as string) || 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", lineItemId);
+    if (error) throw new Error(error.message);
+    revalidateProject(projectId, contractId);
+    return {};
+  } catch (err) {
+    console.error("[updateContractLineItem]", err);
+    return { error: err instanceof Error ? err.message : "Failed to update line item" };
+  }
+}
+
+export async function deleteContractLineItem(
+  lineItemId: string,
+  contractId: string,
+  projectId: string
+): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await requirePM();
+    const { error } = await supabase
+      .from("contract_line_items")
+      .delete()
+      .eq("id", lineItemId);
+    if (error) throw new Error(error.message);
+    revalidateProject(projectId, contractId);
+    return {};
+  } catch (err) {
+    console.error("[deleteContractLineItem]", err);
+    return { error: err instanceof Error ? err.message : "Failed to delete line item" };
+  }
+}
