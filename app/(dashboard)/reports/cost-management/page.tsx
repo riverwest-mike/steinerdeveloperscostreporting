@@ -679,7 +679,16 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                           >
                             {usd(row.f_variance)}
                           </td>
-                          <td className="px-3 py-2 text-right tabular-nums border-l border-slate-100">{usd(row.g_committed)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums border-l border-slate-100">
+                            {row.g_committed !== 0 ? (
+                              <Link
+                                href={`/reports/commitment-detail?projectIds=${projectIds.join(",")}&categoryCode=${encodeURIComponent(row.code)}&asOf=${asOf}`}
+                                className="text-primary underline underline-offset-2 hover:opacity-75"
+                              >
+                                {usd(row.g_committed)}
+                              </Link>
+                            ) : usd(row.g_committed)}
+                          </td>
                           <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{pct(row.h_pct_committed)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{usd(row.i_uncommitted)}</td>
                           <td className="px-3 py-2 text-right tabular-nums border-l border-slate-100">
