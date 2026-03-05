@@ -559,8 +559,21 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
           <style>{`
             @media print {
               @page { size: landscape; margin: 0.35in; }
-              table { font-size: 6pt !important; min-width: 0 !important; width: 100% !important; }
-              th, td { padding: 1pt 2pt !important; }
+              .overflow-x-auto { overflow: visible !important; }
+              table {
+                font-size: 6pt !important;
+                min-width: 0 !important;
+                width: 100% !important;
+                table-layout: fixed !important;
+              }
+              th, td {
+                padding: 1pt 2pt !important;
+                white-space: normal !important;
+                word-break: break-word !important;
+                overflow: hidden !important;
+              }
+              th { font-size: 5pt !important; line-height: 1.1 !important; }
+              td { line-height: 1.2 !important; }
             }
           `}</style>
           <div className="overflow-x-auto rounded-lg border">
