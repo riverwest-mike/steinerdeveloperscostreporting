@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * Runs once on mount. If the current URL has no ?projectId, checks localStorage
- * for a previously saved filter and redirects to restore it. This gives the user
- * their last project + date back after navigating away from the report.
+ * Runs once on mount. If the current URL has no project filter, checks localStorage
+ * for a previously saved filter and redirects to restore it.
  */
 
 import { useEffect } from "react";
@@ -25,23 +24,26 @@ export function ReportRestorer() {
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.searchParams.get("projectId")) return; // already has a filter
+    // Already has a filter — don't override
+    if (url.searchParams.get("projectIds") || url.searchParams.get("projectId")) return;
 
     try {
       const raw = localStorage.getItem("pcmr_last_filter");
       if (!raw) return;
-      const { projectId, asOf } = JSON.parse(raw) as {
-        projectId?: string;
+      const saved = JSON.parse(raw) as {
+        projectIds?: string[];
+        projectId?: string; // legacy single-project format
         asOf?: string;
       };
-      if (!projectId) return;
+
+      // Support both old single-project and new multi-project storage formats
+      const ids: string[] = saved.projectIds ?? (saved.projectId ? [saved.projectId] : []);
+      if (ids.length === 0) return;
 
       const params = new URLSearchParams();
-      params.set("projectId", projectId);
-      if (asOf) params.set("asOf", asOf);
+      params.set("projectIds", ids.join(","));
+      if (saved.asOf) params.set("asOf", saved.asOf);
       router.replace(`/reports/cost-management?${params.toString()}`);
-      // Bust the Next.js client-side router cache so the server component
-      // re-fetches fresh data rather than serving a stale cached payload.
       router.refresh();
     } catch {
       // storage or parse error — ignore, show default empty state

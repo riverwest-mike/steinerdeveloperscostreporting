@@ -44,8 +44,7 @@ interface ReportRow {
 interface ExportButtonsProps {
   rows: ReportRow[];
   sectionOrder: string[];
-  projectName: string;
-  projectCode: string;
+  projectLabel: string;
   asOf: string;
 }
 
@@ -70,7 +69,7 @@ function toRowArr(r: ReportRow): (string | number)[] {
   ];
 }
 
-export function ExportButtons({ rows, sectionOrder, projectName, projectCode, asOf }: ExportButtonsProps) {
+export function ExportButtons({ rows, sectionOrder, projectLabel, asOf }: ExportButtonsProps) {
   const handleExcelExport = useCallback(async () => {
     const XLSX = await import("xlsx");
 
@@ -79,7 +78,7 @@ export function ExportButtons({ rows, sectionOrder, projectName, projectCode, as
     });
 
     const data: (string | number)[][] = [
-      [`${projectCode} — ${projectName}`],
+      [projectLabel],
       [`Project Cost Management Report — As of ${dateLabel}`],
       [],
       HEADERS,
@@ -135,8 +134,9 @@ export function ExportButtons({ rows, sectionOrder, projectName, projectCode, as
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Cost Management Report");
-    XLSX.writeFile(wb, `${projectCode}_Cost_Management_${asOf}.xlsx`);
-  }, [rows, sectionOrder, projectName, projectCode, asOf]);
+    const filePrefix = projectLabel.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").slice(0, 40);
+    XLSX.writeFile(wb, `${filePrefix}_Cost_Management_${asOf}.xlsx`);
+  }, [rows, sectionOrder, projectLabel, asOf]);
 
   return (
     <div className="flex gap-2 print:hidden">
