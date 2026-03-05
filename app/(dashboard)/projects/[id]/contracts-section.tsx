@@ -1,21 +1,4 @@
-"use client";
-
-import { useState, useTransition } from "react";
 import Link from "next/link";
-import { createContract } from "./contracts/actions";
-import { InfoTip } from "@/components/info-tip";
-
-interface Gate {
-  id: string;
-  name: string;
-  sequence_number: number;
-}
-
-interface Category {
-  id: string;
-  name: string;
-  code: string;
-}
 
 interface Contract {
   id: string;
@@ -35,8 +18,6 @@ interface Contract {
 interface ContractsSectionProps {
   projectId: string;
   contracts: Contract[];
-  gates: Gate[];
-  categories: Category[];
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -47,41 +28,35 @@ const STATUS_STYLES: Record<string, string> = {
 
 function fmtCurrency(n: number) {
   return new Intl.NumberFormat("en-US", {
-    style: "currency", currency: "USD", maximumFractionDigits: 0,
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
   }).format(n);
 }
 
-export function ContractsSection({ projectId, contracts, gates, categories }: ContractsSectionProps) {
-  const [showForm, setShowForm] = useState(false);
-
+export function ContractsSection({ projectId, contracts }: ContractsSectionProps) {
   return (
     <div className="rounded-lg border mt-6">
       <div className="px-4 py-3 border-b bg-muted/50 flex items-center justify-between">
-        <h3 className="font-semibold text-sm">Contracts</h3>
-        <button
-          onClick={() => setShowForm((v) => !v)}
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-sm">Contracts</h3>
+          <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+            {contracts.length}
+          </span>
+        </div>
+        <Link
+          href={`/projects/${projectId}/contracts/new`}
           className="rounded border px-2.5 py-1 text-xs font-medium hover:bg-accent transition-colors"
         >
-          {showForm ? "Cancel" : "+ Add Contract"}
-        </button>
+          + Add Contract
+        </Link>
       </div>
 
-      {showForm && (
-        <div className="border-b px-4 py-4 bg-muted/20">
-          <AddContractForm
-            projectId={projectId}
-            gates={gates}
-            categories={categories}
-            onDone={() => setShowForm(false)}
-          />
-        </div>
-      )}
-
       {contracts.length > 0 ? (
-        <div className="overflow-x-auto">
+        <div className="max-h-72 overflow-y-auto overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/30">
+              <tr className="border-b bg-muted/30 sticky top-0">
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Vendor</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Contract #</th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Gates</th>
@@ -138,210 +113,15 @@ export function ContractsSection({ projectId, contracts, gates, categories }: Co
             </tfoot>
           </table>
         </div>
-      ) : !showForm ? (
+      ) : (
         <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-          No contracts yet. Contracts are linked to a gate and cost category.
+          No contracts yet.{" "}
+          <Link href={`/projects/${projectId}/contracts/new`} className="text-primary hover:underline underline-offset-2">
+            Add the first contract
+          </Link>{" "}
+          to track commitments.
         </div>
-      ) : null}
+      )}
     </div>
-  );
-}
-
-// ── Add Contract inline form ──────────────────────────────────
-
-function AddContractForm({
-  projectId,
-  gates,
-  categories,
-  onDone,
-}: {
-  projectId: string;
-  gates: Gate[];
-  categories: Category[];
-  onDone: () => void;
-}) {
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    const fd = new FormData(e.currentTarget);
-    startTransition(async () => {
-      try {
-        const result = await createContract(projectId, fd);
-        if (result?.error) { setError(result.error); return; }
-        onDone();
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Something went wrong");
-      }
-    });
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">New Contract</p>
-
-      {/* Row 1 */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="col-span-2 space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-vendor">
-            Vendor <span className="text-destructive">*</span>
-          </label>
-          <input
-            id="c-vendor"
-            name="vendor_name"
-            required
-            placeholder="e.g. Acme Construction"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-num">Contract #</label>
-          <input
-            id="c-num"
-            name="contract_number"
-            placeholder="e.g. C-001"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-status">Status</label>
-          <select
-            id="c-status"
-            name="status"
-            defaultValue="active"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          >
-            <option value="active">Active</option>
-            <option value="complete">Complete</option>
-            <option value="terminated">Terminated</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Row 2 */}
-      <div className="space-y-1">
-        <label className="text-xs font-medium" htmlFor="c-desc">
-          Description <span className="text-destructive">*</span>
-        </label>
-        <input
-          id="c-desc"
-          name="description"
-          required
-          placeholder="Scope of work"
-          className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-        />
-      </div>
-
-      {/* Row 3 */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="space-y-1">
-          <p className="text-xs font-medium">
-            Gates <span className="text-destructive">*</span>
-            <InfoTip text="Select every project phase (gate) this contract's work falls within. If the work spans more than one phase, check all that apply. When you add a change order later you will pick which specific gate it applies to." />
-          </p>
-          <div className="max-h-28 overflow-y-auto rounded border border-input bg-background p-1.5 space-y-0.5">
-            {gates.map((g) => (
-              <label key={g.id} className="flex items-center gap-2 px-1.5 py-1 rounded text-xs cursor-pointer hover:bg-accent/50 select-none">
-                <input type="checkbox" name="gate_ids" value={g.id} className="rounded" />
-                {g.sequence_number}. {g.name}
-              </label>
-            ))}
-          </div>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-cat">
-            Cost Category <span className="text-destructive">*</span>
-            <InfoTip text="This cost code determines which row of the PCM Report this contract appears in (column G – Total Committed). If the contract covers only one cost code, select it here and you're done. If it covers multiple cost codes (e.g. a general contractor contract), select the primary code here, save, then open the contract and use the Schedule of Values section to allocate amounts by cost code." />
-          </label>
-          <select
-            id="c-cat"
-            name="cost_category_id"
-            required
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          >
-            <option value="">— Select —</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>{cat.code} — {cat.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-value">
-            Original Value ($) <span className="text-destructive">*</span>
-          </label>
-          <input
-            id="c-value"
-            name="original_value"
-            type="number"
-            min={0}
-            step="0.01"
-            required
-            placeholder="0.00"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-ret">Retainage %</label>
-          <input
-            id="c-ret"
-            name="retainage_pct"
-            type="number"
-            min={0}
-            max={100}
-            step="0.01"
-            defaultValue="0"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-      </div>
-
-      {/* Row 4: Dates + Teams URL */}
-      <div className="grid grid-cols-4 gap-3">
-        <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-exec">Execution Date</label>
-          <input
-            id="c-exec"
-            name="execution_date"
-            type="date"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-comp">Substantial Completion</label>
-          <input
-            id="c-comp"
-            name="substantial_completion_date"
-            type="date"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div className="col-span-2 space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-teams">Teams URL</label>
-          <input
-            id="c-teams"
-            name="teams_url"
-            type="url"
-            placeholder="https://teams.microsoft.com/…"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-      </div>
-
-      {error && <p className="text-xs text-destructive">{error}</p>}
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
-        >
-          {isPending ? "Adding…" : "Add Contract"}
-        </button>
-        <button type="button" onClick={onDone} className="rounded border px-3 py-1.5 text-xs font-medium">
-          Cancel
-        </button>
-      </div>
-    </form>
   );
 }

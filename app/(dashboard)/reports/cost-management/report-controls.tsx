@@ -118,53 +118,61 @@ export function ReportControls({
   const allSelected = selectedIds.size === projects.length && projects.length > 0;
 
   return (
-    <div className="rounded-lg border bg-muted/30 px-5 py-4 mb-6">
-      <div className="flex flex-wrap items-start gap-6">
+    <div className="rounded-lg border bg-card mb-6">
+      <div className="px-5 py-3 border-b bg-muted/40 flex items-center justify-between">
+        <span className="text-sm font-semibold">Report Filters</span>
+        {selectedIds.size > 0 && (
+          <span className="text-xs text-muted-foreground">
+            {selectedIds.size === projects.length
+              ? `All ${projects.length} projects`
+              : `${selectedIds.size} of ${projects.length} projects selected`}
+          </span>
+        )}
+      </div>
 
+      <div className="px-5 py-4 flex flex-wrap items-start gap-6">
         {/* Project multi-select */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between" style={{ minWidth: "280px" }}>
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Projects</span>
+        <div className="flex flex-col gap-1.5 min-w-72">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Projects</label>
             <button
               type="button"
               onClick={toggleAll}
-              className="text-xs text-primary hover:underline"
+              className="text-xs text-primary hover:underline underline-offset-2"
             >
               {allSelected ? "Deselect All" : "Select All"}
             </button>
           </div>
-          <div
-            className="rounded-md border border-input bg-background overflow-y-auto"
-            style={{ maxHeight: "180px", minWidth: "280px" }}
-          >
+          <div className="rounded-md border border-input bg-background overflow-y-auto max-h-48">
             {projects.map((p) => (
               <label
                 key={p.id}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm cursor-pointer hover:bg-accent/50 select-none"
+                className={`flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer select-none transition-colors ${
+                  selectedIds.has(p.id) ? "bg-primary/5" : "hover:bg-accent/50"
+                }`}
               >
                 <input
                   type="checkbox"
                   checked={selectedIds.has(p.id)}
                   onChange={() => toggleProject(p.id)}
-                  className="h-3.5 w-3.5 rounded border-input"
+                  className="h-3.5 w-3.5 rounded border-input accent-primary"
                 />
-                <span className="font-mono text-[11px] text-muted-foreground w-10 shrink-0">{p.code}</span>
-                <span className="truncate">{p.name}</span>
+                <span className="font-mono text-[11px] text-muted-foreground w-12 shrink-0">{p.code}</span>
+                <span className="truncate text-sm">{p.name}</span>
+                {p.appfolio_property_id && (
+                  <span className="ml-auto shrink-0 text-[10px] text-muted-foreground/60">AF</span>
+                )}
               </label>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">
-            {selectedIds.size === 0
-              ? "No projects selected"
-              : selectedIds.size === projects.length
-              ? `All ${projects.length} projects selected`
-              : `${selectedIds.size} of ${projects.length} selected`}
-          </p>
+          {selectedIds.size === 0 && (
+            <p className="text-xs text-muted-foreground">Select at least one project to run the report.</p>
+          )}
         </div>
 
         {/* Date + Run button */}
-        <div className="flex flex-col gap-4 pt-5">
-          <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-3 pt-5">
+          <div className="flex flex-col gap-1.5">
             <label htmlFor="rpt-date" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Report Date
             </label>
@@ -179,18 +187,19 @@ export function ReportControls({
           <button
             onClick={handleRun}
             disabled={selectedIds.size === 0 || isPending || syncStatus === "syncing"}
-            className="h-9 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            className="h-9 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-colors"
           >
             {syncStatus === "syncing" ? "Syncing…" : "Run Report"}
           </button>
         </div>
       </div>
 
-      {syncStatus === "error" && (
-        <p className="mt-2 text-xs text-destructive">{syncMsg}</p>
-      )}
-      {syncStatus === "done" && syncMsg && (
-        <p className="mt-2 text-xs text-muted-foreground">{syncMsg}</p>
+      {(syncStatus === "error" || (syncStatus === "done" && syncMsg)) && (
+        <div className="px-5 pb-3">
+          <p className={`text-xs ${syncStatus === "error" ? "text-destructive" : "text-muted-foreground"}`}>
+            {syncMsg}
+          </p>
+        </div>
       )}
     </div>
   );

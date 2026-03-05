@@ -9,7 +9,7 @@ export default async function ProjectsPage() {
 
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, name, code, status, property_type, city, state, expected_completion")
+    .select("id, name, code, status, property_type, city, state, expected_completion, image_url")
     .order("name");
 
   return (
@@ -31,6 +31,7 @@ export default async function ProjectsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
+                  <th className="w-14 px-4 py-3"></th>
                   <th className="px-4 py-3 text-left font-medium">Code</th>
                   <th className="px-4 py-3 text-left font-medium">Name</th>
                   <th className="px-4 py-3 text-left font-medium">Type</th>
@@ -40,8 +41,21 @@ export default async function ProjectsPage() {
                 </tr>
               </thead>
               <tbody>
-                {projects.map((project: { id: string; name: string; code: string; status: string; property_type: string | null; city: string | null; state: string | null; expected_completion: string | null }) => (
+                {projects.map((project: { id: string; name: string; code: string; status: string; property_type: string | null; city: string | null; state: string | null; expected_completion: string | null; image_url: string | null }) => (
                   <tr key={project.id} className="border-b last:border-0 hover:bg-muted/30">
+                    <td className="px-3 py-2">
+                      {project.image_url ? (
+                        <img
+                          src={project.image_url}
+                          alt=""
+                          className="h-10 w-10 rounded object-cover border"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded border bg-muted/50 flex items-center justify-center shrink-0">
+                          <span className="text-[10px] font-mono text-muted-foreground">{project.code.slice(0, 3)}</span>
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs">{project.code}</td>
                     <td className="px-4 py-3 font-medium">
                       <Link
