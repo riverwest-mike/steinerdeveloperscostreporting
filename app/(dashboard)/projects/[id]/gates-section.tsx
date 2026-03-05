@@ -58,13 +58,13 @@ export function GatesSection({ projectId, gates }: GatesSectionProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setShowUpload((v) => !v)}
-            className="rounded border px-2.5 py-1 text-xs font-medium hover:bg-accent transition-colors"
+            className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
           >
             {showUpload ? "Cancel" : "Upload Excel"}
           </button>
           <Link
             href={`/projects/${projectId}/gates/new`}
-            className="rounded border px-2.5 py-1 text-xs font-medium hover:bg-accent transition-colors"
+            className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
           >
             + Add Gate
           </Link>

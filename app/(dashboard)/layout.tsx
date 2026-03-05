@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/sidebar";
+import { QuickStartTrigger } from "@/components/quickstart/quickstart-trigger";
 
 export default async function DashboardLayout({
   children,
@@ -46,6 +47,7 @@ export default async function DashboardLayout({
       <div className="flex flex-1 flex-col overflow-hidden print:block print:overflow-visible">
         <main className="flex-1 overflow-y-auto print:overflow-visible">{children}</main>
       </div>
+      <QuickStartTrigger />
     </div>
   );
 }

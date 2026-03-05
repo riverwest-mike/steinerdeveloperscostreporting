@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { inviteUser } from "./actions";
 
-export function InviteUserForm() {
+export function InviteUserForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"read_only" | "project_manager" | "admin">("read_only");
   const [result, setResult] = useState<{ success?: boolean; error?: string } | null>(null);
@@ -20,13 +20,14 @@ export function InviteUserForm() {
         setResult({ success: true });
         setEmail("");
         setRole("read_only");
+        setTimeout(() => onSuccess?.(), 1500);
       }
     });
   }
 
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-4">Invite New User</h3>
+      <h3 className="text-base font-semibold mb-3">Invite New User</h3>
       <form onSubmit={handleSubmit} className="flex items-end gap-3 flex-wrap">
         <div className="space-y-1 flex-1 min-w-52">
           <label className="text-xs font-medium" htmlFor="invite-email">
