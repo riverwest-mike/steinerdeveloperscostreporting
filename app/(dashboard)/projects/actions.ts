@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { insertAuditLog } from "@/lib/audit";
 
 const IMAGE_BUCKET = "project-images";
 
@@ -84,6 +85,14 @@ export async function createProject(
       await supabase.from("projects").update({ image_url: imageUrl }).eq("id", newProject.id);
     }
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "project.create",
+      entity_type: "project",
+      entity_id: newProject?.id,
+      label: payload.name,
+      payload: { name: payload.name, code: payload.code },
+    });
     revalidatePath("/projects");
     return {};
   } catch (err) {
@@ -97,7 +106,7 @@ export async function updateProject(
   formData: FormData
 ): Promise<{ error?: string }> {
   try {
-    const { supabase } = await requirePM();
+    const { userId, supabase } = await requirePM();
 
     const payload: Record<string, unknown> = {
       name: (formData.get("name") as string).trim(),
@@ -125,6 +134,14 @@ export async function updateProject(
     const { error } = await supabase.from("projects").update(payload).eq("id", id);
     if (error) throw new Error(error.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "project.update",
+      entity_type: "project",
+      entity_id: id,
+      label: payload.name as string,
+      payload: { name: payload.name, code: payload.code, status: payload.status },
+    });
     revalidatePath("/projects");
     revalidatePath(`/projects/${id}`);
     return {};
@@ -166,9 +183,15 @@ export async function linkAppfolioId(
 
 export async function deleteProject(id: string): Promise<{ error?: string }> {
   try {
-    const { supabase } = await requireAdmin();
+    const { userId, supabase } = await requireAdmin();
     const { error } = await supabase.from("projects").delete().eq("id", id);
     if (error) throw new Error(error.message);
+    await insertAuditLog({
+      user_id: userId,
+      action: "project.delete",
+      entity_type: "project",
+      entity_id: id,
+    });
     revalidatePath("/projects");
     return {};
   } catch (err) {

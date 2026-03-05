@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { insertAuditLog } from "@/lib/audit";
 
 async function requirePM() {
   const { userId } = await auth();
@@ -55,6 +56,14 @@ export async function createGate(
     const { error } = await supabase.from("gates").insert(payload);
     if (error) throw new Error(error.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "gate.create",
+      entity_type: "gate",
+      project_id: projectId,
+      label: payload.name,
+      payload: { name: payload.name, sequence_number: payload.sequence_number },
+    });
     revalidatePath(`/projects/${projectId}`);
     return {};
   } catch (err) {
@@ -69,7 +78,7 @@ export async function updateGate(
   formData: FormData
 ): Promise<{ error?: string }> {
   try {
-    const { supabase } = await requirePM();
+    const { userId, supabase } = await requirePM();
 
     const payload = {
       name: (formData.get("name") as string).trim(),
@@ -82,6 +91,14 @@ export async function updateGate(
     const { error } = await supabase.from("gates").update(payload).eq("id", gateId);
     if (error) throw new Error(error.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "gate.update",
+      entity_type: "gate",
+      entity_id: gateId,
+      project_id: projectId,
+      label: payload.name,
+    });
     revalidatePath(`/projects/${projectId}`);
     revalidatePath(`/projects/${projectId}/gates/${gateId}`);
     return {};
@@ -96,7 +113,7 @@ export async function activateGate(
   projectId: string
 ): Promise<{ error?: string }> {
   try {
-    const { supabase } = await requirePM();
+    const { userId, supabase } = await requirePM();
 
     const { error } = await supabase
       .from("gates")
@@ -106,6 +123,13 @@ export async function activateGate(
 
     if (error) throw new Error(error.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "gate.activate",
+      entity_type: "gate",
+      entity_id: gateId,
+      project_id: projectId,
+    });
     revalidatePath(`/projects/${projectId}`);
     revalidatePath(`/projects/${projectId}/gates/${gateId}`);
     return {};
@@ -135,6 +159,13 @@ export async function closeGate(
 
     if (error) throw new Error(error.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "gate.close",
+      entity_type: "gate",
+      entity_id: gateId,
+      project_id: projectId,
+    });
     revalidatePath(`/projects/${projectId}`);
     revalidatePath(`/projects/${projectId}/gates/${gateId}`);
     return {};
@@ -348,7 +379,7 @@ export async function deleteGate(
   projectId: string
 ): Promise<{ error?: string }> {
   try {
-    const { supabase } = await requireAdmin();
+    const { userId, supabase } = await requireAdmin();
 
     const { data: gate } = await supabase
       .from("gates")
@@ -361,6 +392,13 @@ export async function deleteGate(
     const { error } = await supabase.from("gates").delete().eq("id", gateId);
     if (error) throw new Error(error.message);
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "gate.delete",
+      entity_type: "gate",
+      entity_id: gateId,
+      project_id: projectId,
+    });
     revalidatePath(`/projects/${projectId}`);
     return {};
   } catch (err) {
