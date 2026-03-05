@@ -106,11 +106,13 @@ function addToTotals(t: SectionTotals, r: CategoryRow): SectionTotals {
 /* ─── Page ────────────────────────────────────────────── */
 
 interface Props {
-  searchParams: { projectId?: string; asOf?: string };
+  searchParams: { projectIds?: string; projectId?: string; asOf?: string };
 }
 
 export default async function CostManagementReportPage({ searchParams }: Props) {
-  const projectId = searchParams.projectId ?? null;
+  // Support new ?projectIds=id1,id2 and legacy ?projectId=id (single project backward compat)
+  const rawIds = searchParams.projectIds ?? searchParams.projectId ?? null;
+  const projectIds = rawIds ? rawIds.split(",").map((s) => s.trim()).filter(Boolean) : [];
   const asOf = searchParams.asOf ?? today();
 
   const supabase = createAdminClient();
@@ -123,44 +125,34 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
 
   const projects = (allProjects ?? []) as { id: string; name: string; code: string; appfolio_property_id: string | null }[];
 
-  // ── If no project selected, render just the controls ──
-  if (!projectId) {
+  // ── If no projects selected, render just the controls ──
+  if (projectIds.length === 0) {
     return (
       <div>
         <Header title="Project Cost Management Report" />
         <div className="p-6">
           <ReportControls
             projects={projects}
-            currentProjectId={null}
+            currentProjectIds={[]}
             currentAsOf={asOf}
           />
           <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
-            <p className="text-muted-foreground text-sm">Select a project above to generate the report.</p>
+            <p className="text-muted-foreground text-sm">Select one or more projects above to generate the report.</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // ── Load project ──────────────────────────────────────
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id, name, code, appfolio_property_id")
-    .eq("id", projectId)
-    .single();
-
-  if (!project) {
-    return (
-      <div>
-        <Header title="Project Cost Management Report" />
-        <div className="p-6">
-          <ReportControls projects={projects} currentProjectId={projectId} currentAsOf={asOf} />
-          <p className="text-destructive text-sm">Project not found.</p>
-        </div>
-      </div>
-    );
-  }
+  // ── Resolve selected projects ─────────────────────────
+  const selectedProjects = projects.filter((p) => projectIds.includes(p.id));
+  // When only one project is selected, drill-down links to cost detail are available
+  const singleProject = selectedProjects.length === 1 ? selectedProjects[0] : null;
+  // All AppFolio property IDs linked to selected projects
+  const linkedPropertyIds = selectedProjects
+    .map((p) => p.appfolio_property_id)
+    .filter((id): id is string => !!id);
 
   // ── Load cost categories (ordered) ───────────────────
   const { data: rawCategories } = await supabase
@@ -176,11 +168,11 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
 
   const categories = (rawCategories ?? []) as CatRecord[];
 
-  // ── Load gates for this project ───────────────────────
+  // ── Load gates for all selected projects ─────────────
   const { data: rawGates, error: gatesError } = await supabase
     .from("gates")
     .select("id, name, sequence_number, status")
-    .eq("project_id", projectId)
+    .in("project_id", projectIds)
     .order("sequence_number");
 
   const gateIds = (rawGates ?? []).map((g: { id: string }) => g.id);
@@ -225,7 +217,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     const { data: rawCOs } = await supabase
       .from("change_orders")
       .select("cost_category_id, amount")
-      .eq("project_id", projectId)
+      .in("project_id", projectIds)
       .eq("status", "proposed")
       .lte("proposed_date", asOf);
 
@@ -243,7 +235,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     let contractQuery = supabase
       .from("contracts")
       .select("cost_category_id, revised_value")
-      .eq("project_id", projectId)
+      .in("project_id", projectIds)
       .neq("status", "terminated");
 
     // Include contracts with no execution_date OR execution_date <= asOf
@@ -274,7 +266,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   // unmatched: cost_category_code -> { name, paid, unpaid }
   const unmatchedCats = new Map<string, { name: string; paid: number; unpaid: number }>();
 
-  if (project.appfolio_property_id) {
+  if (linkedPropertyIds.length > 0) {
     // Build code → category id lookup (case-insensitive).
     // Index by two keys per category to handle both formats:
     //   1. Exact code as stored (e.g. "010700" or "010700 SURVEY")
@@ -293,16 +285,11 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
       }
     }
 
-    // Cap at yesterday: AppFolio intraday transactions (occurred_on = today) are
-    // not yet fully posted and lack project_cost_category. Using min(asOf, yesterday)
-    // ensures we never surface them regardless of the user-selected report date.
-    // Null-date rows are also intraday artifacts — exclude them by filtering only
-    // on bill_date (dropping the previous bill_date.is.null branch).
     const txDateCap = asOf < appfolioDateCap() ? asOf : appfolioDateCap();
     const { data: rawTx } = await supabase
       .from("appfolio_transactions")
       .select("cost_category_code, cost_category_name, vendor_name, paid_amount, unpaid_amount")
-      .eq("appfolio_property_id", project.appfolio_property_id)
+      .in("appfolio_property_id", linkedPropertyIds)
       .lte("bill_date", txDateCap);
 
     for (const tx of (rawTx ?? []) as {
@@ -430,33 +417,41 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         <div className="print:hidden">
           <ReportControls
             projects={projects}
-            currentProjectId={projectId}
+            currentProjectIds={projectIds}
             currentAsOf={asOf}
           />
         </div>
 
         {/* Report header */}
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight">Project Cost Management Report</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {project.code} — {project.name} &nbsp;·&nbsp; All Gates &nbsp;·&nbsp;{" "}
-              As of{" "}
-              {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </p>
-          </div>
-          <ExportButtons
-            rows={rows}
-            sectionOrder={sectionOrder}
-            projectName={project.name}
-            projectCode={project.code}
-            asOf={asOf}
-          />
-        </div>
+        {(() => {
+          const projectLabel = selectedProjects.length === 0
+            ? "Unknown Project(s)"
+            : selectedProjects.length === 1
+            ? `${selectedProjects[0].code} — ${selectedProjects[0].name}`
+            : selectedProjects.map((p) => p.code).join(", ") + ` (${selectedProjects.length} projects)`;
+          return (
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">Project Cost Management Report</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {projectLabel} &nbsp;·&nbsp; All Gates &nbsp;·&nbsp;{" "}
+                  As of{" "}
+                  {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+              <ExportButtons
+                rows={rows}
+                sectionOrder={sectionOrder}
+                projectLabel={projectLabel}
+                asOf={asOf}
+              />
+            </div>
+          );
+        })()}
 
         <div className="print:hidden">
           {/* Gate budget diagnostics */}
@@ -486,29 +481,32 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
             </div>
           )}
 
-          {!project.appfolio_property_id && (
+          {linkedPropertyIds.length === 0 && (
             <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-              This project is not linked to an AppFolio property — Cost columns J, K, and L will show $0.
+              {selectedProjects.length === 1
+                ? "This project is not linked to an AppFolio property"
+                : "None of the selected projects are linked to AppFolio properties"}{" "}
+              — Cost columns J, K, and L will show $0.
             </div>
           )}
 
-          {project.appfolio_property_id && txTotal === 0 && (
+          {linkedPropertyIds.length > 0 && txTotal === 0 && (
             <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-              No AppFolio transactions found for property ID <span className="font-mono font-semibold">{project.appfolio_property_id}</span> as of{" "}
+              No AppFolio transactions found as of{" "}
               {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.{" "}
               Run an AppFolio sync in Admin to pull data.
             </div>
           )}
 
-          {project.appfolio_property_id && txTotal > 0 && (
+          {linkedPropertyIds.length > 0 && txTotal > 0 && (
             <div className="mb-2 text-xs text-muted-foreground">
-              AppFolio property <span className="font-mono">{project.appfolio_property_id}</span>
+              {linkedPropertyIds.length} AppFolio {linkedPropertyIds.length === 1 ? "property" : "properties"}
               {" · "}{txTotal} transaction{txTotal !== 1 ? "s" : ""} found
               {" · "}{txMatched} matched
             </div>
           )}
 
-          {project.appfolio_property_id && txTotal > 0 && unmatchedCats.size > 0 && (
+          {linkedPropertyIds.length > 0 && txTotal > 0 && unmatchedCats.size > 0 && (
             <details className="mb-4 rounded-md border border-amber-200 bg-amber-50 text-sm text-amber-900">
               <summary className="cursor-pointer px-4 py-2 font-medium select-none">
                 ⚠ {unmatchedCats.size} cost category code{unmatchedCats.size !== 1 ? "s" : ""} from AppFolio not matched
@@ -553,7 +551,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         {!hasAnyData ? (
           <div className="rounded-lg border border-dashed p-12 text-center">
             <p className="text-muted-foreground text-sm">
-              No budget, commitment, or cost data found for this project.
+              No budget, commitment, or cost data found for the selected project{selectedProjects.length !== 1 ? "s" : ""}.
             </p>
           </div>
         ) : (
@@ -650,9 +648,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                           <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{pct(row.h_pct_committed)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{usd(row.i_uncommitted)}</td>
                           <td className="px-3 py-2 text-right tabular-nums border-l border-slate-100">
-                            {row.j_paid !== 0 && project.appfolio_property_id ? (
+                            {row.j_paid !== 0 && singleProject?.appfolio_property_id ? (
                               <Link
-                                href={`/reports/cost-detail?projectId=${projectId}&asOf=${asOf}&categoryCode=${row.code}&paymentFilter=paid`}
+                                href={`/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${row.code}&paymentFilter=paid`}
                                 className="text-primary underline underline-offset-2 hover:opacity-75"
                               >
                                 {usd(row.j_paid)}
@@ -662,9 +660,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                             )}
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums">
-                            {row.k_unpaid !== 0 && project.appfolio_property_id ? (
+                            {row.k_unpaid !== 0 && singleProject?.appfolio_property_id ? (
                               <Link
-                                href={`/reports/cost-detail?projectId=${projectId}&asOf=${asOf}&categoryCode=${row.code}&paymentFilter=unpaid`}
+                                href={`/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${row.code}&paymentFilter=unpaid`}
                                 className="text-primary underline underline-offset-2 hover:opacity-75"
                               >
                                 {usd(row.k_unpaid)}
@@ -674,9 +672,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                             )}
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums font-medium">
-                            {row.l_total_incurred !== 0 && project.appfolio_property_id ? (
+                            {row.l_total_incurred !== 0 && singleProject?.appfolio_property_id ? (
                               <Link
-                                href={`/reports/cost-detail?projectId=${projectId}&asOf=${asOf}&categoryCode=${row.code}`}
+                                href={`/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${row.code}`}
                                 className="text-primary underline underline-offset-2 hover:opacity-75"
                               >
                                 {usd(row.l_total_incurred)}

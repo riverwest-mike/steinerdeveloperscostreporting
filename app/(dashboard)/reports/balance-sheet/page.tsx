@@ -55,13 +55,14 @@ interface GlRow {
 /* ─── Page ────────────────────────────────────────────── */
 
 interface Props {
-  searchParams: { projectId?: string; asOf?: string; basis?: string };
+  searchParams: { projectIds?: string; projectId?: string; asOf?: string; basis?: string };
 }
 
 export default async function BalanceSheetReportPage({ searchParams }: Props) {
-  const projectId = searchParams.projectId ?? null;
-  const asOf      = searchParams.asOf ?? today();
-  const basis     = searchParams.basis === "Cash" ? "Cash" : "Accrual" as "Cash" | "Accrual";
+  const rawIds  = searchParams.projectIds ?? searchParams.projectId ?? null;
+  const projectIds = rawIds ? rawIds.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  const asOf    = searchParams.asOf ?? today();
+  const basis   = searchParams.basis === "Cash" ? "Cash" : "Accrual" as "Cash" | "Accrual";
 
   const supabase = createAdminClient();
 
@@ -72,67 +73,94 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
 
   const projects = (allProjects ?? []) as { id: string; name: string; code: string; appfolio_property_id: string | null }[];
 
-  if (!projectId) {
+  if (projectIds.length === 0) {
     return (
       <div>
         <Header title="Balance Sheet Report" />
         <div className="p-6">
-          <ReportControls projects={projects} currentProjectId={null} currentAsOf={asOf} currentBasis={basis} />
+          <ReportControls projects={projects} currentProjectIds={[]} currentAsOf={asOf} currentBasis={basis} />
           <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
-            <p className="text-muted-foreground text-sm">Select a project above to generate the report.</p>
+            <p className="text-muted-foreground text-sm">Select one or more projects above to generate the report.</p>
           </div>
         </div>
       </div>
     );
   }
 
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id, name, code, appfolio_property_id")
-    .eq("id", projectId)
-    .single();
+  const selectedProjects = projects.filter((p) => projectIds.includes(p.id));
+  const linkedPropertyIds = selectedProjects
+    .map((p) => p.appfolio_property_id)
+    .filter((id): id is string => !!id);
 
-  if (!project) {
-    return (
-      <div>
-        <Header title="Balance Sheet Report" />
-        <div className="p-6">
-          <ReportControls projects={projects} currentProjectId={projectId} currentAsOf={asOf} currentBasis={basis} />
-          <p className="text-destructive text-sm">Project not found.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Load GL balances ──────────────────────────────────
+  // ── Load GL balances — aggregate across all selected properties ──
   let glRows: GlRow[] = [];
-  let actualDate: string | null = null;
+  let snapshotDates: string[] = [];
 
-  if (project.appfolio_property_id) {
-    const { data: dateRow } = await supabase
-      .from("gl_balances")
-      .select("as_of_date")
-      .eq("appfolio_property_id", project.appfolio_property_id)
-      .eq("accounting_basis", basis)
-      .lte("as_of_date", asOf)
-      .order("as_of_date", { ascending: false })
-      .limit(1)
-      .single();
+  if (linkedPropertyIds.length > 0) {
+    // Find the most recent snapshot date on or before asOf for each property
+    const dateResults = await Promise.all(
+      linkedPropertyIds.map(async (propId) => {
+        const { data } = await supabase
+          .from("gl_balances")
+          .select("as_of_date")
+          .eq("appfolio_property_id", propId)
+          .eq("accounting_basis", basis)
+          .lte("as_of_date", asOf)
+          .order("as_of_date", { ascending: false })
+          .limit(1)
+          .single();
+        return { propId, date: (data?.as_of_date ?? null) as string | null };
+      })
+    );
 
-    if (dateRow) {
-      actualDate = dateRow.as_of_date as string;
-      const { data: rawRows } = await supabase
-        .from("gl_balances")
-        .select("gl_account_id, gl_account_name, gl_account_number, account_type, balance, as_of_date")
-        .eq("appfolio_property_id", project.appfolio_property_id)
-        .eq("accounting_basis", basis)
-        .eq("as_of_date", actualDate)
-        .order("gl_account_number", { ascending: true });
+    // Load rows for each property that has a snapshot
+    const allRawRows = await Promise.all(
+      dateResults
+        .filter((r) => r.date)
+        .map(async ({ propId, date }) => {
+          const { data } = await supabase
+            .from("gl_balances")
+            .select("gl_account_id, gl_account_name, gl_account_number, account_type, balance, as_of_date")
+            .eq("appfolio_property_id", propId)
+            .eq("accounting_basis", basis)
+            .eq("as_of_date", date)
+            .order("gl_account_number", { ascending: true });
+          return (data ?? []) as GlRow[];
+        })
+    );
 
-      glRows = (rawRows ?? []) as GlRow[];
+    snapshotDates = dateResults.filter((r) => r.date).map((r) => r.date as string);
+
+    if (allRawRows.length === 1) {
+      // Single property — use rows as-is
+      glRows = allRawRows[0];
+    } else if (allRawRows.length > 1) {
+      // Multiple properties — aggregate balances by GL account number
+      const accountMap = new Map<string, GlRow>();
+      for (const rows of allRawRows) {
+        for (const row of rows) {
+          const key = row.gl_account_number ?? row.gl_account_id;
+          const existing = accountMap.get(key);
+          if (existing) {
+            accountMap.set(key, { ...existing, balance: Number(existing.balance) + Number(row.balance) });
+          } else {
+            accountMap.set(key, { ...row, balance: Number(row.balance) });
+          }
+        }
+      }
+      glRows = [...accountMap.values()].sort((a, b) =>
+        (a.gl_account_number ?? "").localeCompare(b.gl_account_number ?? "")
+      );
     }
   }
+
+  // For display: use the earliest/latest snapshot dates
+  const actualDate = snapshotDates.length > 0
+    ? snapshotDates.reduce((a, b) => (a > b ? a : b)) // most recent
+    : null;
+  const datesVary = snapshotDates.length > 1 &&
+    new Set(snapshotDates).size > 1;
 
   // ── Group by normalised account_type ─────────────────
   const sectionMap = new Map<string, GlRow[]>();
@@ -177,29 +205,37 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
         <div className="print:hidden">
           <ReportControls
             projects={projects}
-            currentProjectId={projectId}
+            currentProjectIds={projectIds}
             currentAsOf={asOf}
             currentBasis={basis}
           />
 
           {/* Warnings */}
-          {!project.appfolio_property_id && (
+          {linkedPropertyIds.length === 0 && (
             <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-              This project is not linked to an AppFolio property. Link it in Admin → AppFolio to enable balance sheet data.
+              {selectedProjects.length === 1
+                ? "This project is not linked to an AppFolio property"
+                : "None of the selected projects are linked to AppFolio properties"}{" "}
+              — Link them in Admin → AppFolio to enable balance sheet data.
             </div>
           )}
-          {project.appfolio_property_id && !hasData && (
+          {linkedPropertyIds.length > 0 && !hasData && (
             <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-              No balance sheet data found for this property on or before{" "}
+              No balance sheet data found on or before{" "}
               {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}{" "}
               ({basis} basis). Run a Balance Sheet sync in Admin → AppFolio.
             </div>
           )}
-          {hasData && actualDate && actualDate !== asOf && (
+          {hasData && actualDate && actualDate !== asOf && !datesVary && (
             <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
               Showing the most recent available snapshot ({displayDate}). To see data for{" "}
               {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })},
               run a Balance Sheet sync for that date in Admin → AppFolio.
+            </div>
+          )}
+          {hasData && datesVary && (
+            <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+              Balances are aggregated from snapshots on different dates across properties. For best results, run a Balance Sheet sync for each project at the same date.
             </div>
           )}
         </div>
@@ -213,33 +249,45 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
         ) : (
           <>
             {/* ── Report title block ── */}
-            <div className="mb-4 flex items-start justify-between gap-4" style={{ maxWidth: 760 }}>
-              <div className="text-center flex-1">
-                <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-                  {project.name}
-                </p>
-                <p className="text-base font-bold text-slate-900 mt-0.5">Balance Sheet</p>
-                {displayDate && (
-                  <p className="text-sm text-slate-600 mt-0.5">As of {displayDate} &middot; {basis} Basis</p>
-                )}
-              </div>
-              <ExportButtons
-                sections={[
-                  ...(sectionMap.has("Asset") ? [{ label: "Assets", rows: sectionMap.get("Asset")!, total: totalAssets }] : []),
-                  ...(sectionMap.has("Liability") ? [{ label: "Liabilities", rows: sectionMap.get("Liability")!, total: totalLiabilities }] : []),
-                  ...(sectionMap.has("Equity") ? [{ label: "Capital", rows: sectionMap.get("Equity")!, total: totalEquity }] : []),
-                  ...unknownTypes.map((t) => ({ label: t, rows: sectionMap.get(t)!, total: sectionTotals.get(t) ?? 0 })),
-                ]}
-                totalAssets={totalAssets}
-                totalLiabilities={totalLiabilities}
-                totalEquity={totalEquity}
-                projectCode={project.code}
-                projectName={project.name}
-                displayDate={displayDate ?? asOf}
-                basis={basis}
-                isBalanced={isBalanced}
-              />
-            </div>
+            {(() => {
+              const projectLabel = selectedProjects.length === 1
+                ? selectedProjects[0].name
+                : selectedProjects.length > 1
+                ? selectedProjects.map((p) => p.code).join(", ") + ` (${selectedProjects.length} projects)`
+                : "Selected Projects";
+              const projectCode = selectedProjects.length === 1
+                ? selectedProjects[0].code
+                : selectedProjects.map((p) => p.code).join("-");
+              return (
+                <div className="mb-4 flex items-start justify-between gap-4" style={{ maxWidth: 760 }}>
+                  <div className="text-center flex-1">
+                    <p className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
+                      {projectLabel}
+                    </p>
+                    <p className="text-base font-bold text-slate-900 mt-0.5">Balance Sheet</p>
+                    {displayDate && (
+                      <p className="text-sm text-slate-600 mt-0.5">As of {displayDate} &middot; {basis} Basis</p>
+                    )}
+                  </div>
+                  <ExportButtons
+                    sections={[
+                      ...(sectionMap.has("Asset") ? [{ label: "Assets", rows: sectionMap.get("Asset")!, total: totalAssets }] : []),
+                      ...(sectionMap.has("Liability") ? [{ label: "Liabilities", rows: sectionMap.get("Liability")!, total: totalLiabilities }] : []),
+                      ...(sectionMap.has("Equity") ? [{ label: "Capital", rows: sectionMap.get("Equity")!, total: totalEquity }] : []),
+                      ...unknownTypes.map((t) => ({ label: t, rows: sectionMap.get(t)!, total: sectionTotals.get(t) ?? 0 })),
+                    ]}
+                    totalAssets={totalAssets}
+                    totalLiabilities={totalLiabilities}
+                    totalEquity={totalEquity}
+                    projectCode={projectCode}
+                    projectName={projectLabel}
+                    displayDate={displayDate ?? asOf}
+                    basis={basis}
+                    isBalanced={isBalanced}
+                  />
+                </div>
+              );
+            })()}
 
             {/* ── Table ── */}
             <div className="overflow-x-auto rounded border border-slate-200" style={{ maxWidth: 760 }}>

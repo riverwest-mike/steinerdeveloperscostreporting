@@ -98,7 +98,7 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormP
             onChange={handleNameChange}
           />
           <p className="text-xs text-muted-foreground">
-            Must match the Property Name exactly as it appears in AppFolio for transaction syncing to work correctly.
+            The project name used in this system. Does not need to match AppFolio — the AppFolio Property ID below is what links this project to AppFolio data.
           </p>
         </div>
         <div className="space-y-1">
@@ -126,11 +126,12 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormP
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="appfolio_property_id">
-            AppFolio Property ID
+            AppFolio Property ID <span className="text-destructive">*</span>
           </label>
           <input
             id="appfolio_property_id"
             name="appfolio_property_id"
+            required
             defaultValue={editing?.appfolio_property_id ?? ""}
             placeholder="e.g. 12345"
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
