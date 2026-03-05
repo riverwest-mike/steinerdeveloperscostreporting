@@ -107,8 +107,12 @@ export default async function AuditLogPage({ searchParams }: Props) {
     supabase.from("projects").select("id, name, code").order("name"),
   ]);
 
-  const userMap = new Map((allUsers ?? []).map((u: { id: string; full_name: string; email: string }) => [u.id, u]));
-  const projectMap = new Map((allProjects ?? []).map((p: { id: string; name: string; code: string }) => [p.id, p]));
+  const userMap = new Map<string, { id: string; full_name: string; email: string }>(
+    ((allUsers ?? []) as { id: string; full_name: string; email: string }[]).map((u) => [u.id, u])
+  );
+  const projectMap = new Map<string, { id: string; name: string; code: string }>(
+    ((allProjects ?? []) as { id: string; name: string; code: string }[]).map((p) => [p.id, p])
+  );
 
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
   const hasFilters = !!(searchParams.userId || searchParams.projectId || searchParams.action || searchParams.from || searchParams.to);
