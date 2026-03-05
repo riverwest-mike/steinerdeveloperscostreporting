@@ -1,12 +1,12 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
-import Image from "next/image";
 import { auth } from "@clerk/nextjs/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { TimeGreeting } from "@/components/time-greeting";
+import { ProjectGrid, type ProjectCard } from "./project-grid";
 import { RecentBills, type BillRow } from "./recent-bills";
+import { PendingCOs, type PendingCO } from "./pending-cos";
 
 interface RawBill {
   id: string | number;
@@ -21,67 +21,178 @@ interface RawBill {
   description: string | null;
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  active: "bg-green-100 text-green-800",
-  on_hold: "bg-yellow-100 text-yellow-800",
-  completed: "bg-blue-100 text-blue-800",
-  archived: "bg-gray-100 text-gray-600",
-};
+interface RawSpend {
+  appfolio_property_id: string;
+  paid_amount: number;
+  unpaid_amount: number;
+}
+
+function usd(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
+  return `$${n.toFixed(0)}`;
+}
 
 export default async function DashboardPage() {
   const { userId } = await auth();
   const supabase = await createClient();
   const adminSupabase = createAdminClient();
 
+  // ── User ──────────────────────────────────────────────────────────────────
   const { data: user } = await supabase
     .from("users")
     .select("full_name, role")
     .eq("id", userId!)
     .single();
 
-  // RLS on createClient() ensures only projects this user is assigned to are returned
+  const role = user?.role ?? "read_only";
+
+  // ── Projects (RLS-scoped to this user) ────────────────────────────────────
   const { data: projects } = await supabase
     .from("projects")
     .select("id, name, code, status, appfolio_property_id, image_url")
     .order("name");
 
-  const activeProjects = (projects ?? []).filter((p) => p.status === "active");
+  const projectList = projects ?? [];
+  const projectIds = projectList.map((p) => p.id);
 
-  // Build a set of property IDs this user can see — used to screen bills
+  // Early-exit shell if user has no assigned projects
+  if (projectIds.length === 0) {
+    return (
+      <div>
+        <Header title="Dashboard" />
+        <div className="p-6 space-y-6">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">
+              <TimeGreeting name={user?.full_name} />
+            </h2>
+            <p className="text-muted-foreground mt-1">
+              You are not assigned to any projects yet.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Active gates (one per project) ───────────────────────────────────────
+  const { data: activeGates } = await supabase
+    .from("gates")
+    .select("id, project_id, name")
+    .in("project_id", projectIds)
+    .eq("status", "active");
+
+  const activeGateIds = (activeGates ?? []).map((g) => g.id);
+
+  // ── Gate budgets ──────────────────────────────────────────────────────────
+  const { data: gateBudgets } =
+    activeGateIds.length > 0
+      ? await supabase
+          .from("gate_budgets")
+          .select("gate_id, revised_budget")
+          .in("gate_id", activeGateIds)
+      : { data: [] };
+
+  // budget per gate
+  const budgetByGate = new Map<string, number>();
+  for (const gb of gateBudgets ?? []) {
+    budgetByGate.set(
+      gb.gate_id,
+      (budgetByGate.get(gb.gate_id) ?? 0) + Number(gb.revised_budget)
+    );
+  }
+
+  // gate info per project
+  const gateByProject = new Map<string, { name: string; budgetTotal: number }>();
+  for (const g of activeGates ?? []) {
+    gateByProject.set(g.project_id, {
+      name: g.name,
+      budgetTotal: budgetByGate.get(g.id) ?? 0,
+    });
+  }
+
+  // ── Change orders (admin / PM only) ───────────────────────────────────────
+  let pendingCOs: PendingCO[] = [];
+  if (role !== "read_only") {
+    const { data: rawCOs } = await supabase
+      .from("change_orders")
+      .select("id, project_id, co_number, description, amount, proposed_date")
+      .in("project_id", projectIds)
+      .eq("status", "proposed")
+      .order("proposed_date");
+
+    const projectNameById = new Map(projectList.map((p) => [p.id, p.name]));
+    pendingCOs = (rawCOs ?? []).map((co) => ({
+      id: co.id,
+      project_id: co.project_id,
+      project_name: projectNameById.get(co.project_id) ?? "Unknown",
+      co_number: co.co_number,
+      description: co.description,
+      amount: Number(co.amount),
+      proposed_date: co.proposed_date,
+    }));
+  }
+
+  // ── AppFolio transactions ─────────────────────────────────────────────────
   const accessiblePropertyIds = new Set<string>(
-    (projects ?? [])
+    projectList
       .filter((p) => p.appfolio_property_id)
       .map((p) => p.appfolio_property_id as string)
   );
 
-  // property_id → project name for bill display
-  const propertyToProject = new Map<string, string>();
-  for (const p of projects ?? []) {
-    if (p.appfolio_property_id) {
-      propertyToProject.set(p.appfolio_property_id, p.name);
-    }
+  const propertyIdList = [...accessiblePropertyIds];
+
+  // All-time spend per property (for budget bars + portfolio stat)
+  const { data: allSpend } =
+    propertyIdList.length > 0
+      ? await adminSupabase
+          .from("appfolio_transactions")
+          .select("appfolio_property_id, paid_amount, unpaid_amount")
+          .in("appfolio_property_id", propertyIdList)
+          .limit(5000)
+      : { data: [] };
+
+  const spentByProperty = new Map<string, number>();
+  for (const t of (allSpend ?? []) as RawSpend[]) {
+    spentByProperty.set(
+      t.appfolio_property_id,
+      (spentByProperty.get(t.appfolio_property_id) ?? 0) +
+        Number(t.paid_amount) +
+        Number(t.unpaid_amount)
+    );
   }
 
-  // Fetch up to 90 days — wide enough for all client-side filter options
+  // Last 90 days for bills display
   const ninetyDaysAgo = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 90);
     return d.toISOString().slice(0, 10);
   })();
 
-  const { data: rawBills } = await adminSupabase
-    .from("appfolio_transactions")
-    .select(
-      "id, bill_date, vendor_name, cost_category_code, cost_category_name, paid_amount, unpaid_amount, payment_status, appfolio_property_id, description"
-    )
-    .gte("bill_date", ninetyDaysAgo)
-    .order("bill_date", { ascending: false })
-    .limit(1000);
+  const { data: rawBills } =
+    propertyIdList.length > 0
+      ? await adminSupabase
+          .from("appfolio_transactions")
+          .select(
+            "id, bill_date, vendor_name, cost_category_code, cost_category_name, paid_amount, unpaid_amount, payment_status, appfolio_property_id, description"
+          )
+          .in("appfolio_property_id", propertyIdList)
+          .gte("bill_date", ninetyDaysAgo)
+          .order("bill_date", { ascending: false })
+          .limit(1000)
+      : { data: [] };
 
-  // Only surface bills for properties this user is actually assigned to
-  const bills: BillRow[] = ((rawBills ?? []) as RawBill[])
-    .filter((b) => accessiblePropertyIds.has(b.appfolio_property_id))
-    .map((b) => ({
+  // property_id → { name, id }
+  const propertyToProject = new Map<string, { name: string; id: string }>();
+  for (const p of projectList) {
+    if (p.appfolio_property_id) {
+      propertyToProject.set(p.appfolio_property_id, { name: p.name, id: p.id });
+    }
+  }
+
+  const bills: BillRow[] = ((rawBills ?? []) as RawBill[]).map((b) => {
+    const proj = propertyToProject.get(b.appfolio_property_id);
+    return {
       id: String(b.id),
       bill_date: b.bill_date,
       vendor_name: b.vendor_name,
@@ -90,14 +201,43 @@ export default async function DashboardPage() {
       paid_amount: Number(b.paid_amount),
       unpaid_amount: Number(b.unpaid_amount),
       payment_status: b.payment_status,
-      project_name: propertyToProject.get(b.appfolio_property_id) ?? null,
+      project_name: proj?.name ?? null,
+      project_id: proj?.id ?? null,
       description: b.description,
-    }));
+    };
+  });
+
+  // ── Stat bar aggregates ───────────────────────────────────────────────────
+  const activeProjects = projectList.filter((p) => p.status === "active");
+
+  const portfolioValue = activeProjects.reduce((sum, p) => {
+    return sum + (gateByProject.get(p.id)?.budgetTotal ?? 0);
+  }, 0);
+
+  const totalSpent = [...spentByProperty.values()].reduce((a, b) => a + b, 0);
+
+  const pendingCOCount = pendingCOs.length;
+  const pendingCOValue = pendingCOs.reduce((sum, co) => sum + co.amount, 0);
+
+  // ── Project cards ─────────────────────────────────────────────────────────
+  const projectCards: ProjectCard[] = projectList.map((p) => ({
+    id: p.id,
+    name: p.name,
+    code: p.code,
+    status: p.status,
+    image_url: p.image_url ?? null,
+    gateName: gateByProject.get(p.id)?.name ?? null,
+    budgetTotal: gateByProject.get(p.id)?.budgetTotal ?? 0,
+    spent: p.appfolio_property_id
+      ? (spentByProperty.get(p.appfolio_property_id) ?? 0)
+      : 0,
+  }));
 
   return (
     <div>
       <Header title="Dashboard" />
       <div className="p-6 space-y-6">
+        {/* Greeting */}
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
             <TimeGreeting name={user?.full_name} />
@@ -107,84 +247,68 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        {/* Top stats + embedded project list */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {/* Active projects — spans 2 cols on large screens; project list lives here */}
-          <div className="lg:col-span-2 rounded-lg border bg-card flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b">
-              <span className="text-sm font-medium text-muted-foreground">Active Projects</span>
-              <span className="text-3xl font-bold">{activeProjects.length}</span>
-            </div>
+        {/* Stat bar */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="rounded-lg border bg-card px-5 py-4">
+            <p className="text-xs font-medium text-muted-foreground">Active Projects</p>
+            <p className="mt-1 text-3xl font-bold">{activeProjects.length}</p>
+          </div>
 
-            {projects && projects.length > 0 ? (
-              <ul className="divide-y flex-1">
-                {projects.map((project) => (
-                  <li key={project.id}>
-                    <Link
-                      href={`/projects/${project.id}`}
-                      className="flex items-center gap-3 px-5 py-3 hover:bg-muted/40 transition-colors"
-                    >
-                      {/* Small thumbnail */}
-                      {project.image_url ? (
-                        <div className="relative h-9 w-12 flex-shrink-0 overflow-hidden rounded">
-                          <Image
-                            src={project.image_url}
-                            alt={project.name}
-                            fill
-                            className="object-cover"
-                            sizes="48px"
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-9 w-12 flex-shrink-0 rounded bg-muted" />
-                      )}
+          <div className="rounded-lg border bg-card px-5 py-4">
+            <p className="text-xs font-medium text-muted-foreground">Portfolio Budget</p>
+            <p className="mt-1 text-3xl font-bold">
+              {portfolioValue > 0 ? usd(portfolioValue) : "—"}
+            </p>
+          </div>
 
-                      <div className="min-w-0 flex-1">
-                        <p className="font-medium text-sm leading-tight truncate">
-                          {project.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground font-mono">
-                          {project.code}
-                        </p>
-                      </div>
+          <div className="rounded-lg border bg-card px-5 py-4">
+            <p className="text-xs font-medium text-muted-foreground">Total Deployed</p>
+            <p className="mt-1 text-3xl font-bold">
+              {totalSpent > 0 ? usd(totalSpent) : "—"}
+            </p>
+          </div>
 
-                      <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium flex-shrink-0 ${
-                          STATUS_STYLES[project.status] ?? "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {project.status.replace("_", " ")}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="flex-1 flex items-center justify-center p-8 text-center">
-                <p className="text-sm text-muted-foreground">
-                  No projects assigned yet.
+          {role !== "read_only" ? (
+            <div className="rounded-lg border bg-card px-5 py-4">
+              <p className="text-xs font-medium text-muted-foreground">Pending COs</p>
+              <p className="mt-1 text-3xl font-bold">
+                {pendingCOCount > 0 ? pendingCOCount : "—"}
+              </p>
+              {pendingCOCount > 0 && (
+                <p className="text-xs text-amber-600 font-medium mt-0.5">
+                  {usd(pendingCOValue)}
                 </p>
-              </div>
-            )}
-          </div>
-
-          {/* Right column — total + role */}
-          <div className="flex flex-col gap-4">
-            <div className="rounded-lg border bg-card p-6">
-              <div className="text-sm font-medium text-muted-foreground">Total Projects</div>
-              <div className="mt-2 text-3xl font-bold">{projects?.length ?? 0}</div>
+              )}
             </div>
-            <div className="rounded-lg border bg-card p-6">
-              <div className="text-sm font-medium text-muted-foreground">Your Role</div>
-              <div className="mt-2 text-lg font-bold capitalize">
-                {user?.role?.replace("_", " ") ?? "—"}
-              </div>
+          ) : (
+            <div className="rounded-lg border bg-card px-5 py-4">
+              <p className="text-xs font-medium text-muted-foreground">Your Role</p>
+              <p className="mt-1 text-lg font-bold capitalize">
+                {role.replace("_", " ")}
+              </p>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Recent bills — scoped to user's accessible projects */}
-        <RecentBills bills={bills} />
+        {/* Project grid */}
+        <ProjectGrid projects={projectCards} />
+
+        {/* Lower section: bills + COs */}
+        <div
+          className={`grid grid-cols-1 gap-6 ${
+            role !== "read_only" ? "lg:grid-cols-5" : ""
+          }`}
+        >
+          <div className={role !== "read_only" ? "lg:col-span-3" : ""}>
+            <RecentBills bills={bills} />
+          </div>
+
+          {role !== "read_only" && (
+            <div className="lg:col-span-2">
+              <PendingCOs cos={pendingCOs} />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

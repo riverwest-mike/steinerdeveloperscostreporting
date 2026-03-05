@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useMemo } from "react";
 
 export interface BillRow {
@@ -12,6 +13,7 @@ export interface BillRow {
   unpaid_amount: number;
   payment_status: string;
   project_name: string | null;
+  project_id: string | null;
   description: string | null;
 }
 
@@ -38,10 +40,9 @@ export function RecentBills({ bills }: { bills: BillRow[] }) {
   const cutoff = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - days);
-    return d.toISOString().slice(0, 10); // YYYY-MM-DD
+    return d.toISOString().slice(0, 10);
   }, [days]);
 
-  // Filter then sort in a single memo — avoids mutating the filtered array in render
   const filtered = useMemo(
     () =>
       bills
@@ -109,11 +110,17 @@ export function RecentBills({ bills }: { bills: BillRow[] }) {
                         day: "numeric",
                       })}
                     </td>
-                    <td
-                      className="px-3 py-2 max-w-[120px] truncate"
-                      title={bill.project_name ?? undefined}
-                    >
-                      {bill.project_name ?? (
+                    <td className="px-3 py-2 max-w-[120px] truncate">
+                      {bill.project_id ? (
+                        <Link
+                          href={`/projects/${bill.project_id}`}
+                          className="hover:underline hover:text-primary transition-colors"
+                          title={bill.project_name ?? undefined}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {bill.project_name}
+                        </Link>
+                      ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
                     </td>
