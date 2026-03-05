@@ -42,10 +42,21 @@ export async function createGate(
   try {
     const { userId, supabase } = await requirePM();
 
+    const sequenceNumber = Number(formData.get("sequence_number"));
+    if (!sequenceNumber || sequenceNumber < 1) throw new Error("Gate # is required");
+
+    const { data: dup } = await supabase
+      .from("gates")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("sequence_number", sequenceNumber)
+      .maybeSingle();
+    if (dup) throw new Error(`Gate #${sequenceNumber} already exists for this project`);
+
     const payload = {
       project_id: projectId,
-      name: (formData.get("name") as string).trim(),
-      sequence_number: Number(formData.get("sequence_number")),
+      name: (formData.get("name") as string)?.trim() || null,
+      sequence_number: sequenceNumber,
       status: "pending" as const,
       start_date: (formData.get("start_date") as string) || null,
       end_date: (formData.get("end_date") as string) || null,
@@ -80,9 +91,22 @@ export async function updateGate(
   try {
     const { userId, supabase } = await requirePM();
 
+    const sequenceNumber = Number(formData.get("sequence_number"));
+    if (!sequenceNumber || sequenceNumber < 1) throw new Error("Gate # is required");
+
+    // Block duplicate sequence numbers (excluding the gate being updated)
+    const { data: dup } = await supabase
+      .from("gates")
+      .select("id")
+      .eq("project_id", projectId)
+      .eq("sequence_number", sequenceNumber)
+      .neq("id", gateId)
+      .maybeSingle();
+    if (dup) throw new Error(`Gate #${sequenceNumber} already exists for this project`);
+
     const payload = {
-      name: (formData.get("name") as string).trim(),
-      sequence_number: Number(formData.get("sequence_number")),
+      name: (formData.get("name") as string)?.trim() || null,
+      sequence_number: sequenceNumber,
       start_date: (formData.get("start_date") as string) || null,
       end_date: (formData.get("end_date") as string) || null,
       notes: (formData.get("notes") as string)?.trim() || null,

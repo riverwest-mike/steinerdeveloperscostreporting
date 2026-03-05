@@ -6,6 +6,24 @@ import { useState } from "react";
 interface User { id: string; full_name: string; email: string }
 interface Project { id: string; name: string; code: string }
 
+const ACTION_LABELS: Record<string, string> = {
+  "project.create":       "Created project",
+  "project.update":       "Updated project",
+  "project.delete":       "Deleted project",
+  "gate.create":          "Created gate",
+  "gate.update":          "Updated gate",
+  "gate.delete":          "Deleted gate",
+  "gate.activate":        "Activated gate",
+  "gate.close":           "Closed gate",
+  "contract.create":      "Created contract",
+  "contract.update":      "Updated contract",
+  "contract.delete":      "Deleted contract",
+  "change_order.create":  "Proposed change order",
+  "change_order.approve": "Approved change order",
+  "change_order.reject":  "Rejected change order",
+  "change_order.void":    "Voided change order",
+};
+
 const ACTION_GROUPS = [
   { label: "Projects", values: ["project.create", "project.update", "project.delete"] },
   { label: "Gates", values: ["gate.create", "gate.update", "gate.delete", "gate.activate", "gate.close"] },
@@ -88,7 +106,7 @@ export function AuditLogFilters({
             {ACTION_GROUPS.map((g) => (
               <optgroup key={g.label} label={g.label}>
                 {g.values.map((v) => (
-                  <option key={v} value={v}>{v}</option>
+                  <option key={v} value={v}>{ACTION_LABELS[v] ?? v}</option>
                 ))}
               </optgroup>
             ))}

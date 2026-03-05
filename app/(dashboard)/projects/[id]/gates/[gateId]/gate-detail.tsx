@@ -61,7 +61,7 @@ export function GateDetail({ gate, projectId, budgetRows, isAdmin }: GateDetailP
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold tracking-tight">{gate.name}</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Gate #{gate.sequence_number}</h2>
             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[gate.status] ?? "bg-gray-100"}`}>
               {gate.status}
             </span>
@@ -69,7 +69,7 @@ export function GateDetail({ gate, projectId, budgetRows, isAdmin }: GateDetailP
               <span className="text-xs text-muted-foreground border rounded px-1.5 py-0.5">Locked</span>
             )}
           </div>
-          <p className="text-muted-foreground mt-0.5 text-sm">Gate {gate.sequence_number}</p>
+          {gate.name && <p className="text-muted-foreground mt-0.5 text-sm">{gate.name}</p>}
         </div>
 
         <div className="flex gap-2">
@@ -183,7 +183,7 @@ function DeleteGateButton({ gate, projectId }: { gate: Gate; projectId: string }
       <button
         disabled={isPending}
         onClick={() => {
-          if (!confirm(`Delete "${gate.name}"? This will permanently remove the gate and all its budget data.`)) return;
+          if (!confirm(`Delete Gate #${gate.sequence_number}${gate.name ? ` — ${gate.name}` : ""}? This will permanently remove the gate and all its budget data.`)) return;
           setError(null);
           startTransition(async () => {
             try {
@@ -234,20 +234,10 @@ function EditGateForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-2 space-y-1">
-          <label className="text-xs font-medium" htmlFor="edit-gate-name">
-            Gate Name <span className="text-destructive">*</span>
-          </label>
-          <input
-            id="edit-gate-name"
-            name="name"
-            required
-            defaultValue={gate.name}
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
         <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="edit-gate-seq">Gate #</label>
+          <label className="text-xs font-medium" htmlFor="edit-gate-seq">
+            Gate # <span className="text-destructive">*</span>
+          </label>
           <input
             id="edit-gate-seq"
             name="sequence_number"
@@ -255,6 +245,17 @@ function EditGateForm({
             required
             min={1}
             defaultValue={gate.sequence_number}
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div className="col-span-2 space-y-1">
+          <label className="text-xs font-medium" htmlFor="edit-gate-name">
+            Gate Name <span className="text-muted-foreground font-normal">(optional)</span>
+          </label>
+          <input
+            id="edit-gate-name"
+            name="name"
+            defaultValue={gate.name}
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
         </div>

@@ -83,6 +83,23 @@ export async function createContract(
     );
     if (cgErr) throw new Error(cgErr.message);
 
+    // Insert SOV line items if provided at creation time
+    const sovRaw = formData.get("sov_lines") as string | null;
+    if (sovRaw) {
+      const sovLines = JSON.parse(sovRaw) as { cost_category_id: string; description: string | null; amount: number }[];
+      if (sovLines.length > 0) {
+        const { error: sovErr } = await supabase.from("contract_line_items").insert(
+          sovLines.map((l) => ({
+            contract_id: contract.id,
+            cost_category_id: l.cost_category_id,
+            description: l.description ?? null,
+            amount: l.amount,
+          }))
+        );
+        if (sovErr) throw new Error(`SOV: ${sovErr.message}`);
+      }
+    }
+
     await insertAuditLog({
       user_id: userId,
       action: "contract.create",

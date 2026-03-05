@@ -33,21 +33,9 @@ export function NewGateForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-2 space-y-1">
-          <label className="text-xs font-medium" htmlFor="gate-name">
-            Gate Name <span className="text-destructive">*</span>
-          </label>
-          <input
-            id="gate-name"
-            name="name"
-            required
-            placeholder="e.g. Acquisition"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="gate-seq">
-            Gate #
+            Gate # <span className="text-destructive">*</span>
           </label>
           <input
             id="gate-seq"
@@ -56,6 +44,17 @@ export function NewGateForm({
             required
             min={1}
             defaultValue={nextSequence}
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div className="col-span-2 space-y-1">
+          <label className="text-xs font-medium" htmlFor="gate-name">
+            Gate Name <span className="text-muted-foreground font-normal">(optional)</span>
+          </label>
+          <input
+            id="gate-name"
+            name="name"
+            placeholder="e.g. Acquisition"
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
         </div>
