@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
+import { ReportRestorer } from "./report-restorer";
 import { ArrowLeft } from "lucide-react";
 import { ExportButtons } from "./export-buttons";
 
@@ -112,6 +113,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
             currentAsOf={asOf}
             currentCategoryCode={null}
           />
+          <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
             <p className="text-muted-foreground text-sm">
               Select a project and cost category above, then click Run Report.
@@ -283,8 +285,16 @@ export default async function CostDetailPage({ searchParams }: Props) {
         </div>
 
         {transactions.length > 0 && (
+          <>
+          <style>{`
+            @media print {
+              @page { size: landscape; margin: 0.4in; }
+              table { font-size: 7pt !important; min-width: 0 !important; width: 100% !important; }
+              th, td { padding: 1pt 3pt !important; }
+            }
+          `}</style>
           <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-xs border-collapse" style={{ minWidth: "1000px" }}>
+            <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-800 text-white">
                   <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Bill Date</th>
@@ -374,6 +384,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
               </tfoot>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

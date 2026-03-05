@@ -80,7 +80,13 @@ export async function deleteCategory(id: string) {
 
   // Check for FK references before attempting delete so we can show a
   // meaningful message instead of a raw Postgres constraint error.
-  const [{ count: budgetCount }, { count: contractCount }] = await Promise.all([
+  const [
+    { count: budgetCount },
+    { count: contractCount },
+    { count: changeOrderCount },
+    { count: bridgeCount },
+    { count: txMappingCount },
+  ] = await Promise.all([
     supabase
       .from("gate_budgets")
       .select("id", { count: "exact", head: true })
@@ -89,11 +95,26 @@ export async function deleteCategory(id: string) {
       .from("contracts")
       .select("id", { count: "exact", head: true })
       .eq("cost_category_id", id),
+    supabase
+      .from("change_orders")
+      .select("id", { count: "exact", head: true })
+      .eq("cost_category_id", id),
+    supabase
+      .from("bridge_mappings")
+      .select("id", { count: "exact", head: true })
+      .eq("cost_category_id", id),
+    supabase
+      .from("transaction_mappings")
+      .select("id", { count: "exact", head: true })
+      .eq("cost_category_id", id),
   ]);
 
   const uses: string[] = [];
   if (budgetCount) uses.push(`${budgetCount} gate budget${budgetCount > 1 ? "s" : ""}`);
   if (contractCount) uses.push(`${contractCount} contract${contractCount > 1 ? "s" : ""}`);
+  if (changeOrderCount) uses.push(`${changeOrderCount} change order${changeOrderCount > 1 ? "s" : ""}`);
+  if (bridgeCount) uses.push(`${bridgeCount} bridge mapping${bridgeCount > 1 ? "s" : ""}`);
+  if (txMappingCount) uses.push(`${txMappingCount} transaction mapping${txMappingCount > 1 ? "s" : ""}`);
 
   if (uses.length > 0) {
     throw new Error(

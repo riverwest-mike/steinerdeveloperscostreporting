@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
+import { ReportRestorer } from "./report-restorer";
 import { ExportButtons } from "./export-buttons";
 
 /* ─── Helpers ─────────────────────────────────────────── */
@@ -134,6 +135,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
             currentCategoryCode={null}
             currentAsOf={asOf}
           />
+          <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
             <p className="text-muted-foreground text-sm">
               Select a project or filter above, then click Run Report.
@@ -275,8 +277,16 @@ export default async function VendorDetailPage({ searchParams }: Props) {
         )}
 
         {transactions.length > 0 && (
+          <>
+          <style>{`
+            @media print {
+              @page { size: landscape; margin: 0.4in; }
+              table { font-size: 7pt !important; min-width: 0 !important; width: 100% !important; }
+              th, td { padding: 1pt 3pt !important; }
+            }
+          `}</style>
           <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-xs border-collapse" style={{ minWidth: "1100px" }}>
+            <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-800 text-white">
                   {!projectId && (
@@ -397,6 +407,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
               </tfoot>
             </table>
           </div>
+          </>
         )}
       </div>
     </div>

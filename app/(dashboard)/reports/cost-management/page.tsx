@@ -558,8 +558,15 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
           </div>
         ) : (
           <>
+          <style>{`
+            @media print {
+              @page { size: landscape; margin: 0.35in; }
+              table { font-size: 6pt !important; min-width: 0 !important; width: 100% !important; }
+              th, td { padding: 1pt 2pt !important; }
+            }
+          `}</style>
           <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-xs border-collapse" style={{ minWidth: "1300px" }}>
+            <table className="w-full text-xs border-collapse">
               <thead>
                 {/* Column letter row */}
                 <tr className="bg-slate-800 text-white">

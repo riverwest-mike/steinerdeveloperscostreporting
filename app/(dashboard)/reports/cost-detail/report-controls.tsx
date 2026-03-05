@@ -52,6 +52,10 @@ export function ReportControls({
   function handleRun() {
     if (!projectId) return;
 
+    try {
+      localStorage.setItem("cost_detail_last_filter", JSON.stringify({ projectId, categoryCode, asOf }));
+    } catch { /* ignore */ }
+
     const propertyId = selectedProject?.appfolio_property_id ?? null;
 
     if (!propertyId) {
