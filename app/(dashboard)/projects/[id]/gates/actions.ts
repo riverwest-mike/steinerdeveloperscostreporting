@@ -72,7 +72,7 @@ export async function createGate(
       action: "gate.create",
       entity_type: "gate",
       project_id: projectId,
-      label: payload.name,
+      label: payload.name ?? undefined,
       payload: { name: payload.name, sequence_number: payload.sequence_number },
     });
     revalidatePath(`/projects/${projectId}`);
@@ -121,7 +121,7 @@ export async function updateGate(
       entity_type: "gate",
       entity_id: gateId,
       project_id: projectId,
-      label: payload.name,
+      label: payload.name ?? undefined,
     });
     revalidatePath(`/projects/${projectId}`);
     revalidatePath(`/projects/${projectId}/gates/${gateId}`);
