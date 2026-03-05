@@ -67,13 +67,17 @@ interface Transaction {
 /* ─── Page ────────────────────────────────────────────── */
 
 interface Props {
-  searchParams: { projectId?: string; asOf?: string; categoryCode?: string };
+  searchParams: { projectId?: string; asOf?: string; categoryCode?: string; paymentFilter?: string };
 }
 
 export default async function CostDetailPage({ searchParams }: Props) {
   const projectId = searchParams.projectId ?? null;
   const asOf = searchParams.asOf ?? today();
   const categoryCode = searchParams.categoryCode ?? null;
+  // "paid" = only transactions with paid_amount > 0
+  // "unpaid" = only transactions with unpaid_amount > 0
+  // undefined = all transactions
+  const paymentFilter = searchParams.paymentFilter ?? null;
 
   const supabase = createAdminClient();
 
@@ -163,6 +167,12 @@ export default async function CostDetailPage({ searchParams }: Props) {
       query = query.ilike("cost_category_code", categoryCode);
     }
 
+    if (paymentFilter === "paid") {
+      query = query.gt("paid_amount", 0);
+    } else if (paymentFilter === "unpaid") {
+      query = query.gt("unpaid_amount", 0);
+    }
+
     const { data: rawTx } = await query.order("bill_date", { ascending: false });
     transactions = (rawTx ?? []) as Transaction[];
   }
@@ -210,6 +220,16 @@ export default async function CostDetailPage({ searchParams }: Props) {
               {project.code} — {project.name}
               &nbsp;·&nbsp;
               {categoryLabel}
+              {paymentFilter === "paid" && (
+                <span className="ml-2 inline-flex rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800">
+                  Paid Only
+                </span>
+              )}
+              {paymentFilter === "unpaid" && (
+                <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                  Unpaid Only
+                </span>
+              )}
               &nbsp;·&nbsp; As of{" "}
               {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
                 month: "long",
