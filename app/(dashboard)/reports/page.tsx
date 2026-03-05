@@ -17,6 +17,12 @@ const AVAILABLE_REPORTS = [
     description:
       "Transaction-level drill-down of AppFolio actuals for a selected project and cost category, pulled directly from AppFolio.",
   },
+  {
+    href: "/reports/vendor-detail",
+    title: "Vendor Detail Report",
+    description:
+      "Look up all costs and transactions associated with a particular vendor — filter by project, vendor name, cost category, and date.",
+  },
 ];
 
 export default function ReportsPage() {
