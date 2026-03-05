@@ -473,7 +473,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                 ⚠ {unmatchedCats.size} cost category code{unmatchedCats.size !== 1 ? "s" : ""} from AppFolio not matched
                 {" — "}
                 {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(
-                  Array.from(unmatchedCats.values()).reduce((s, v) => s + v.amount, 0)
+                  Array.from(unmatchedCats.values()).reduce((s, v) => s + v.paid + v.unpaid, 0)
                 )}{" "}
                 shown below as &ldquo;AppFolio — Unmatched Costs&rdquo; ({txMatched} of {txTotal} transactions matched)
               </summary>
@@ -492,13 +492,13 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                   </thead>
                   <tbody>
                     {Array.from(unmatchedCats.entries())
-                      .sort((a, b) => b[1].amount - a[1].amount)
-                      .map(([code, { name, amount }]) => (
+                      .sort((a, b) => (b[1].paid + b[1].unpaid) - (a[1].paid + a[1].unpaid))
+                      .map(([code, { name, paid, unpaid }]) => (
                         <tr key={code} className="border-t border-amber-100">
                           <td className="py-1 pr-4 font-mono">{code}</td>
                           <td className="py-1 pr-4">{name}</td>
                           <td className="py-1 text-right tabular-nums">
-                            {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)}
+                            {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(paid + unpaid)}
                           </td>
                         </tr>
                       ))}
