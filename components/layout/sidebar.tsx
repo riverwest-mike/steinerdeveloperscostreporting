@@ -43,7 +43,7 @@ export function Sidebar({ role }: SidebarProps) {
   const adminActive = pathname.startsWith("/admin");
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-card">
+    <aside className="flex h-full w-64 flex-col border-r bg-card print:hidden">
       {/* Logo */}
       <div className="flex h-16 items-center border-b px-6">
         <span className="text-lg font-bold tracking-tight">

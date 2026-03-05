@@ -19,6 +19,7 @@ interface Project {
   expected_completion: string | null;
   status: string;
   description: string | null;
+  image_url: string | null;
 }
 
 interface ProjectFormProps {
@@ -288,6 +289,30 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormP
           defaultValue={editing?.description ?? ""}
           placeholder="Optional project notes…"
           className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm resize-none"
+        />
+      </div>
+
+      {/* Row 6: Cover Image */}
+      <div className="space-y-1">
+        <label className="text-xs font-medium" htmlFor="image">
+          Cover Image
+        </label>
+        {editing?.image_url && (
+          <div className="mb-2">
+            <img
+              src={editing.image_url}
+              alt="Current cover"
+              className="h-24 w-40 object-cover rounded border"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Current image — upload a new file to replace it.</p>
+          </div>
+        )}
+        <input
+          id="image"
+          name="image"
+          type="file"
+          accept="image/*"
+          className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm file:mr-3 file:rounded file:border-0 file:bg-muted file:px-2 file:py-1 file:text-xs file:font-medium"
         />
       </div>
 

@@ -59,10 +59,10 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
       <Sidebar role={role} />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <main className="flex-1 overflow-y-auto">{children}</main>
+      <div className="flex flex-1 flex-col overflow-hidden print:block print:overflow-visible">
+        <main className="flex-1 overflow-y-auto print:overflow-visible">{children}</main>
       </div>
     </div>
   );

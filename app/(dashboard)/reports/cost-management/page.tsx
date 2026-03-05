@@ -395,11 +395,13 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
       <Header title="Project Cost Management Report" />
       <div className="p-6">
 
-        <ReportControls
-          projects={projects}
-          currentProjectId={projectId}
-          currentAsOf={asOf}
-        />
+        <div className="print:hidden">
+          <ReportControls
+            projects={projects}
+            currentProjectId={projectId}
+            currentAsOf={asOf}
+          />
+        </div>
 
         {/* Report header */}
         <div className="mb-4 flex items-start justify-between gap-4">
@@ -424,68 +426,70 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
           />
         </div>
 
-        {!project.appfolio_property_id && (
-          <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-            This project is not linked to an AppFolio property — Cost to Date (J) will show $0.
-          </div>
-        )}
-
-        {project.appfolio_property_id && txTotal === 0 && (
-          <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-            No AppFolio transactions found for property ID <span className="font-mono font-semibold">{project.appfolio_property_id}</span> as of{" "}
-            {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.{" "}
-            Run an AppFolio sync in Admin to pull data.
-          </div>
-        )}
-
-        {project.appfolio_property_id && txTotal > 0 && (
-          <div className="mb-2 text-xs text-muted-foreground">
-            AppFolio property <span className="font-mono">{project.appfolio_property_id}</span>
-            {" · "}{txTotal} transaction{txTotal !== 1 ? "s" : ""} found
-            {" · "}{txMatched} matched
-          </div>
-        )}
-
-        {project.appfolio_property_id && txTotal > 0 && unmatchedCats.size > 0 && (
-          <details className="mb-4 rounded-md border border-amber-200 bg-amber-50 text-sm text-amber-900">
-            <summary className="cursor-pointer px-4 py-2 font-medium select-none">
-              ⚠ {unmatchedCats.size} cost category code{unmatchedCats.size !== 1 ? "s" : ""} from AppFolio not matched
-              {" — "}
-              {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(
-                Array.from(unmatchedCats.values()).reduce((s, v) => s + v.amount, 0)
-              )}{" "}
-              shown below as &ldquo;AppFolio — Unmatched Costs&rdquo; ({txMatched} of {txTotal} transactions matched)
-            </summary>
-            <div className="border-t border-amber-200 px-4 py-3">
-              <p className="mb-2 text-xs text-amber-700">
-                These AppFolio cost category codes do not match any active cost categories in this system.
-                Ensure the cost category codes in AppFolio match those in Admin → Cost Categories.
-              </p>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-amber-700">
-                    <th className="text-left pb-1 pr-4">AppFolio Cost Category Code</th>
-                    <th className="text-left pb-1 pr-4">AppFolio Cost Category Name</th>
-                    <th className="text-right pb-1">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from(unmatchedCats.entries())
-                    .sort((a, b) => b[1].amount - a[1].amount)
-                    .map(([code, { name, amount }]) => (
-                      <tr key={code} className="border-t border-amber-100">
-                        <td className="py-1 pr-4 font-mono">{code}</td>
-                        <td className="py-1 pr-4">{name}</td>
-                        <td className="py-1 text-right tabular-nums">
-                          {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
+        <div className="print:hidden">
+          {!project.appfolio_property_id && (
+            <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+              This project is not linked to an AppFolio property — Cost to Date (J) will show $0.
             </div>
-          </details>
-        )}
+          )}
+
+          {project.appfolio_property_id && txTotal === 0 && (
+            <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+              No AppFolio transactions found for property ID <span className="font-mono font-semibold">{project.appfolio_property_id}</span> as of{" "}
+              {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.{" "}
+              Run an AppFolio sync in Admin to pull data.
+            </div>
+          )}
+
+          {project.appfolio_property_id && txTotal > 0 && (
+            <div className="mb-2 text-xs text-muted-foreground">
+              AppFolio property <span className="font-mono">{project.appfolio_property_id}</span>
+              {" · "}{txTotal} transaction{txTotal !== 1 ? "s" : ""} found
+              {" · "}{txMatched} matched
+            </div>
+          )}
+
+          {project.appfolio_property_id && txTotal > 0 && unmatchedCats.size > 0 && (
+            <details className="mb-4 rounded-md border border-amber-200 bg-amber-50 text-sm text-amber-900">
+              <summary className="cursor-pointer px-4 py-2 font-medium select-none">
+                ⚠ {unmatchedCats.size} cost category code{unmatchedCats.size !== 1 ? "s" : ""} from AppFolio not matched
+                {" — "}
+                {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(
+                  Array.from(unmatchedCats.values()).reduce((s, v) => s + v.amount, 0)
+                )}{" "}
+                shown below as &ldquo;AppFolio — Unmatched Costs&rdquo; ({txMatched} of {txTotal} transactions matched)
+              </summary>
+              <div className="border-t border-amber-200 px-4 py-3">
+                <p className="mb-2 text-xs text-amber-700">
+                  These AppFolio cost category codes do not match any active cost categories in this system.
+                  Ensure the cost category codes in AppFolio match those in Admin → Cost Categories.
+                </p>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-amber-700">
+                      <th className="text-left pb-1 pr-4">AppFolio Cost Category Code</th>
+                      <th className="text-left pb-1 pr-4">AppFolio Cost Category Name</th>
+                      <th className="text-right pb-1">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from(unmatchedCats.entries())
+                      .sort((a, b) => b[1].amount - a[1].amount)
+                      .map(([code, { name, amount }]) => (
+                        <tr key={code} className="border-t border-amber-100">
+                          <td className="py-1 pr-4 font-mono">{code}</td>
+                          <td className="py-1 pr-4">{name}</td>
+                          <td className="py-1 text-right tabular-nums">
+                            {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
+        </div>
 
         {!hasAnyData ? (
           <div className="rounded-lg border border-dashed p-12 text-center">

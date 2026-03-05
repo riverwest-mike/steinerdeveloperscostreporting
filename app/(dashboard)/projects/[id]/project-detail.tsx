@@ -20,6 +20,7 @@ interface Project {
   expected_completion: string | null;
   status: string;
   description: string | null;
+  image_url: string | null;
   created_at: string;
 }
 
@@ -71,6 +72,18 @@ export function ProjectDetail({ project, isAdmin, appfolioBaseUrl }: { project: 
 
   return (
     <div className="space-y-6">
+      {/* Cover image */}
+      {project.image_url && (
+        <div className="rounded-lg overflow-hidden border" style={{ maxHeight: 240 }}>
+          <img
+            src={project.image_url}
+            alt={project.name}
+            className="w-full object-cover"
+            style={{ maxHeight: 240 }}
+          />
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

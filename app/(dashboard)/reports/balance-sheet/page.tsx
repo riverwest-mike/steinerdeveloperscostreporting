@@ -174,33 +174,35 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
       <Header title="Balance Sheet Report" />
       <div className="p-6">
 
-        <ReportControls
-          projects={projects}
-          currentProjectId={projectId}
-          currentAsOf={asOf}
-          currentBasis={basis}
-        />
+        <div className="print:hidden">
+          <ReportControls
+            projects={projects}
+            currentProjectId={projectId}
+            currentAsOf={asOf}
+            currentBasis={basis}
+          />
 
-        {/* Warnings */}
-        {!project.appfolio_property_id && (
-          <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-            This project is not linked to an AppFolio property. Link it in Admin → AppFolio to enable balance sheet data.
-          </div>
-        )}
-        {project.appfolio_property_id && !hasData && (
-          <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-            No balance sheet data found for this property on or before{" "}
-            {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}{" "}
-            ({basis} basis). Run a Balance Sheet sync in Admin → AppFolio.
-          </div>
-        )}
-        {hasData && actualDate && actualDate !== asOf && (
-          <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
-            Showing the most recent available snapshot ({displayDate}). To see data for{" "}
-            {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })},
-            run a Balance Sheet sync for that date in Admin → AppFolio.
-          </div>
-        )}
+          {/* Warnings */}
+          {!project.appfolio_property_id && (
+            <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+              This project is not linked to an AppFolio property. Link it in Admin → AppFolio to enable balance sheet data.
+            </div>
+          )}
+          {project.appfolio_property_id && !hasData && (
+            <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+              No balance sheet data found for this property on or before{" "}
+              {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}{" "}
+              ({basis} basis). Run a Balance Sheet sync in Admin → AppFolio.
+            </div>
+          )}
+          {hasData && actualDate && actualDate !== asOf && (
+            <div className="mb-4 rounded-md border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-800">
+              Showing the most recent available snapshot ({displayDate}). To see data for{" "}
+              {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })},
+              run a Balance Sheet sync for that date in Admin → AppFolio.
+            </div>
+          )}
+        </div>
 
         {!hasData ? (
           <div className="rounded-lg border border-dashed p-12 text-center">

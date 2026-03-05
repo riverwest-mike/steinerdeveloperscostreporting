@@ -182,13 +182,15 @@ export default async function CostDetailPage({ searchParams }: Props) {
     <div>
       <Header title="Cost Detail Report" />
       <div className="p-6">
-        <ReportControls
-          projects={projects}
-          categories={categories}
-          currentProjectId={projectId}
-          currentAsOf={asOf}
-          currentCategoryCode={categoryCode}
-        />
+        <div className="print:hidden">
+          <ReportControls
+            projects={projects}
+            categories={categories}
+            currentProjectId={projectId}
+            currentAsOf={asOf}
+            currentCategoryCode={categoryCode}
+          />
+        </div>
 
         {/* Report header */}
         <div className="mb-4 flex items-start justify-between gap-4">
@@ -218,7 +220,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
             )}
             <Link
               href={backUrl}
-              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors print:hidden"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to PCMR
@@ -226,27 +228,29 @@ export default async function CostDetailPage({ searchParams }: Props) {
           </div>
         </div>
 
-        {noAppFolio && (
-          <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-            This project is not linked to an AppFolio property — no transaction data available.
-          </div>
-        )}
+        <div className="print:hidden">
+          {noAppFolio && (
+            <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
+              This project is not linked to an AppFolio property — no transaction data available.
+            </div>
+          )}
 
-        {!noAppFolio && transactions.length === 0 && (
-          <div className="rounded-lg border border-dashed p-12 text-center">
-            <p className="text-muted-foreground text-sm">
-              No AppFolio transactions found
-              {categoryCode ? ` for cost category "${categoryCode}"` : ""}
-              {" "}as of{" "}
-              {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
-              .
-            </p>
-          </div>
-        )}
+          {!noAppFolio && transactions.length === 0 && (
+            <div className="rounded-lg border border-dashed p-12 text-center">
+              <p className="text-muted-foreground text-sm">
+                No AppFolio transactions found
+                {categoryCode ? ` for cost category "${categoryCode}"` : ""}
+                {" "}as of{" "}
+                {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+                .
+              </p>
+            </div>
+          )}
+        </div>
 
         {transactions.length > 0 && (
           <div className="overflow-x-auto rounded-lg border">
