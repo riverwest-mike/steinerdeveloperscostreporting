@@ -33,9 +33,13 @@ export async function createContract(
   try {
     const { userId, supabase } = await requirePM();
 
+    const gateIds = formData.getAll("gate_ids") as string[];
+    if (!gateIds.length) throw new Error("At least one gate must be selected");
+
     const payload = {
       project_id: projectId,
-      gate_id: formData.get("gate_id") as string,
+      // Keep gate_id as the first selected gate for CO creation defaults
+      gate_id: gateIds[0],
       cost_category_id: formData.get("cost_category_id") as string,
       vendor_name: (formData.get("vendor_name") as string).trim(),
       contract_number: (formData.get("contract_number") as string)?.trim() || null,
@@ -50,8 +54,18 @@ export async function createContract(
       created_by: userId,
     };
 
-    const { error } = await supabase.from("contracts").insert(payload);
+    const { data: contract, error } = await supabase
+      .from("contracts")
+      .insert(payload)
+      .select("id")
+      .single();
     if (error) throw new Error(error.message);
+
+    // Sync contract_gates junction table
+    const { error: cgErr } = await supabase.from("contract_gates").insert(
+      gateIds.map((gateId) => ({ contract_id: contract.id, gate_id: gateId }))
+    );
+    if (cgErr) throw new Error(cgErr.message);
 
     revalidateProject(projectId);
     return {};
@@ -69,8 +83,11 @@ export async function updateContract(
   try {
     const { supabase } = await requirePM();
 
+    const gateIds = formData.getAll("gate_ids") as string[];
+    if (!gateIds.length) throw new Error("At least one gate must be selected");
+
     const payload = {
-      gate_id: formData.get("gate_id") as string,
+      gate_id: gateIds[0],
       cost_category_id: formData.get("cost_category_id") as string,
       vendor_name: (formData.get("vendor_name") as string).trim(),
       contract_number: (formData.get("contract_number") as string)?.trim() || null,
@@ -91,6 +108,13 @@ export async function updateContract(
       .eq("id", contractId);
     if (error) throw new Error(error.message);
 
+    // Re-sync contract_gates: delete all existing, then insert updated set
+    await supabase.from("contract_gates").delete().eq("contract_id", contractId);
+    const { error: cgErr } = await supabase.from("contract_gates").insert(
+      gateIds.map((gateId) => ({ contract_id: contractId, gate_id: gateId }))
+    );
+    if (cgErr) throw new Error(cgErr.message);
+
     revalidateProject(projectId, contractId);
     return {};
   } catch (err) {
@@ -104,12 +128,14 @@ export async function updateContract(
 export async function createChangeOrder(
   contractId: string,
   projectId: string,
-  gateId: string,
   costCategoryId: string,
   formData: FormData
 ): Promise<{ error?: string }> {
   try {
     const { userId, supabase } = await requirePM();
+
+    const gateId = formData.get("gate_id") as string;
+    if (!gateId) throw new Error("A gate must be selected for this change order");
 
     const payload = {
       contract_id: contractId,

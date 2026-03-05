@@ -32,7 +32,7 @@ export default async function ProjectPage({ params }: Props) {
       .order("sequence_number"),
     supabase
       .from("contracts")
-      .select("id, vendor_name, contract_number, description, original_value, approved_co_amount, revised_value, status, gate_id, cost_category_id, gates(name, sequence_number), cost_categories(name, code)")
+      .select("id, vendor_name, contract_number, description, original_value, approved_co_amount, revised_value, status, gate_id, cost_category_id, contract_gates(gate:gates(id,name,sequence_number)), cost_categories(name, code)")
       .eq("project_id", id)
       .order("created_at"),
     supabase
@@ -61,8 +61,8 @@ export default async function ProjectPage({ params }: Props) {
   const contractsWithNames = (contracts ?? []).map((c: {
     id: string; vendor_name: string; contract_number: string | null;
     description: string; original_value: number; approved_co_amount: number;
-    revised_value: number; status: string; gate_id: string; cost_category_id: string;
-    gates: { name: string; sequence_number: number } | null;
+    revised_value: number; status: string; gate_id: string | null; cost_category_id: string;
+    contract_gates: { gate: { id: string; name: string; sequence_number: number } | null }[];
     cost_categories: { name: string; code: string } | null;
   }) => ({
     id: c.id,
@@ -75,7 +75,11 @@ export default async function ProjectPage({ params }: Props) {
     status: c.status,
     gate_id: c.gate_id,
     cost_category_id: c.cost_category_id,
-    gate_name: c.gates ? `${c.gates.sequence_number}. ${c.gates.name}` : undefined,
+    contract_gates: c.contract_gates,
+    gate_names: (c.contract_gates ?? [])
+      .map((cg) => cg.gate ? `${cg.gate.sequence_number}. ${cg.gate.name}` : null)
+      .filter(Boolean)
+      .join(", ") || undefined,
     category_name: c.cost_categories ? `${c.cost_categories.code} — ${c.cost_categories.name}` : undefined,
   }));
 

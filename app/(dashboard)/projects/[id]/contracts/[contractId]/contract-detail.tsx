@@ -26,9 +26,10 @@ interface Contract {
   status: string;
   teams_url: string | null;
   notes: string | null;
-  gate_id: string;
+  gate_id: string | null;
   cost_category_id: string;
-  gate: { id: string; name: string; sequence_number: number } | null;
+  // junction table — all gates this contract spans
+  contract_gates: { gate: { id: string; name: string; sequence_number: number } | null }[];
   category: { id: string; name: string; code: string } | null;
 }
 
@@ -117,7 +118,17 @@ export function ContractDetail({
       {/* Info cards */}
       {!editing && (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <InfoCard label="Gate" value={contract.gate ? `${contract.gate.sequence_number}. ${contract.gate.name}` : "—"} />
+          <InfoCard
+            label="Gates"
+            value={
+              contract.contract_gates.length > 0
+                ? contract.contract_gates
+                    .map((cg) => cg.gate ? `${cg.gate.sequence_number}. ${cg.gate.name}` : null)
+                    .filter(Boolean)
+                    .join(", ")
+                : "—"
+            }
+          />
           <InfoCard label="Cost Category" value={contract.category ? `${contract.category.code} — ${contract.category.name}` : "—"} />
           <InfoCard label="Original Value" value={fmtCurrency(contract.original_value)} mono />
           <InfoCard label="Revised Value" value={fmtCurrency(contract.revised_value)} mono />
@@ -165,7 +176,9 @@ export function ContractDetail({
             <AddCOForm
               contractId={contract.id}
               projectId={projectId}
-              gateId={contract.gate_id}
+              contractGates={contract.contract_gates
+                .map((cg) => cg.gate)
+                .filter((g): g is Gate => g !== null)}
               costCategoryId={contract.cost_category_id}
               nextCoNumber={`CO-${String(changeOrders.length + 1).padStart(3, "0")}`}
               onDone={() => setShowCoForm(false)}
@@ -303,11 +316,11 @@ function CORow({ co, contractId, projectId }: { co: ChangeOrder; contractId: str
 // ── Add CO form ───────────────────────────────────────────────
 
 function AddCOForm({
-  contractId, projectId, gateId, costCategoryId, nextCoNumber, onDone,
+  contractId, projectId, contractGates, costCategoryId, nextCoNumber, onDone,
 }: {
   contractId: string;
   projectId: string;
-  gateId: string;
+  contractGates: Gate[];
   costCategoryId: string;
   nextCoNumber: string;
   onDone: () => void;
@@ -321,7 +334,7 @@ function AddCOForm({
     const fd = new FormData(e.currentTarget);
     startTransition(async () => {
       try {
-        const result = await createChangeOrder(contractId, projectId, gateId, costCategoryId, fd);
+        const result = await createChangeOrder(contractId, projectId, costCategoryId, fd);
         if (result?.error) { setError(result.error); return; }
         onDone();
       } catch (err: unknown) {
@@ -333,6 +346,27 @@ function AddCOForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">New Change Order</p>
+      {/* Gate field — hidden if only one gate, picker if multiple */}
+      {contractGates.length === 1 ? (
+        <input type="hidden" name="gate_id" value={contractGates[0].id} />
+      ) : (
+        <div className="space-y-1">
+          <label className="text-xs font-medium" htmlFor="co-gate">
+            Gate <span className="text-destructive">*</span>
+          </label>
+          <select
+            id="co-gate"
+            name="gate_id"
+            required
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          >
+            <option value="">— Select gate —</option>
+            {contractGates.map((g) => (
+              <option key={g.id} value={g.id}>{g.sequence_number}. {g.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="grid grid-cols-4 gap-3">
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="co-num">
@@ -505,20 +539,24 @@ function EditContractForm({
       </div>
       <div className="grid grid-cols-4 gap-3">
         <div className="space-y-1">
-          <label className="text-xs font-medium" htmlFor="ec-gate">
-            Gate <span className="text-destructive">*</span>
-          </label>
-          <select
-            id="ec-gate"
-            name="gate_id"
-            required
-            defaultValue={contract.gate_id}
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          >
+          <p className="text-xs font-medium">
+            Gates <span className="text-destructive">*</span>
+          </p>
+          {/* Pre-check gates from the contract_gates junction */}
+          <div className="max-h-28 overflow-y-auto rounded border border-input bg-background p-1.5 space-y-0.5">
             {gates.map((g) => (
-              <option key={g.id} value={g.id}>{g.sequence_number}. {g.name}</option>
+              <label key={g.id} className="flex items-center gap-2 px-1.5 py-1 rounded text-xs cursor-pointer hover:bg-accent/50 select-none">
+                <input
+                  type="checkbox"
+                  name="gate_ids"
+                  value={g.id}
+                  defaultChecked={contract.contract_gates.some((cg) => cg.gate?.id === g.id)}
+                  className="rounded"
+                />
+                {g.sequence_number}. {g.name}
+              </label>
             ))}
-          </select>
+          </div>
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="ec-cat">
