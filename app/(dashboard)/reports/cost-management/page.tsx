@@ -6,11 +6,25 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
+import { ExportButtons } from "./export-buttons";
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
+function localDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function today(): string {
-  return new Date().toISOString().split("T")[0];
+  return localDateStr(new Date());
+}
+
+/** AppFolio intraday transactions (occurred_on = today) lack project_cost_category.
+ *  Cap the bill_date filter at yesterday so stale or pending records never appear
+ *  in the report, regardless of what asOf date the user selected. */
+function appfolioDateCap(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return localDateStr(d);
 }
 
 function usd(n: number): string {
@@ -258,12 +272,16 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
       }
     }
 
-    // Fetch transactions — include rows where bill_date is null (undated)
+    // Fetch transactions — include rows where bill_date is null (undated).
+    // Cap at yesterday: AppFolio intraday transactions (occurred_on = today) are
+    // not yet fully posted and lack project_cost_category. Using min(asOf, yesterday)
+    // ensures we never surface them regardless of the user-selected report date.
+    const txDateCap = asOf < appfolioDateCap() ? asOf : appfolioDateCap();
     const { data: rawTx } = await supabase
       .from("appfolio_transactions")
       .select("cost_category_code, cost_category_name, vendor_name, invoice_amount")
       .eq("appfolio_property_id", project.appfolio_property_id)
-      .or(`bill_date.lte.${asOf},bill_date.is.null`);
+      .or(`bill_date.lte.${txDateCap},bill_date.is.null`);
 
     for (const tx of (rawTx ?? []) as {
       cost_category_code: string | null;
@@ -384,17 +402,26 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         />
 
         {/* Report header */}
-        <div className="mb-4">
-          <h2 className="text-xl font-bold tracking-tight">Project Cost Management Report</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {project.code} — {project.name} &nbsp;·&nbsp; All Gates &nbsp;·&nbsp;{" "}
-            As of{" "}
-            {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </p>
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight">Project Cost Management Report</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {project.code} — {project.name} &nbsp;·&nbsp; All Gates &nbsp;·&nbsp;{" "}
+              As of{" "}
+              {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
+          </div>
+          <ExportButtons
+            rows={rows}
+            sectionOrder={sectionOrder}
+            projectName={project.name}
+            projectCode={project.code}
+            asOf={asOf}
+          />
         </div>
 
         {!project.appfolio_property_id && (

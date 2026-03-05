@@ -78,6 +78,29 @@ export async function seedDefaultCategories() {
 export async function deleteCategory(id: string) {
   const { supabase } = await requireAdmin();
 
+  // Check for FK references before attempting delete so we can show a
+  // meaningful message instead of a raw Postgres constraint error.
+  const [{ count: budgetCount }, { count: contractCount }] = await Promise.all([
+    supabase
+      .from("gate_budgets")
+      .select("id", { count: "exact", head: true })
+      .eq("cost_category_id", id),
+    supabase
+      .from("contracts")
+      .select("id", { count: "exact", head: true })
+      .eq("cost_category_id", id),
+  ]);
+
+  const uses: string[] = [];
+  if (budgetCount) uses.push(`${budgetCount} gate budget${budgetCount > 1 ? "s" : ""}`);
+  if (contractCount) uses.push(`${contractCount} contract${contractCount > 1 ? "s" : ""}`);
+
+  if (uses.length > 0) {
+    throw new Error(
+      `Cannot delete: this category is referenced by ${uses.join(" and ")}. Deactivate it instead.`
+    );
+  }
+
   const { error } = await supabase.from("cost_categories").delete().eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/cost-categories");
