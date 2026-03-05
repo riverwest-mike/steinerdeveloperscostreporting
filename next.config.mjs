@@ -7,6 +7,16 @@ const nextConfig = {
       dynamic: 0,
     },
   },
+  images: {
+    remotePatterns: [
+      {
+        // Supabase storage — project cover images
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
