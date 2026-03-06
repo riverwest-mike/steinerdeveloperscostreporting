@@ -3,8 +3,7 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { Sidebar } from "@/components/layout/sidebar";
-import { QuickStartTrigger } from "@/components/quickstart/quickstart-trigger";
+import { DashboardShell } from "@/components/layout/dashboard-shell";
 
 export default async function DashboardLayout({
   children,
@@ -42,12 +41,8 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
-      <Sidebar role={role} />
-      <div className="flex flex-1 flex-col overflow-hidden print:block print:overflow-visible">
-        <main className="flex-1 overflow-y-auto print:overflow-visible">{children}</main>
-      </div>
-      <QuickStartTrigger />
-    </div>
+    <DashboardShell role={role}>
+      {children}
+    </DashboardShell>
   );
 }

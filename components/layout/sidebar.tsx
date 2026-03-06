@@ -35,9 +35,10 @@ const adminItems = [
 
 interface SidebarProps {
   role: string;
+  onClose?: () => void;
 }
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role, onClose }: SidebarProps) {
   const pathname = usePathname();
   const isAdmin = role === "admin";
 
@@ -91,12 +92,12 @@ export function Sidebar({ role }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-3 space-y-0.5">
 
-        <Link href="/dashboard" className={navItem(pathname === "/dashboard")}>
+        <Link href="/dashboard" className={navItem(pathname === "/dashboard")} onClick={onClose}>
           <LayoutDashboard className="h-4 w-4 shrink-0" />
           Dashboard
         </Link>
 
-        <Link href="/projects" className={navItem(pathname.startsWith("/projects"))}>
+        <Link href="/projects" className={navItem(pathname.startsWith("/projects"))} onClick={onClose}>
           <FolderKanban className="h-4 w-4 shrink-0" />
           Projects
         </Link>
@@ -107,7 +108,7 @@ export function Sidebar({ role }: SidebarProps) {
         <div>
           <Link
             href="/reports"
-            onClick={() => setReportsOpen(true)}
+            onClick={() => { setReportsOpen(true); onClose?.(); }}
             className={navItem(reportsActive)}
           >
             <BarChart3 className="h-4 w-4 shrink-0" />
@@ -128,6 +129,7 @@ export function Sidebar({ role }: SidebarProps) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onClose}
                   className={subItem(pathname.startsWith(item.href))}
                 >
                   <FileBarChart2 className="h-3 w-3 shrink-0 opacity-60" />
@@ -145,7 +147,7 @@ export function Sidebar({ role }: SidebarProps) {
             <div>
               <Link
                 href="/admin"
-                onClick={() => setAdminOpen(true)}
+                onClick={() => { setAdminOpen(true); onClose?.(); }}
                 className={navItem(adminActive)}
               >
                 <ShieldCheck className="h-4 w-4 shrink-0" />
@@ -166,6 +168,7 @@ export function Sidebar({ role }: SidebarProps) {
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={onClose}
                       className={subItem(pathname.startsWith(item.href))}
                     >
                       <item.icon className="h-3 w-3 shrink-0 opacity-60" />
