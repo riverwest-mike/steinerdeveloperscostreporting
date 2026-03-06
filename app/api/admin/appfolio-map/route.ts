@@ -9,7 +9,17 @@
  */
 
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
+
+async function requireAdmin(): Promise<{ userId: string } | NextResponse> {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const supabase = createAdminClient();
+  const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
+  if (user?.role !== "admin") return NextResponse.json({ error: "Admin role required" }, { status: 403 });
+  return { userId };
+}
 
 // ── AppFolio properties (fetched once via /api/appfolio/properties) ──────────
 const APPFOLIO_PROPERTIES = [
@@ -119,6 +129,9 @@ function bestMatch(projectName: string) {
 
 // ── GET ──────────────────────────────────────────────────────────────────────
 export async function GET() {
+  const check = await requireAdmin();
+  if (check instanceof NextResponse) return check;
+
   const supabase = createAdminClient();
   const { data: projects, error } = await supabase
     .from("projects")
@@ -145,6 +158,9 @@ export async function GET() {
 
 // ── POST ─────────────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
+  const check = await requireAdmin();
+  if (check instanceof NextResponse) return check;
+
   const body = await req.json();
   const updates: { id: string; appfolio_property_id: string | null }[] = body.updates ?? [];
 

@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { insertAuditLog } from "@/lib/audit";
+import { runAppfolioSync } from "@/lib/appfolio-sync-core";
 
 const IMAGE_BUCKET = "project-images";
 
@@ -93,6 +94,21 @@ export async function createProject(
       label: payload.name,
       payload: { name: payload.name, code: payload.code },
     });
+
+    // If an AppFolio property is mapped, backfill transaction history immediately
+    if (payload.appfolio_property_id && newProject) {
+      try {
+        await runAppfolioSync({
+          syncType: "manual",
+          triggeredBy: userId,
+          propertyId: payload.appfolio_property_id,
+        });
+      } catch (syncErr) {
+        // Project was created successfully — log the sync failure but don't surface it
+        console.error("[createProject] AppFolio sync failed (project created):", syncErr);
+      }
+    }
+
     revalidatePath("/projects");
     return {};
   } catch (err) {
