@@ -87,7 +87,7 @@ export function GatesSection({ projectId, gates }: GatesSectionProps) {
       )}
 
       {gates.length > 0 ? (
-        <div className="max-h-72 overflow-y-auto">
+        <div className="max-h-72 overflow-x-auto overflow-y-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/30 sticky top-0">

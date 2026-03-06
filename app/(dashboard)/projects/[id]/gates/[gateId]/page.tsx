@@ -109,7 +109,7 @@ export default async function GatePage({ params }: Props) {
   return (
     <div>
       <Header title={`${project.name} — ${gate.name}`} helpContent={HELP.gateDetail} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <nav className="text-sm text-muted-foreground mb-4 flex items-center gap-1.5">
           <Link href="/projects" className="hover:text-foreground transition-colors">
             Projects

@@ -62,7 +62,7 @@ export default async function ContractPage({ params }: Props) {
   return (
     <div>
       <Header title={`${contract.vendor_name} — ${project.name}`} helpContent={HELP.contractDetail} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <nav className="text-sm text-muted-foreground mb-4 flex items-center gap-1.5 flex-wrap">
           <Link href="/projects" className="hover:text-foreground transition-colors">Projects</Link>
           <span>/</span>

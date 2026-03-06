@@ -89,7 +89,7 @@ export function RecentBills({ bills }: { bills: BillRow[] }) {
         </div>
       ) : (
         <div className="rounded-lg border overflow-hidden">
-          <div className="overflow-y-auto max-h-72">
+          <div className="overflow-auto max-h-72">
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-muted/90 backdrop-blur-sm">
                 <tr className="border-b">

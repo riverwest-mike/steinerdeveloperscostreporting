@@ -152,7 +152,7 @@ export default async function AuditLogPage({ searchParams }: Props) {
   return (
     <div>
       <Header title="Audit Log" helpContent={HELP.auditLog} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="mb-6">
           <h2 className="text-2xl font-bold tracking-tight">Audit Log</h2>
           <p className="text-muted-foreground mt-1 text-sm">

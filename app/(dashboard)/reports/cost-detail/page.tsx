@@ -127,7 +127,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
     return (
       <div>
         <Header title="Cost Detail Report" helpContent={HELP.costDetail} />
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <ReportControls
             projects={projects}
             categories={categories}
@@ -228,7 +228,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   return (
     <div>
       <Header title="Cost Detail Report" helpContent={HELP.costDetail} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="print:hidden">
           <ReportControls
             projects={projects}
@@ -240,7 +240,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
         </div>
 
         {/* Report header */}
-        <div className="mb-4 flex items-start justify-between gap-4">
+        <div className="mb-4 flex flex-col sm:flex-row items-start justify-between gap-3">
           <div className="print-header">
             <h2 className="text-xl font-bold tracking-tight">Cost Detail Report</h2>
             <p className="text-sm text-muted-foreground mt-0.5">

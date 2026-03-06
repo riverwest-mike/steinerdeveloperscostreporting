@@ -68,7 +68,7 @@ export default async function AdminPage() {
   return (
     <div>
       <Header title="Admin" helpContent={HELP.adminIndex} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="mb-8">
           <h2 className="text-2xl font-bold tracking-tight">Admin Panel</h2>
           <p className="text-muted-foreground mt-1 text-sm">

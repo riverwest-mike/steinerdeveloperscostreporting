@@ -73,7 +73,7 @@ export default async function DashboardPage() {
     return (
       <div>
         <Header title="Dashboard" helpContent={HELP.dashboard} />
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">
               <TimeGreeting name={user?.full_name} />
@@ -230,7 +230,7 @@ export default async function DashboardPage() {
   return (
     <div>
       <Header title="Dashboard" helpContent={HELP.dashboard} />
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
             <TimeGreeting name={user?.full_name} />

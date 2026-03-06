@@ -56,7 +56,7 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
         </div>
       )}
 
-      <div className="rounded-lg border max-h-[75vh] overflow-y-auto">
+      <div className="rounded-lg border max-h-[75vh] overflow-x-auto overflow-y-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10">
             <tr className="border-b bg-muted/50">

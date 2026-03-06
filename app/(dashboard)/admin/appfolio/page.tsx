@@ -74,7 +74,7 @@ export default async function AppFolioSyncPage() {
   return (
     <div>
       <Header title="AppFolio Sync" helpContent={HELP.appfolio} />
-      <div className="p-6 space-y-8">
+      <div className="p-4 sm:p-6 space-y-8">
         <div>
           <nav className="text-sm text-muted-foreground mb-4">
             <Link href="/admin" className="hover:text-foreground transition-colors">Admin</Link>

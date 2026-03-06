@@ -83,7 +83,7 @@ export default function ReportingPage() {
   return (
     <div>
       <Header title="Reporting" helpContent={HELP.reports} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <h2 className="text-2xl font-bold tracking-tight mb-1">Reporting</h2>
         <p className="text-muted-foreground mb-8">Select a report to run.</p>
 

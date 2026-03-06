@@ -131,7 +131,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     return (
       <div>
         <Header title="Project Cost Management Report" helpContent={HELP.pcmReport} />
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <ReportControls
             projects={projects}
             currentProjectIds={[]}
@@ -448,7 +448,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   return (
     <div>
       <Header title="Project Cost Management Report" helpContent={HELP.pcmReport} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
 
         <div className="print:hidden">
           <ReportControls
@@ -466,7 +466,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
             ? `${selectedProjects[0].code} — ${selectedProjects[0].name}`
             : selectedProjects.map((p) => p.code).join(", ") + ` (${selectedProjects.length} projects)`;
           return (
-            <div className="mb-4 flex items-start justify-between gap-4">
+            <div className="mb-4 flex flex-col sm:flex-row items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold tracking-tight">Project Cost Management Report</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
