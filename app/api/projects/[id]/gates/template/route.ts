@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
+import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+
   const { id: projectId } = await params;
   const supabase = createAdminClient();
 
