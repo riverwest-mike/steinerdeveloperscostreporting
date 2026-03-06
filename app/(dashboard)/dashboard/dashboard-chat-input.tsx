@@ -17,9 +17,9 @@ export function DashboardChatInput() {
   }
 
   const suggestions = [
-    "What reports are available?",
-    "How do I read the PCM report?",
-    "What are pending change orders?",
+    "Summarize my active projects",
+    "What are the pending change orders?",
+    "Show unpaid bills this month",
   ];
 
   return (
