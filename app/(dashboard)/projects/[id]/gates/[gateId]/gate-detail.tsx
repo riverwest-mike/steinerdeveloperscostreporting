@@ -10,7 +10,7 @@ import {
   voidChangeOrder,
   deleteChangeOrder,
   updateChangeOrder,
-} from "../contracts/actions";
+} from "../../contracts/actions";
 
 interface Gate {
   id: string;
