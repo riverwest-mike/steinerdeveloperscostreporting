@@ -10,11 +10,8 @@ import {
   ClipboardCheck,
   Scale,
   BookOpen,
-  Package,
 } from "lucide-react";
 import { HELP } from "@/lib/help";
-import { ReportingPackageButton } from "@/components/reporting-package-button";
-import { createAdminClient } from "@/lib/supabase/server";
 
 const AVAILABLE_REPORTS = [
   {
@@ -82,17 +79,7 @@ const AVAILABLE_REPORTS = [
   },
 ];
 
-export default async function ReportingPage() {
-  const supabase = createAdminClient();
-  const { data: projects } = await supabase
-    .from("projects")
-    .select("id, name, code")
-    .order("name");
-
-  // Split into two columns: first 4 in col 1, Reporting Package + remaining in col 2
-  const col1 = AVAILABLE_REPORTS.slice(0, 4);
-  const col2 = AVAILABLE_REPORTS.slice(4);
-
+export default function ReportingPage() {
   return (
     <div>
       <Header title="Reporting" helpContent={HELP.reports} />
@@ -101,66 +88,23 @@ export default async function ReportingPage() {
         <p className="text-muted-foreground mb-8">Select a report to run.</p>
 
         <div className="grid gap-4 sm:grid-cols-2 max-w-4xl">
-          {/* Column 1 */}
-          <div className="flex flex-col gap-4">
-            {col1.map((report) => (
-              <Link
-                key={report.href}
-                href={report.href}
-                className="group flex items-start gap-4 rounded-lg border p-5 hover:bg-accent hover:border-primary/30 transition-colors"
-              >
-                <div className={`mt-0.5 rounded-md border p-2 transition-colors shrink-0 ${report.iconBg}`}>
-                  <report.Icon className={`h-5 w-5 ${report.iconColor} transition-colors`} />
-                </div>
-                <div>
-                  <p className="font-semibold group-hover:text-primary transition-colors">
-                    {report.title}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-0.5">{report.description}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          {/* Column 2 — Reporting Package first, then remaining reports */}
-          <div className="flex flex-col gap-4">
-            {/* Reporting Package — launches a modal */}
-            <div className="rounded-lg border p-5 flex items-start gap-4 hover:bg-accent hover:border-primary/30 transition-colors group">
-              <div className="mt-0.5 rounded-md border p-2 transition-colors shrink-0 bg-rose-50 group-hover:bg-rose-100">
-                <Package className="h-5 w-5 text-rose-600 transition-colors" />
+          {AVAILABLE_REPORTS.map((report) => (
+            <Link
+              key={report.href}
+              href={report.href}
+              className="group flex items-start gap-4 rounded-lg border p-5 hover:bg-accent hover:border-primary/30 transition-colors h-full"
+            >
+              <div className={`mt-0.5 rounded-md border p-2 transition-colors shrink-0 ${report.iconBg}`}>
+                <report.Icon className={`h-5 w-5 ${report.iconColor} transition-colors`} />
               </div>
-              <div className="min-w-0">
+              <div>
                 <p className="font-semibold group-hover:text-primary transition-colors">
-                  Reporting Package
+                  {report.title}
                 </p>
-                <p className="text-sm text-muted-foreground mt-0.5 mb-3">
-                  Generate the Project Cost Management Report and Balance Sheet together — export as a
-                  single Excel workbook (two tabs) or open both as PDFs.
-                </p>
-                <ReportingPackageButton
-                  projects={(projects ?? []) as { id: string; name: string; code: string }[]}
-                />
+                <p className="text-sm text-muted-foreground mt-0.5">{report.description}</p>
               </div>
-            </div>
-
-            {col2.map((report) => (
-              <Link
-                key={report.href}
-                href={report.href}
-                className="group flex items-start gap-4 rounded-lg border p-5 hover:bg-accent hover:border-primary/30 transition-colors"
-              >
-                <div className={`mt-0.5 rounded-md border p-2 transition-colors shrink-0 ${report.iconBg}`}>
-                  <report.Icon className={`h-5 w-5 ${report.iconColor} transition-colors`} />
-                </div>
-                <div>
-                  <p className="font-semibold group-hover:text-primary transition-colors">
-                    {report.title}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-0.5">{report.description}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
+            </Link>
+          ))}
         </div>
       </div>
     </div>

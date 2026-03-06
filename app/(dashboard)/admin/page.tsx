@@ -42,7 +42,7 @@ const ADMIN_SECTIONS = [
     bg: "bg-orange-50",
   },
   {
-    href: "/admin/users#budget-imports",
+    href: "/admin/audit-log",
     title: "Budget Import History",
     description: "View the log of Excel gate budget uploads, including who imported each file and how many rows were processed.",
     icon: Upload,

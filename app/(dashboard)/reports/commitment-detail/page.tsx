@@ -453,9 +453,12 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
           <>
             <style>{`
               @media print {
-                @page { size: landscape; margin: 0; }
-                table { font-size: 7pt !important; min-width: 0 !important; width: 100% !important; }
-                th, td { padding: 1pt 3pt !important; }
+                @page { size: landscape; margin: 10mm 8mm; }
+                .overflow-x-auto { overflow: visible !important; }
+                table { font-size: 7pt !important; min-width: 0 !important; width: 100% !important; table-layout: fixed; }
+                th, td { padding: 1pt 3pt !important; white-space: normal !important; word-break: break-word; overflow: hidden; }
+                th[data-col="description"], td[data-col="description"] { width: 20%; }
+                th[data-col="vendor"], td[data-col="vendor"] { width: 18%; }
               }
             `}</style>
             <div className="overflow-x-auto rounded-lg border">
