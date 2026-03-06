@@ -101,6 +101,7 @@ const sections = [
                 { item: "  › Balance Sheet", desc: "AppFolio balance sheet data per project" },
                 { item: "Admin › (click to expand)", desc: "Users, cost categories, AppFolio settings, audit log — admins only" },
                 { item: "Quick Start Guide", desc: "Re-opens this guide at any time (bottom of sidebar)" },
+                { item: "AI Assistant (Dashboard)", desc: "Chat bar below the greeting — ask questions about projects, costs, and reports. Opens a centered panel. On other pages, use the chat bubble (bottom-right)." },
               ].map((row) => (
                 <tr key={row.item} className="hover:bg-slate-50">
                   <td className="px-4 py-2.5 font-medium text-slate-800 whitespace-nowrap text-xs">{row.item}</td>
@@ -315,6 +316,7 @@ const sections = [
             { icon: "🗂️", title: "Status Tabs", desc: "The Projects list has status tabs (All / Active / On Hold / Completed / Archived) with per-status counts so you can quickly find what you need." },
             { icon: "⚠️", title: "Unmatched Costs", desc: "AppFolio transactions that don't match a cost code appear in an 'Unmatched Costs' section. Fix by ensuring AppFolio account codes match cost category codes in Admin › Cost Categories." },
             { icon: "📋", title: "Budget Import History", desc: "Every Excel gate budget upload is logged in Admin › Users & Access. See who uploaded it, which gate it targeted, the filename, and the row count." },
+            { icon: "🤖", title: "AI Assistant", desc: "Type a question in the chat bar on the Dashboard to get instant answers about your projects, costs, reports, and how the app works. On any other page, click the chat bubble in the bottom-right corner." },
           ].map((tip) => (
             <div key={tip.title} className="rounded-lg border p-4">
               <div className="flex items-start gap-3">

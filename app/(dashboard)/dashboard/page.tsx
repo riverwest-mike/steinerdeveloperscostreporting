@@ -8,6 +8,7 @@ import { ProjectGrid, type ProjectCard } from "./project-grid";
 import { RecentBills, type BillRow } from "./recent-bills";
 import { PendingCOs, type PendingCO } from "./pending-cos";
 import { HELP } from "@/lib/help";
+import { DashboardChatInput } from "./dashboard-chat-input";
 
 interface RawProject {
   id: string;
@@ -237,6 +238,9 @@ export default async function DashboardPage() {
           <p className="text-muted-foreground mt-1">
             Here&apos;s an overview of your construction projects.
           </p>
+          <div className="mt-4">
+            <DashboardChatInput />
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
