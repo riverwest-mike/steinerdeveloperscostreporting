@@ -26,7 +26,8 @@ export function ReportRestorer() {
     try {
       const raw = localStorage.getItem("vendor_detail_last_filter");
       if (!raw) return;
-      const { projectId, vendorName, categoryCode, asOf } = JSON.parse(raw) as {
+      const { projectIds, projectId, vendorName, categoryCode, asOf } = JSON.parse(raw) as {
+        projectIds?: string[];
         projectId?: string;
         vendorName?: string;
         categoryCode?: string;
@@ -34,7 +35,8 @@ export function ReportRestorer() {
       };
 
       const params = new URLSearchParams();
-      if (projectId) params.set("projectId", projectId);
+      const ids = projectIds ?? (projectId ? [projectId] : []);
+      if (ids.length > 0) params.set("projectIds", ids.join(","));
       if (vendorName) params.set("vendorName", vendorName);
       if (categoryCode) params.set("categoryCode", categoryCode);
       if (asOf) params.set("asOf", asOf);

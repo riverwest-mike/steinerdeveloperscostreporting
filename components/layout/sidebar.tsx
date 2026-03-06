@@ -113,7 +113,7 @@ export function Sidebar({ role, onClose }: SidebarProps) {
             className={navItem(reportsActive)}
           >
             <BarChart3 className="h-4 w-4 shrink-0" />
-            <span className="flex-1">Reports</span>
+            <span className="flex-1">Reporting</span>
             <ChevronDown
               onClick={(e) => { e.preventDefault(); setReportsOpen((o) => !o); }}
               className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", reportsOpen && "rotate-180")}

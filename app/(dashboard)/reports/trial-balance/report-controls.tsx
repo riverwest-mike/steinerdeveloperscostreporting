@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ProjectMultiSelect } from "@/components/project-multi-select";
 
 interface Project {
   id: string;
@@ -11,79 +12,78 @@ interface Project {
 
 interface Props {
   projects: Project[];
-  currentProjectId: string | null;
+  currentProjectIds: string[];
   currentDateFrom: string | null;
   currentDateTo: string | null;
 }
 
 export function ReportControls({
   projects,
-  currentProjectId,
+  currentProjectIds,
   currentDateFrom,
   currentDateTo,
 }: Props) {
   const router = useRouter();
-  const [projectId, setProjectId] = useState(currentProjectId ?? "");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(currentProjectIds));
   const [dateFrom, setDateFrom] = useState(currentDateFrom ?? "");
   const [dateTo, setDateTo] = useState(currentDateTo ?? "");
 
   function run() {
     const params = new URLSearchParams();
-    if (projectId) params.set("projectId", projectId);
+    const ids = [...selectedIds].sort();
+    if (ids.length > 0) params.set("projectIds", ids.join(","));
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
-    // Always set a sentinel so we know the user ran the report
-    if (!projectId && !dateFrom && !dateTo) params.set("run", "1");
+    if (ids.length === 0 && !dateFrom && !dateTo) params.set("run", "1");
     router.push(`/reports/trial-balance?${params.toString()}`);
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-3 mb-4 rounded-lg border bg-muted/30 p-4">
-      {/* Project */}
-      <div className="flex flex-col gap-1 min-w-[200px]">
-        <label className="text-xs font-medium text-muted-foreground">Project</label>
-        <select
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
-          className="rounded border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-        >
-          <option value="">All Projects</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.code} — {p.name}
-            </option>
-          ))}
-        </select>
+    <div className="rounded-lg border bg-card mb-6">
+      <div className="px-5 py-3 border-b bg-muted/40">
+        <span className="text-sm font-semibold">Report Filters</span>
       </div>
+      <div className="px-5 py-4 flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Projects</label>
+          <ProjectMultiSelect
+            projects={projects}
+            selectedIds={selectedIds}
+            onChange={setSelectedIds}
+          />
+          <span className="text-[10px] text-muted-foreground">None selected = all projects</span>
+        </div>
 
-      {/* Date From */}
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-muted-foreground">From</label>
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className="rounded border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-        />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide invisible select-none">Run</span>
+          <button
+            onClick={run}
+            className="h-9 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Run Report
+          </button>
+        </div>
       </div>
-
-      {/* Date To */}
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-muted-foreground">To</label>
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          className="rounded border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-        />
-      </div>
-
-      <button
-        onClick={run}
-        className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-      >
-        Run Report
-      </button>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ProjectMultiSelect } from "@/components/project-multi-select";
 
 interface Project {
   id: string;
@@ -19,7 +20,7 @@ interface Category {
 interface ReportControlsProps {
   projects: Project[];
   categories: Category[];
-  currentProjectId: string | null;
+  currentProjectIds: string[];
   currentAsOf: string;
   currentCategoryCode: string | null;
 }
@@ -27,39 +28,38 @@ interface ReportControlsProps {
 export function ReportControls({
   projects,
   categories,
-  currentProjectId,
+  currentProjectIds,
   currentAsOf,
   currentCategoryCode,
 }: ReportControlsProps) {
   const router = useRouter();
-  const [projectId, setProjectId] = useState(currentProjectId ?? "");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(currentProjectIds));
   const [asOf, setAsOf] = useState(currentAsOf);
   const [categoryCode, setCategoryCode] = useState(currentCategoryCode ?? "");
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [syncMsg, setSyncMsg] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const selectedProject = projects.find((p) => p.id === projectId) ?? null;
-
-  function buildUrl(pid: string, date: string, code: string) {
+  function buildUrl(ids: Set<string>, date: string, code: string) {
     const params = new URLSearchParams();
-    if (pid) params.set("projectId", pid);
+    const sorted = [...ids].sort();
+    if (sorted.length > 0) params.set("projectIds", sorted.join(","));
     if (date) params.set("asOf", date);
     if (code) params.set("categoryCode", code);
     return `/reports/cost-detail?${params.toString()}`;
   }
 
   function handleRun() {
-    if (!projectId) return;
+    if (selectedIds.size === 0) return;
 
     try {
-      localStorage.setItem("cost_detail_last_filter", JSON.stringify({ projectId, categoryCode, asOf }));
+      localStorage.setItem("cost_detail_last_filter", JSON.stringify({ projectIds: [...selectedIds], categoryCode, asOf }));
     } catch { /* ignore */ }
 
-    const propertyId = selectedProject?.appfolio_property_id ?? null;
+    const toSync = projects.filter((p) => selectedIds.has(p.id) && p.appfolio_property_id);
 
-    if (!propertyId) {
-      router.push(buildUrl(projectId, asOf, categoryCode));
+    if (toSync.length === 0) {
+      router.push(buildUrl(selectedIds, asOf, categoryCode));
       return;
     }
 
@@ -68,48 +68,42 @@ export function ReportControls({
 
     startTransition(async () => {
       try {
-        const res = await fetch("/api/appfolio/sync", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            propertyId,
-            fromDate: "2000-01-01",
-            toDate: asOf,
-          }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Sync failed");
+        const results = await Promise.all(
+          toSync.map((p) =>
+            fetch("/api/appfolio/sync", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ propertyId: p.appfolio_property_id, fromDate: "2000-01-01", toDate: asOf }),
+            }).then((r) => r.json())
+          )
+        );
+        const total = (results as { records_upserted?: number }[]).reduce(
+          (s, r) => s + (r.records_upserted ?? 0), 0
+        );
         setSyncStatus("done");
-        setSyncMsg(`Synced ${json.records_upserted ?? 0} records`);
+        setSyncMsg(`Synced ${total} records across ${toSync.length} project${toSync.length !== 1 ? "s" : ""}`);
       } catch (err) {
         setSyncStatus("error");
         setSyncMsg(err instanceof Error ? err.message : "Sync failed");
       }
-
-      router.push(buildUrl(projectId, asOf, categoryCode));
+      router.push(buildUrl(selectedIds, asOf, categoryCode));
+      router.refresh();
     });
   }
 
   return (
-    <div className="rounded-lg border bg-muted/30 px-5 py-4 mb-6">
-      <div className="flex flex-wrap items-end gap-6">
-        <div className="flex flex-col gap-1">
-          <label htmlFor="cd-project" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Project
-          </label>
-          <select
-            id="cd-project"
-            value={projectId}
-            onChange={(e) => { setProjectId(e.target.value); setSyncStatus("idle"); }}
-            className="h-9 min-w-[240px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            <option value="">— Select a Project —</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.code} — {p.name}
-              </option>
-            ))}
-          </select>
+    <div className="rounded-lg border bg-card mb-6">
+      <div className="px-5 py-3 border-b bg-muted/40">
+        <span className="text-sm font-semibold">Report Filters</span>
+      </div>
+      <div className="px-5 py-4 flex flex-wrap items-end gap-4">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Projects</label>
+          <ProjectMultiSelect
+            projects={projects}
+            selectedIds={selectedIds}
+            onChange={(ids) => { setSelectedIds(ids); setSyncStatus("idle"); }}
+          />
         </div>
 
         <div className="flex flex-col gap-1">
@@ -144,23 +138,25 @@ export function ReportControls({
           />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide invisible">&nbsp;</span>
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide invisible select-none">Run</span>
           <button
             onClick={handleRun}
-            disabled={!projectId || isPending || syncStatus === "syncing"}
-            className="h-9 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+            disabled={selectedIds.size === 0 || isPending || syncStatus === "syncing"}
+            className="h-9 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground disabled:opacity-50 hover:bg-primary/90 transition-colors"
           >
             {syncStatus === "syncing" ? "Syncing…" : "Run Report"}
           </button>
         </div>
-      </div>
 
-      {syncStatus === "error" && (
-        <p className="mt-2 text-xs text-destructive">{syncMsg}</p>
-      )}
-      {syncStatus === "done" && syncMsg && (
-        <p className="mt-2 text-xs text-muted-foreground">{syncMsg}</p>
+        {(syncStatus === "error" || (syncStatus === "done" && syncMsg)) && (
+          <p className={`text-xs self-end pb-1 ${syncStatus === "error" ? "text-destructive" : "text-muted-foreground"}`}>
+            {syncMsg}
+          </p>
+        )}
+      </div>
+      {selectedIds.size === 0 && (
+        <p className="px-5 pb-3 text-xs text-muted-foreground">Select at least one project to run the report.</p>
       )}
     </div>
   );

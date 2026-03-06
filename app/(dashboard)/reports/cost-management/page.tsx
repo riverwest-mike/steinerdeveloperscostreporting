@@ -592,6 +592,13 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
           </div>
         ) : (
           <>
+          <style>{`
+            @media print {
+              @page { size: landscape; margin: 10mm 8mm; }
+              #pcm-report table { font-size: 7pt !important; min-width: 0 !important; width: 100% !important; }
+              #pcm-report th, #pcm-report td { padding: 1pt 3pt !important; }
+            }
+          `}</style>
           <div id="pcm-report" className="overflow-x-auto rounded-lg border">
             <table className="w-full text-xs border-collapse">
               <colgroup>

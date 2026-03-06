@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, useRef, useTransition } from "react";
-import { Pencil, Check, X, StickyNote } from "lucide-react";
+import { Pencil, Check, X, StickyNote, Trash2 } from "lucide-react";
 import { upsertTransactionNote, deleteTransactionNote } from "@/app/actions/transaction-notes";
 
 interface Props {
   appfolioBillId: string;
   initialNote: string | null;
+  isAdmin?: boolean;
 }
 
-export function TransactionNoteCell({ appfolioBillId, initialNote }: Props) {
+export function TransactionNoteCell({ appfolioBillId, initialNote, isAdmin }: Props) {
   const [note, setNote] = useState(initialNote ?? "");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -27,6 +28,14 @@ export function TransactionNoteCell({ appfolioBillId, initialNote }: Props) {
   function cancel() {
     setEditing(false);
     setError(null);
+  }
+
+  function handleDelete() {
+    startTransition(async () => {
+      const res = await deleteTransactionNote(appfolioBillId);
+      if (res.error) { setError(res.error); return; }
+      setNote("");
+    });
   }
 
   function save() {
@@ -92,13 +101,26 @@ export function TransactionNoteCell({ appfolioBillId, initialNote }: Props) {
       ) : (
         <span className="text-[10px] text-muted-foreground/50 italic">—</span>
       )}
-      <button
-        onClick={openEdit}
-        title="Edit note"
-        className="ml-auto shrink-0 opacity-0 group-hover/note:opacity-100 print:hidden transition-opacity rounded p-0.5 hover:bg-accent"
-      >
-        <Pencil className="h-3 w-3 text-muted-foreground" />
-      </button>
+      {error && <p className="text-[10px] text-destructive">{error}</p>}
+      <div className="ml-auto shrink-0 flex gap-0.5 opacity-0 group-hover/note:opacity-100 print:hidden transition-opacity">
+        <button
+          onClick={openEdit}
+          title="Edit note"
+          className="rounded p-0.5 hover:bg-accent"
+        >
+          <Pencil className="h-3 w-3 text-muted-foreground" />
+        </button>
+        {isAdmin && note && (
+          <button
+            onClick={handleDelete}
+            disabled={isPending}
+            title="Delete note"
+            className="rounded p-0.5 hover:bg-red-50 disabled:opacity-50"
+          >
+            <Trash2 className="h-3 w-3 text-red-500" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }

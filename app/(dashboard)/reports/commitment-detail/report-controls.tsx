@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ProjectMultiSelect } from "@/components/project-multi-select";
 
 interface Project {
   id: string;
@@ -92,29 +93,15 @@ export function ReportControls({
 
         {/* Project multi-select */}
         <div className="flex flex-col gap-1">
-          <label htmlFor="cd-project" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Project
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Projects
           </label>
-          <select
-            id="cd-project"
-            multiple
-            size={Math.min(projects.length + 1, 5)}
-            value={Array.from(selectedProjectIds)}
-            onChange={(e) => {
-              const selected = new Set(
-                Array.from(e.target.selectedOptions).map((o) => o.value).filter(Boolean)
-              );
-              setSelectedProjectIds(selected);
-            }}
-            className="min-w-[220px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-          >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.code} — {p.name}
-              </option>
-            ))}
-          </select>
-          <span className="text-[10px] text-muted-foreground">Hold Ctrl/Cmd to select multiple. None = all projects.</span>
+          <ProjectMultiSelect
+            projects={projects}
+            selectedIds={selectedProjectIds}
+            onChange={setSelectedProjectIds}
+          />
+          <span className="text-[10px] text-muted-foreground">None selected = all projects.</span>
         </div>
 
         {/* Cost Category */}

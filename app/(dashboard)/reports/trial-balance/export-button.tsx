@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import * as XLSX from "xlsx";
 
 export interface TbRow {
@@ -79,12 +79,21 @@ export function ExportButton({ rows, projectLabel, dateLabel }: Props) {
   }
 
   return (
-    <button
-      onClick={handleExport}
-      className="inline-flex items-center gap-1.5 rounded border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-    >
-      <Download className="h-4 w-4" />
-      Export Excel
-    </button>
+    <div className="flex gap-2 print:hidden">
+      <button
+        onClick={handleExport}
+        className="inline-flex items-center gap-1.5 rounded border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+      >
+        <Download className="h-4 w-4" />
+        Excel
+      </button>
+      <button
+        onClick={() => window.print()}
+        className="inline-flex items-center gap-1.5 rounded border border-input bg-background px-3 py-1.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+      >
+        <Printer className="h-4 w-4" />
+        Print / PDF
+      </button>
+    </div>
   );
 }

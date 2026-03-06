@@ -34,7 +34,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Contracts section", desc: "All contracts for this project. Click any row to open the contract and view its Schedule of Values and change orders." },
       { label: "Add Contract", desc: "Create a new contract: vendor, value, gate assignment, and cost category." },
     ],
-    tip: "Run the PCM Report (Reports › Project Cost Management) to see this project's complete budget-vs.-actual breakdown.",
+    tip: "Run the PCM Report (Reporting › Project Cost Management) to see this project's complete budget-vs.-actual breakdown.",
   },
 
   contractDetail: {
@@ -68,7 +68,7 @@ export const HELP: Record<string, PageHelpContent> = {
   },
 
   reports: {
-    title: "Reports",
+    title: "Reporting",
     description: "Choose a report to analyze project financials. Each report covers a different view — from high-level budgets to individual transactions.",
     actions: [
       { label: "Project Cost Management (PCM)", desc: "The primary report: budget vs. committed vs. incurred per cost category. Select projects and a date, then run." },
