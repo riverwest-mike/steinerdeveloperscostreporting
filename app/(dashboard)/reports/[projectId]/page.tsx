@@ -159,7 +159,7 @@ export default async function CostCategoryReportPage({ params }: Props) {
   return (
     <div>
       <Header title="Cost Category Report" />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
 
         {/* Project picker */}
         <div className="mb-6">

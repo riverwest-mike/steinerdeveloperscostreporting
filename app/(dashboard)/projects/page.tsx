@@ -72,7 +72,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
   return (
     <div>
       <Header title="Projects" helpContent={HELP.projects} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-2xl font-bold tracking-tight">Projects</h2>
           <Link
@@ -84,7 +84,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
         </div>
 
         {/* Status filter tabs */}
-        <div className="flex items-center gap-1 mb-6 border-b">
+        <div className="flex items-center gap-1 mb-6 border-b overflow-x-auto">
           {STATUS_OPTIONS.map((opt) => {
             const count = opt.value ? (countByStatus.get(opt.value) ?? 0) : totalCount;
             const isActive = statusFilter === opt.value;

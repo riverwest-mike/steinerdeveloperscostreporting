@@ -40,7 +40,7 @@ export function UsersSection({ users, currentUserId }: UsersSectionProps) {
         </div>
       )}
 
-      <div className="rounded-lg border">
+      <div className="rounded-lg border overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b bg-muted/50">

@@ -36,7 +36,7 @@ export default async function AdminUsersPage() {
   return (
     <div>
       <Header title="Users & Access" helpContent={HELP.adminUsers} />
-      <div className="p-6 space-y-8">
+      <div className="p-4 sm:p-6 space-y-8">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Users & Access</h2>
           <p className="text-muted-foreground mt-1 text-sm">

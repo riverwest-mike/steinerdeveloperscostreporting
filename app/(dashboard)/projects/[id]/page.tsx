@@ -81,7 +81,7 @@ export default async function ProjectPage({ params }: Props) {
   return (
     <div>
       <Header title={project.name} helpContent={HELP.projectDetail} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <nav className="text-sm text-muted-foreground mb-4">
           <Link href="/projects" className="hover:text-foreground transition-colors">Projects</Link>
           <span className="mx-2">/</span>

@@ -124,7 +124,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
     return (
       <div>
         <Header title="Change Order Log" helpContent={HELP.changeOrderLog} />
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <COLogControls
             projects={projects}
             categories={categories}
@@ -254,7 +254,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
   return (
     <div>
       <Header title="Change Order Log" helpContent={HELP.changeOrderLog} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="print:hidden">
           <COLogControls
             projects={projects}
@@ -268,7 +268,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
           />
         </div>
 
-        <div className="mb-4 flex items-start justify-between gap-4 mt-4">
+        <div className="mb-4 flex flex-col sm:flex-row items-start justify-between gap-3 mt-4">
           <div>
             <h2 className="text-xl font-bold tracking-tight">Change Order Log</h2>
             <p className="text-sm text-muted-foreground mt-0.5">

@@ -78,7 +78,7 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
     return (
       <div>
         <Header title="Balance Sheet Report" helpContent={HELP.balanceSheet} />
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <ReportControls projects={projects} currentProjectIds={[]} currentAsOf={asOf} currentBasis={basis} />
           <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
@@ -201,7 +201,7 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
   return (
     <div>
       <Header title="Balance Sheet Report" helpContent={HELP.balanceSheet} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
 
         <div className="print:hidden">
           <ReportControls

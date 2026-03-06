@@ -124,7 +124,7 @@ export function AiChatWidget() {
       "flex flex-col bg-background overflow-hidden",
       isDashboard
         ? "w-full max-w-2xl h-[520px] rounded-xl border border-border shadow-2xl"
-        : "w-[360px] h-[500px] rounded-xl border border-border shadow-2xl"
+        : "w-[calc(100vw-3rem)] max-w-[360px] h-[min(500px,70vh)] rounded-xl border border-border shadow-2xl"
     )}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">

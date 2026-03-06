@@ -105,7 +105,7 @@ export default async function TrialBalancePage({ searchParams }: Props) {
     return (
       <div>
         <Header title="Trial Balance" helpContent={HELP.trialBalance} />
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <ReportControls
             projects={projects}
             currentProjectIds={[]}
@@ -206,7 +206,7 @@ export default async function TrialBalancePage({ searchParams }: Props) {
   return (
     <div>
       <Header title="Trial Balance" helpContent={HELP.trialBalance} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="print:hidden">
           <ReportControls
             projects={projects}
@@ -217,7 +217,7 @@ export default async function TrialBalancePage({ searchParams }: Props) {
         </div>
 
         {/* Report header */}
-        <div className="mb-4 flex items-start justify-between gap-4 mt-4">
+        <div className="mb-4 flex flex-col sm:flex-row items-start justify-between gap-3 mt-4">
           <div className="print-header">
             <h2 className="text-xl font-bold tracking-tight">Trial Balance</h2>
             <p className="text-sm text-muted-foreground mt-0.5">

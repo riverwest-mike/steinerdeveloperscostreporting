@@ -25,7 +25,7 @@ export default async function NewContractPage({ params }: Props) {
   return (
     <div>
       <Header title={`Add Contract — ${project.name}`} />
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <nav className="text-sm text-muted-foreground mb-6">
           <Link href="/projects" className="hover:text-foreground transition-colors">Projects</Link>
           <span className="mx-2">/</span>
