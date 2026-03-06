@@ -132,39 +132,43 @@ async function executeTool(
       if (statusFilter === "active") q = q.eq("status", "active");
       if (!isAdmin) q = q.in("id", accessibleProjectIds);
 
-      const { data: projects } = await q;
-      if (!projects?.length) return { projects: [] };
+      const { data: rawProjects } = await q;
+      const projects = (rawProjects ?? []) as { id: string; name: string; code: string; status: string; appfolio_property_id: string | null }[];
+      if (!projects.length) return { projects: [] };
 
       // Get budgets per project
       const projectIds = projects.map((p) => p.id);
-      const { data: gates } = await db
+      const { data: rawGates } = await db
         .from("gates")
         .select("id, project_id")
         .in("project_id", projectIds);
+      const gates = (rawGates ?? []) as { id: string; project_id: string }[];
 
-      const gateIds = (gates ?? []).map((g) => g.id);
-      const { data: budgets } = gateIds.length
+      const gateIds = gates.map((g) => g.id);
+      const { data: rawBudgets } = gateIds.length
         ? await db.from("gate_budgets").select("gate_id, revised_budget").in("gate_id", gateIds)
         : { data: [] };
+      const budgets = (rawBudgets ?? []) as { gate_id: string; revised_budget: number }[];
 
-      const gateToProject = new Map((gates ?? []).map((g) => [g.id, g.project_id]));
+      const gateToProject = new Map(gates.map((g) => [g.id, g.project_id]));
       const budgetByProject = new Map<string, number>();
-      for (const b of budgets ?? []) {
+      for (const b of budgets) {
         const pid = gateToProject.get(b.gate_id);
         if (pid) budgetByProject.set(pid, (budgetByProject.get(pid) ?? 0) + Number(b.revised_budget));
       }
 
       // Get spend per project via appfolio_property_id
-      const propIds = projects.filter((p) => p.appfolio_property_id).map((p) => p.appfolio_property_id);
-      const { data: txSums } = propIds.length
+      const propIds = projects.filter((p) => p.appfolio_property_id).map((p) => p.appfolio_property_id as string);
+      const { data: rawTxSums } = propIds.length
         ? await db
             .from("appfolio_transactions")
             .select("appfolio_property_id, paid_amount, unpaid_amount")
             .in("appfolio_property_id", propIds)
         : { data: [] };
+      const txSums = (rawTxSums ?? []) as { appfolio_property_id: string; paid_amount: number; unpaid_amount: number }[];
 
       const spendByProp = new Map<string, number>();
-      for (const t of txSums ?? []) {
+      for (const t of txSums) {
         spendByProp.set(
           t.appfolio_property_id,
           (spendByProp.get(t.appfolio_property_id) ?? 0) + Number(t.paid_amount) + Number(t.unpaid_amount)
@@ -196,42 +200,46 @@ async function executeTool(
       if (!project) return { error: "Project not found" };
 
       // Budget
-      const { data: gates } = await db.from("gates").select("id").eq("project_id", projectId);
-      const gateIds = (gates ?? []).map((g) => g.id);
-      const { data: budgets } = gateIds.length
+      const { data: rawGates2 } = await db.from("gates").select("id").eq("project_id", projectId);
+      const gateIds = (rawGates2 ?? [] as { id: string }[]).map((g: { id: string }) => g.id);
+      const { data: rawBudgets2 } = gateIds.length
         ? await db.from("gate_budgets").select("revised_budget").in("gate_id", gateIds)
         : { data: [] };
-      const totalBudget = (budgets ?? []).reduce((s, b) => s + Number(b.revised_budget), 0);
+      const budgets2 = (rawBudgets2 ?? []) as { revised_budget: number }[];
+      const totalBudget = budgets2.reduce((s, b) => s + Number(b.revised_budget), 0);
 
       // Committed (contracts)
-      const { data: contracts } = await db
+      const { data: rawContracts } = await db
         .from("contracts")
         .select("original_value, approved_co_amount, status")
         .eq("project_id", projectId)
         .neq("status", "terminated");
-      const totalCommitted = (contracts ?? []).reduce(
+      const contracts = (rawContracts ?? []) as { original_value: number; approved_co_amount: number | null; status: string }[];
+      const totalCommitted = contracts.reduce(
         (s, c) => s + Number(c.original_value) + Number(c.approved_co_amount ?? 0),
         0
       );
 
       // Pending COs
-      const { data: pendingCOs } = await db
+      const { data: rawPendingCOs } = await db
         .from("change_orders")
         .select("amount")
         .eq("project_id", projectId)
         .eq("status", "proposed");
-      const pendingCOValue = (pendingCOs ?? []).reduce((s, co) => s + Number(co.amount), 0);
+      const pendingCOs = (rawPendingCOs ?? []) as { amount: number }[];
+      const pendingCOValue = pendingCOs.reduce((s, co) => s + Number(co.amount), 0);
 
       // Incurred (transactions)
       let totalPaid = 0;
       let totalUnpaid = 0;
       if (project.appfolio_property_id) {
-        const { data: txTotals } = await db
+        const { data: rawTxTotals } = await db
           .from("appfolio_transactions")
           .select("paid_amount, unpaid_amount")
           .eq("appfolio_property_id", project.appfolio_property_id);
-        totalPaid = (txTotals ?? []).reduce((s, t) => s + Number(t.paid_amount), 0);
-        totalUnpaid = (txTotals ?? []).reduce((s, t) => s + Number(t.unpaid_amount), 0);
+        const txTotals = (rawTxTotals ?? []) as { paid_amount: number; unpaid_amount: number }[];
+        totalPaid = txTotals.reduce((s, t) => s + Number(t.paid_amount), 0);
+        totalUnpaid = txTotals.reduce((s, t) => s + Number(t.unpaid_amount), 0);
       }
 
       return {
@@ -239,7 +247,7 @@ async function executeTool(
         total_budget: totalBudget,
         total_committed: totalCommitted,
         pending_co_value: pendingCOValue,
-        pending_co_count: pendingCOs?.length ?? 0,
+        pending_co_count: pendingCOs.length,
         total_paid: totalPaid,
         total_unpaid: totalUnpaid,
         total_incurred: totalPaid + totalUnpaid,
@@ -271,7 +279,9 @@ async function executeTool(
           .select("appfolio_property_id")
           .in("id", accessibleProjectIds)
           .not("appfolio_property_id", "is", null);
-        propIds = (projs ?? []).map((p) => p.appfolio_property_id).filter(Boolean);
+        propIds = ((projs ?? []) as { appfolio_property_id: string | null }[])
+          .map((p) => p.appfolio_property_id)
+          .filter((id): id is string => Boolean(id));
       }
 
       let q = db
@@ -292,21 +302,27 @@ async function executeTool(
         q = q.gte("bill_date", since.toISOString().slice(0, 10));
       }
 
-      const { data: txs } = await q;
+      const { data: rawTxs } = await q;
+      const txs = (rawTxs ?? []) as {
+        bill_date: string; vendor_name: string; cost_category_name: string | null;
+        paid_amount: number; unpaid_amount: number; payment_status: string;
+        appfolio_property_id: string; description: string | null;
+      }[];
 
       // Map property_id back to project name
-      const allPropIds = [...new Set((txs ?? []).map((t) => t.appfolio_property_id))];
-      const { data: projMap } = allPropIds.length
+      const allPropIds = [...new Set(txs.map((t) => t.appfolio_property_id))];
+      const { data: rawProjMap } = allPropIds.length
         ? await db
             .from("projects")
             .select("appfolio_property_id, name, code")
             .in("appfolio_property_id", allPropIds)
         : { data: [] };
-      const propToProject = new Map((projMap ?? []).map((p) => [p.appfolio_property_id, `${p.name} (${p.code})`]));
+      const projMap = (rawProjMap ?? []) as { appfolio_property_id: string; name: string; code: string }[];
+      const propToProject = new Map(projMap.map((p) => [p.appfolio_property_id, `${p.name} (${p.code})`]));
 
       return {
-        count: txs?.length ?? 0,
-        transactions: (txs ?? []).map((t) => ({
+        count: txs.length,
+        transactions: txs.map((t) => ({
           date: t.bill_date,
           vendor: t.vendor_name,
           category: t.cost_category_name,
@@ -338,23 +354,28 @@ async function executeTool(
 
       if (status !== "all") q = q.eq("status", status);
 
-      const { data: cos } = await q;
+      const { data: rawCos } = await q;
+      const cos = (rawCos ?? []) as {
+        co_number: string; project_id: string; description: string;
+        amount: number; status: string; proposed_date: string; rejection_reason: string | null;
+      }[];
 
       // Get project names
-      const pids = [...new Set((cos ?? []).map((c) => c.project_id))];
-      const { data: projs } = pids.length
+      const pids = [...new Set(cos.map((c) => c.project_id))];
+      const { data: rawProjs2 } = pids.length
         ? await db.from("projects").select("id, name, code").in("id", pids)
         : { data: [] };
-      const pidToName = new Map((projs ?? []).map((p) => [p.id, `${p.name} (${p.code})`]));
+      const projs2 = (rawProjs2 ?? []) as { id: string; name: string; code: string }[];
+      const pidToName = new Map(projs2.map((p) => [p.id, `${p.name} (${p.code})`]));
 
-      const totalProposed = (cos ?? [])
+      const totalProposed = cos
         .filter((c) => c.status === "proposed")
         .reduce((s, c) => s + Number(c.amount), 0);
 
       return {
-        count: cos?.length ?? 0,
+        count: cos.length,
         total_proposed_value: totalProposed,
-        change_orders: (cos ?? []).map((c) => ({
+        change_orders: cos.map((c) => ({
           co_number: c.co_number,
           project: pidToName.get(c.project_id),
           description: c.description,
@@ -380,17 +401,21 @@ async function executeTool(
 
       if (status !== "all") q = q.eq("status", status);
 
-      const { data: contracts } = await q;
+      const { data: rawContracts2 } = await q;
+      const contracts2 = (rawContracts2 ?? []) as {
+        vendor_name: string; contract_number: string | null; original_value: number;
+        approved_co_amount: number | null; status: string; execution_date: string | null;
+      }[];
 
-      const total = (contracts ?? []).reduce(
+      const total = contracts2.reduce(
         (s, c) => s + Number(c.original_value) + Number(c.approved_co_amount ?? 0),
         0
       );
 
       return {
-        count: contracts?.length ?? 0,
+        count: contracts2.length,
         total_committed: total,
-        contracts: (contracts ?? []).map((c) => ({
+        contracts: contracts2.map((c) => ({
           vendor: c.vendor_name,
           contract_number: c.contract_number,
           original_value: Number(c.original_value),
