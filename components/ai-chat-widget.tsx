@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { MessageCircle, X, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type Anthropic from "@anthropic-ai/sdk";
@@ -8,6 +9,9 @@ import type Anthropic from "@anthropic-ai/sdk";
 type Message = Anthropic.MessageParam & { id: string };
 
 export function AiChatWidget() {
+  const pathname = usePathname();
+  const isDashboard = pathname === "/dashboard";
+
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -17,47 +21,35 @@ export function AiChatWidget() {
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
+    if (open) setTimeout(() => inputRef.current?.focus(), 50);
   }, [open]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Allow the dashboard search bar (or other components) to open the widget
+  // Listen for open-ai-chat events (from dashboard input or any other trigger)
   useEffect(() => {
     function handleOpen(e: Event) {
       const query = (e as CustomEvent<string>).detail;
       setOpen(true);
-      if (query) {
-        setTimeout(() => sendMessage(query), 100);
-      }
+      if (query) setTimeout(() => sendMessage(query), 100);
     }
     window.addEventListener("open-ai-chat", handleOpen);
     return () => window.removeEventListener("open-ai-chat", handleOpen);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
   const sendMessage = useCallback(
     async (text: string) => {
-      const userMsg: Message = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: text,
-      };
-
+      const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: text };
       const history = [...messages, userMsg];
       setMessages(history);
       setInput("");
       setStreaming(true);
 
       const assistantId = crypto.randomUUID();
-      setMessages((prev) => [
-        ...prev,
-        { id: assistantId, role: "assistant", content: "" },
-      ]);
+      setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -66,9 +58,7 @@ export function AiChatWidget() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            messages: history.map(({ role, content }) => ({ role, content })),
-          }),
+          body: JSON.stringify({ messages: history.map(({ role, content }) => ({ role, content })) }),
           signal: controller.signal,
         });
 
@@ -83,18 +73,14 @@ export function AiChatWidget() {
           if (done) break;
           accumulated += decoder.decode(value, { stream: true });
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantId ? { ...m, content: accumulated } : m
-            )
+            prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m))
           );
         }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
           setMessages((prev) =>
             prev.map((m) =>
-              m.id === assistantId
-                ? { ...m, content: "Something went wrong. Please try again." }
-                : m
+              m.id === assistantId ? { ...m, content: "Something went wrong. Please try again." } : m
             )
           );
         }
@@ -125,97 +111,101 @@ export function AiChatWidget() {
     setOpen(false);
   }
 
+  // ── Shared panel content ───────────────────────────────────────────────
+  const panelContent = (
+    <div className={cn(
+      "flex flex-col bg-background overflow-hidden",
+      isDashboard
+        ? "w-full max-w-2xl h-[520px] rounded-xl border border-border shadow-2xl"
+        : "w-[360px] h-[500px] rounded-xl border border-border shadow-2xl"
+    )}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded-md bg-primary flex items-center justify-center">
+            <MessageCircle className="h-3.5 w-3.5 text-primary-foreground" />
+          </div>
+          <span className="text-sm font-semibold">Ask anything</span>
+        </div>
+        <button
+          onClick={handleClose}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
+        {messages.length === 0 && (
+          <p className="text-muted-foreground text-center text-xs mt-8">
+            Ask about projects, budgets, vendors, reports — anything in the app.
+          </p>
+        )}
+        {messages.map((m) => (
+          <div key={m.id} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+            <div className={cn(
+              "max-w-[85%] rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap",
+              m.role === "user"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-foreground"
+            )}>
+              {m.content as string}
+              {m.role === "assistant" && streaming && m === messages[messages.length - 1] && (
+                <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current opacity-70 animate-pulse align-middle" />
+              )}
+            </div>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <form
+        onSubmit={handleSubmit}
+        className="flex items-end gap-2 px-3 py-3 border-t border-border bg-card shrink-0"
+      >
+        <textarea
+          ref={inputRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Ask a question…"
+          rows={1}
+          disabled={streaming}
+          className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 max-h-28 overflow-y-auto"
+          style={{ lineHeight: "1.4" }}
+        />
+        <button
+          type="submit"
+          disabled={!input.trim() || streaming}
+          className="shrink-0 h-9 w-9 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors"
+          aria-label="Send"
+        >
+          {streaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </button>
+      </form>
+    </div>
+  );
+
+  // ── Dashboard: centered overlay (no floating bubble) ──────────────────
+  if (isDashboard) {
+    if (!open) return null;
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm print:hidden"
+        onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+      >
+        {panelContent}
+      </div>
+    );
+  }
+
+  // ── Other pages: bottom-right bubble + panel ──────────────────────────
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 print:hidden">
-      {/* Chat panel */}
-      {open && (
-        <div className="flex flex-col w-[360px] h-[500px] rounded-xl border border-border bg-background shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="h-6 w-6 rounded-md bg-primary flex items-center justify-center">
-                <MessageCircle className="h-3.5 w-3.5 text-primary-foreground" />
-              </div>
-              <span className="text-sm font-semibold">Ask anything</span>
-            </div>
-            <button
-              onClick={handleClose}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Close"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 text-sm">
-            {messages.length === 0 && (
-              <p className="text-muted-foreground text-center text-xs mt-8">
-                Ask about projects, budgets, vendors, reports — anything in the
-                app.
-              </p>
-            )}
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={cn(
-                  "flex",
-                  m.role === "user" ? "justify-end" : "justify-start"
-                )}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap",
-                    m.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground"
-                  )}
-                >
-                  {m.content as string}
-                  {m.role === "assistant" &&
-                    streaming &&
-                    m === messages[messages.length - 1] && (
-                      <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current opacity-70 animate-pulse align-middle" />
-                    )}
-                </div>
-              </div>
-            ))}
-            <div ref={bottomRef} />
-          </div>
-
-          {/* Input */}
-          <form
-            onSubmit={handleSubmit}
-            className="flex items-end gap-2 px-3 py-3 border-t border-border bg-card shrink-0"
-          >
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask a question…"
-              rows={1}
-              disabled={streaming}
-              className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50 max-h-28 overflow-y-auto"
-              style={{ lineHeight: "1.4" }}
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || streaming}
-              className="shrink-0 h-9 w-9 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 transition-colors"
-              aria-label="Send"
-            >
-              {streaming ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
-              )}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Bubble toggle */}
+      {open && panelContent}
       <button
         onClick={() => setOpen((o) => !o)}
         className={cn(
@@ -226,11 +216,7 @@ export function AiChatWidget() {
         )}
         aria-label={open ? "Close chat" : "Open AI assistant"}
       >
-        {open ? (
-          <X className="h-5 w-5" />
-        ) : (
-          <MessageCircle className="h-5 w-5" />
-        )}
+        {open ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
       </button>
     </div>
   );

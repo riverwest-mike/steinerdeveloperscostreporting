@@ -9,8 +9,9 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Project cards", desc: "Each card shows budget consumption. Green = under budget, amber = over 90%, red = over. Click any card to open the project." },
       { label: "Recent Bills", desc: "Last 90 days of AppFolio transactions. Use the dropdown to filter by time range. Click a project name to go to that project." },
       { label: "Pending COs", desc: "Change orders awaiting approval across all your projects. Age-coded dots: grey = recent, amber = 14+ days, red = 30+ days. Includes both contract COs and budget-level COs. Click a row to open the contract or gate where the CO lives." },
+      { label: "AI chat bar", desc: "Type any question about your projects, costs, or reports directly into the chat bar below the greeting. Press Enter or click the arrow to send — the response opens in a centered panel. Suggestion chips offer quick starting points." },
     ],
-    tip: "The dashboard updates every time the page loads. AppFolio data reflects the most recent sync.",
+    tip: "The dashboard updates every time the page loads. AppFolio data reflects the most recent sync. On any page other than the dashboard, the AI assistant is available via the chat bubble in the bottom-right corner.",
   },
 
   projects: {
