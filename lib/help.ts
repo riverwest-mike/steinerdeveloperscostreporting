@@ -193,7 +193,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Cost Categories", desc: "Manage the cost codes used in gate budgets, contracts, and all reports." },
       { label: "AppFolio", desc: "Map AppFolio properties to projects and manage sync settings." },
       { label: "Audit Log", desc: "Review every change made in the system — who changed what, and when." },
-      { label: "Budget Imports", desc: "See the history of Excel gate budget uploads, accessible from Users & Access." },
+      { label: "Budget Imports", desc: "See the history of Excel gate budget uploads in Admin › Audit Log." },
     ],
     tip: "Only Admin users can see this section. Role changes take effect immediately on the user's next page load.",
   },

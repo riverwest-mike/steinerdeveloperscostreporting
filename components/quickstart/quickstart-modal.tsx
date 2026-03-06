@@ -93,12 +93,14 @@ const sections = [
               {[
                 { item: "Dashboard", desc: "Portfolio stats, project cards, recent bills, and pending change orders" },
                 { item: "Projects", desc: "All projects you have access to — filter by status, click any row to open" },
-                { item: "Reports (click to expand)", desc: "Expand to access all five financial reports" },
+                { item: "Reporting (click to expand)", desc: "Expand to access all financial reports" },
                 { item: "  › Project Cost Management", desc: "The main report: budget vs. committed vs. incurred by cost category" },
                 { item: "  › Cost Detail", desc: "Line-by-line AppFolio transactions" },
                 { item: "  › Vendor Detail", desc: "Transactions grouped by vendor" },
                 { item: "  › Commitment Detail", desc: "Every contract that makes up committed totals" },
+                { item: "  › Change Order Log", desc: "All COs across projects — filter by status, type, category, or date" },
                 { item: "  › Balance Sheet", desc: "AppFolio balance sheet data per project" },
+                { item: "  › Trial Balance", desc: "GL account summary with invoice, paid, and unpaid totals" },
                 { item: "Admin › (click to expand)", desc: "Users, cost categories, AppFolio settings, audit log — admins only" },
                 { item: "Quick Start Guide", desc: "Re-opens this guide at any time (bottom of sidebar)" },
                 { item: "AI Assistant (Dashboard)", desc: "Chat bar below the greeting — ask questions about projects, costs, and reports. Opens a centered panel. On other pages, use the chat bubble (bottom-right)." },
@@ -256,7 +258,10 @@ const sections = [
             { title: "Cost Detail", body: "Line-by-line AppFolio transactions. Filter by project, cost category, and paid/unpaid status. Includes a direct link to the bill in AppFolio." },
             { title: "Vendor Detail", body: "All transactions grouped by vendor. Useful for auditing a specific subcontractor's invoices over time." },
             { title: "Commitment Detail", body: "Every contract and its SOV allocation — one row per contract × cost category. Shows exactly what makes up PCM column G." },
+            { title: "Change Order Log", body: "Every CO across all projects — both contract COs and budget-level COs. Filter by status, type, cost category, or date range. Includes rejection reasons and Excel export." },
             { title: "Balance Sheet", body: "AppFolio balance sheet data (assets, liabilities, equity) synced per project. Choose Accrual or Cash basis." },
+            { title: "Trial Balance", body: "All AppFolio transactions for a project and date range, grouped by GL account. Shows invoice, paid, and unpaid totals per account with Excel export." },
+            { title: "Reporting Package", body: "Opens the PCM Report and Balance Sheet side-by-side in two new tabs for a selected project — useful for client deliverables." },
           ].map((r) => (
             <div key={r.title} className="rounded-lg border p-4">
               <h4 className="font-semibold text-slate-800 mb-1 text-sm">{r.title}</h4>
@@ -281,10 +286,10 @@ const sections = [
         </p>
         <div className="space-y-2">
           {[
-            { title: "Users & Access", desc: "Invite users via email, set roles (Read Only / Project Manager / Admin), and control per-user project access with the Project Access matrix. Budget Import History also lives here." },
+            { title: "Users & Access", desc: "Invite users via email, set roles (Read Only / Project Manager / Admin), and control per-user project access with the Project Access matrix." },
             { title: "Cost Categories", desc: "Define cost codes used in gate budgets, contracts, and all reports. Load 95 default categories or create custom ones. Deactivate (don't delete) categories that are no longer needed." },
             { title: "AppFolio", desc: "Map AppFolio property IDs to projects, run manual syncs, and review sync history. A daily auto-sync runs at 6 AM UTC when CRON_SECRET is configured." },
-            { title: "Audit Log", desc: "Filterable record of every change in the system. Timestamps display in your local timezone. Useful for tracking who changed what and when." },
+            { title: "Audit Log", desc: "Filterable record of every change in the system. Timestamps display in your local timezone. Also contains Budget Import History — see who uploaded a gate budget, which gate it targeted, and the row count." },
           ].map((s) => (
             <div key={s.title} className="rounded-lg border p-3">
               <p className="font-semibold text-sm text-slate-800 mb-0.5">{s.title}</p>
@@ -315,8 +320,9 @@ const sections = [
             { icon: "🖨️", title: "Print / PDF", desc: "Print buttons switch to landscape mode. Table headers print in the brand dark color with white text for professional-looking reports." },
             { icon: "🗂️", title: "Status Tabs", desc: "The Projects list has status tabs (All / Active / On Hold / Completed / Archived) with per-status counts so you can quickly find what you need." },
             { icon: "⚠️", title: "Unmatched Costs", desc: "AppFolio transactions that don't match a cost code appear in an 'Unmatched Costs' section. Fix by ensuring AppFolio account codes match cost category codes in Admin › Cost Categories." },
-            { icon: "📋", title: "Budget Import History", desc: "Every Excel gate budget upload is logged in Admin › Users & Access. See who uploaded it, which gate it targeted, the filename, and the row count." },
-            { icon: "🤖", title: "AI Assistant", desc: "Type a question in the chat bar on the Dashboard to get instant answers about your projects, costs, reports, and how the app works. On any other page, click the chat bubble in the bottom-right corner." },
+            { icon: "📋", title: "Budget Import History", desc: "Every Excel gate budget upload is logged in Admin › Audit Log. See who uploaded it, which gate it targeted, the filename, and the row count." },
+            { icon: "🤖", title: "AI Assistant", desc: "Type a question in the chat bar on the Dashboard to get instant answers about your projects, costs, reports, and how the app works. On any other page, click the chat bubble in the bottom-right corner. Use the trash icon in the chat header to clear the conversation and start fresh." },
+            { icon: "🗃️", title: "Column Picker", desc: "Every report has a Columns button to show or hide individual columns. Preferences are saved per report so your layout is restored on your next visit." },
           ].map((tip) => (
             <div key={tip.title} className="rounded-lg border p-4">
               <div className="flex items-start gap-3">
