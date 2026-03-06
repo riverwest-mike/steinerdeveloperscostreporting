@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { Users, Tag, RefreshCw, ScrollText, Upload, ArrowRight } from "lucide-react";
@@ -52,7 +52,7 @@ const ADMIN_SECTIONS = [
 ];
 
 export default async function AdminPage() {
-  const { userId } = await auth();
+  const userId = (await headers()).get("x-clerk-user-id");
   const supabase = createAdminClient();
 
   const { data: user } = await supabase

@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { TimeGreeting } from "@/components/time-greeting";
@@ -40,7 +40,7 @@ function usd(n: number): string {
 }
 
 export default async function DashboardPage() {
-  const { userId } = await auth();
+  const userId = (await headers()).get("x-clerk-user-id");
   const supabase = await createClient();
   const adminSupabase = createAdminClient();
 

@@ -1,12 +1,12 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { insertAuditLog } from "@/lib/audit";
 
 async function requirePM() {
-  const { userId } = await auth();
+  const userId = (await headers()).get("x-clerk-user-id");
   if (!userId) throw new Error("Not authenticated");
   const supabase = createAdminClient();
   const { data } = await supabase
@@ -21,7 +21,7 @@ async function requirePM() {
 }
 
 async function requireAdmin() {
-  const { userId } = await auth();
+  const userId = (await headers()).get("x-clerk-user-id");
   if (!userId) throw new Error("Not authenticated");
   const supabase = createAdminClient();
   const { data } = await supabase
@@ -433,7 +433,7 @@ export async function deleteGate(
 
 export async function getMyRole(): Promise<string | null> {
   try {
-    const { userId } = await auth();
+    const userId = (await headers()).get("x-clerk-user-id");
     if (!userId) return null;
     const supabase = createAdminClient();
     const { data } = await supabase

@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
@@ -11,7 +11,7 @@ import { LinkProjects } from "./link-projects";
 import { HELP } from "@/lib/help";
 
 export default async function AppFolioSyncPage() {
-  const { userId } = await auth();
+  const userId = (await headers()).get("x-clerk-user-id");
   const supabase = createAdminClient();
 
   const { data: user } = await supabase
