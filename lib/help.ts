@@ -18,7 +18,7 @@ export const HELP: Record<string, PageHelpContent> = {
     description: "All projects you have access to. Filter by status, then click any row to open a project's full detail.",
     actions: [
       { label: "Status tabs", desc: "Filter the list by status: All, Active, On Hold, Completed, or Archived. The count next to each tab shows how many projects match." },
-      { label: "New Project", desc: "Create a project by filling in the name, code, type, address, and other details. The code (e.g. 'SD-001') appears throughout reports." },
+      { label: "New Project", desc: "Create a project by filling in the name, code, type, address, and other details. The code (e.g. 'SD-001') appears throughout reports. If an AppFolio property is mapped at creation, a transaction sync runs automatically so data is available immediately." },
       { label: "Click a project row", desc: "Opens the project detail page with its gates, contracts, and full budget breakdown." },
     ],
     tip: "Admins see all projects. Other roles only see projects they've been assigned to in Admin › Users & Access.",
@@ -196,6 +196,13 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Sync Now", desc: "Manually trigger an AppFolio data sync for all mapped properties. Running a report also triggers a sync automatically." },
       { label: "Sync history", desc: "The table shows each sync run: whether it was manual or scheduled, how many transactions were imported, and any errors." },
       { label: "Auto-sync", desc: "A daily automatic sync runs at 6 AM UTC (requires CRON_SECRET environment variable to be set in Vercel)." },
+      { label: "New project sync", desc: "When a project is created with an AppFolio property already mapped, a single-property sync runs automatically to backfill transaction history — no manual sync needed." },
+    ],
+    sections: [
+      {
+        heading: "Troubleshooting",
+        body: "Transactions showing as 'Unmatched': verify the AppFolio account code matches the cost category code in Admin › Cost Categories.\n\nNo transactions after creating a project: confirm the AppFolio Property ID was set at creation. If it was added after the fact, run Sync Now or wait for the nightly auto-sync.\n\nSync history shows failures: check that APPFOLIO_CLIENT_ID and APPFOLIO_CLIENT_SECRET are correctly set in your environment variables. A single-property sync (triggered from a report) can be used to test one project without affecting others.",
+      },
     ],
     tip: "If transactions are showing as 'Unmatched' in the PCM Report, check that the AppFolio account codes match cost category codes in Admin › Cost Categories.",
   },
