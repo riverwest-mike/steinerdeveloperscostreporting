@@ -16,9 +16,16 @@ export default clerkMiddleware(async (auth, req) => {
       signInUrl.searchParams.set("redirect_url", req.nextUrl.pathname);
       return NextResponse.redirect(signInUrl);
     }
+
+    // Explicitly forward the verified userId as a request header so that
+    // server components can read it via next/headers without relying on
+    // Clerk's internal x-middleware-rewrite/override-headers propagation,
+    // which breaks in some Vercel Edge → Node.js configurations.
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.delete("x-clerk-user-id"); // strip any client-supplied value
+    requestHeaders.set("x-clerk-user-id", userId);
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
-  // Admin route protection — checked at layout level with full role data
-  // Middleware only handles auth; role checks happen in server components
 });
 
 export const config = {

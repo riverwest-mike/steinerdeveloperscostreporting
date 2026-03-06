@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { AuditLogFilters } from "./audit-log-filters";
@@ -72,7 +72,7 @@ interface AuditRow {
 }
 
 export default async function AuditLogPage({ searchParams }: Props) {
-  const { userId: authUserId } = await auth();
+  const authUserId = (await headers()).get("x-clerk-user-id");
   const supabase = createAdminClient();
 
   const { data: me } = await supabase

@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { CategoriesTable } from "./categories-table";
@@ -9,7 +9,7 @@ import { ExportButton } from "./export-button";
 import { HELP } from "@/lib/help";
 
 export default async function CostCategoriesPage() {
-  const { userId } = await auth();
+  const userId = (await headers()).get("x-clerk-user-id");
   const supabase = createAdminClient();
 
   const { data: caller } = await supabase

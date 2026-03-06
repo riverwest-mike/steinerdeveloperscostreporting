@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
@@ -10,7 +10,11 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = await auth();
+  // userId is injected by middleware via NextResponse.next({ request: { headers } }).
+  // This avoids Clerk's internal x-middleware-rewrite propagation which is unreliable
+  // in some Vercel Edge → Node.js configurations with @clerk/nextjs v6.39+.
+  const headersList = await headers();
+  const userId = headersList.get("x-clerk-user-id");
 
   if (!userId) {
     redirect("/sign-in");
