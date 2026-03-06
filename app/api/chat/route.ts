@@ -461,7 +461,7 @@ export async function POST(req: NextRequest) {
       .from("project_users")
       .select("project_id")
       .eq("user_id", userId);
-    accessibleProjectIds = (pu ?? []).map((r) => r.project_id);
+    accessibleProjectIds = ((pu ?? []) as { project_id: string }[]).map((r) => r.project_id);
   }
 
   // Agentic loop — run tool calls until end_turn
