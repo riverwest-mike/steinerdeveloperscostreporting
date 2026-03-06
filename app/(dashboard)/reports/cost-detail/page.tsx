@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
@@ -10,6 +11,7 @@ import { ColumnPicker } from "@/components/column-picker";
 import { HELP } from "@/lib/help";
 
 const COST_DETAIL_COLUMNS = [
+  { key: "project", label: "Project" },
   { key: "bill_date", label: "Bill Date" },
   { key: "vendor", label: "Vendor", required: true },
   { key: "description", label: "Description" },
@@ -84,19 +86,23 @@ interface Transaction {
 /* ─── Page ────────────────────────────────────────────── */
 
 interface Props {
-  searchParams: { projectId?: string; asOf?: string; categoryCode?: string; paymentFilter?: string };
+  searchParams: { projectIds?: string; projectId?: string; asOf?: string; categoryCode?: string; paymentFilter?: string };
 }
 
 export default async function CostDetailPage({ searchParams }: Props) {
-  const projectId = searchParams.projectId ?? null;
+  // Support new ?projectIds=id1,id2 and legacy ?projectId=id
+  const rawIds = searchParams.projectIds ?? searchParams.projectId ?? null;
+  const projectIds = rawIds ? rawIds.split(",").map((s) => s.trim()).filter(Boolean) : [];
   const asOf = searchParams.asOf ?? today();
   const categoryCode = searchParams.categoryCode ?? null;
-  // "paid" = only transactions with paid_amount > 0
-  // "unpaid" = only transactions with unpaid_amount > 0
-  // undefined = all transactions
   const paymentFilter = searchParams.paymentFilter ?? null;
 
   const supabase = createAdminClient();
+  const userId = (await headers()).get("x-clerk-user-id");
+  const { data: currentUser } = userId
+    ? await supabase.from("users").select("role").eq("id", userId).single()
+    : { data: null };
+  const isAdmin = (currentUser as { role?: string } | null)?.role === "admin";
 
   // Load projects and cost categories for controls
   const [{ data: allProjects }, { data: rawCategories }] = await Promise.all([
@@ -117,7 +123,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   const categories = (rawCategories ?? []) as { id: string; name: string; code: string }[];
 
   // ── No project selected ───────────────────────────────
-  if (!projectId) {
+  if (projectIds.length === 0) {
     return (
       <div>
         <Header title="Cost Detail Report" helpContent={HELP.costDetail} />
@@ -125,14 +131,14 @@ export default async function CostDetailPage({ searchParams }: Props) {
           <ReportControls
             projects={projects}
             categories={categories}
-            currentProjectId={null}
+            currentProjectIds={[]}
             currentAsOf={asOf}
             currentCategoryCode={null}
           />
           <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
             <p className="text-muted-foreground text-sm">
-              Select a project and cost category above, then click Run Report.
+              Select one or more projects above, then click Run Report.
             </p>
           </div>
         </div>
@@ -140,45 +146,29 @@ export default async function CostDetailPage({ searchParams }: Props) {
     );
   }
 
-  // ── Load project ──────────────────────────────────────
-  const { data: project } = await supabase
-    .from("projects")
-    .select("id, name, code, appfolio_property_id")
-    .eq("id", projectId)
-    .single();
+  // ── Resolve selected projects ──────────────────────────
+  const selectedProjects = projects.filter((p) => projectIds.includes(p.id));
+  const linkedPropertyIds = selectedProjects
+    .map((p) => p.appfolio_property_id)
+    .filter((id): id is string => !!id);
 
-  if (!project) {
-    return (
-      <div>
-        <Header title="Cost Detail Report" helpContent={HELP.costDetail} />
-        <div className="p-6">
-          <ReportControls
-            projects={projects}
-            categories={categories}
-            currentProjectId={projectId}
-            currentAsOf={asOf}
-            currentCategoryCode={categoryCode}
-          />
-          <p className="text-destructive text-sm">Project not found.</p>
-        </div>
-      </div>
-    );
-  }
+  const propertyToProject = new Map(
+    projects.filter((p) => p.appfolio_property_id).map((p) => [p.appfolio_property_id!, p])
+  );
 
   // ── Fetch AppFolio transactions ───────────────────────
-  let transactions: Transaction[] = [];
-  const noAppFolio = !project.appfolio_property_id;
+  let transactions: (Transaction & { appfolio_property_id: string })[] = [];
 
-  if (!noAppFolio) {
+  if (linkedPropertyIds.length > 0) {
     let query = supabase
       .from("appfolio_transactions")
       .select(
-        "id, appfolio_bill_id, vendor_name, gl_account_id, gl_account_name, " +
+        "id, appfolio_property_id, appfolio_bill_id, vendor_name, gl_account_id, gl_account_name, " +
         "cost_category_code, cost_category_name, bill_date, due_date, payment_date, " +
         "invoice_amount, paid_amount, unpaid_amount, payment_status, payment_type, " +
         "check_number, reference_number, description"
       )
-      .eq("appfolio_property_id", project.appfolio_property_id)
+      .in("appfolio_property_id", linkedPropertyIds)
       .lte("bill_date", asOf < appfolioDateCap() ? asOf : appfolioDateCap());
 
     if (categoryCode) {
@@ -192,7 +182,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
     }
 
     const { data: rawTx } = await query.order("bill_date", { ascending: false });
-    transactions = (rawTx ?? []) as Transaction[];
+    transactions = (rawTx ?? []) as (Transaction & { appfolio_property_id: string })[];
   }
 
   // Fetch notes for all transactions on this page
@@ -227,6 +217,14 @@ export default async function CostDetailPage({ searchParams }: Props) {
     ? `${selectedCategory.code} — ${selectedCategory.name}`
     : categoryCode ?? "All Categories";
 
+  const projectLabel = selectedProjects.length === 1
+    ? `${selectedProjects[0].code} — ${selectedProjects[0].name}`
+    : selectedProjects.length > 1
+    ? selectedProjects.map((p) => p.code).join(", ") + ` (${selectedProjects.length} projects)`
+    : "Unknown Project(s)";
+
+  const showProjectCol = selectedProjects.length > 1;
+
   return (
     <div>
       <Header title="Cost Detail Report" helpContent={HELP.costDetail} />
@@ -235,7 +233,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
           <ReportControls
             projects={projects}
             categories={categories}
-            currentProjectId={projectId}
+            currentProjectIds={projectIds}
             currentAsOf={asOf}
             currentCategoryCode={categoryCode}
           />
@@ -246,7 +244,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
           <div className="print-header">
             <h2 className="text-xl font-bold tracking-tight">Cost Detail Report</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {project.code} — {project.name}
+              {projectLabel}
               &nbsp;·&nbsp;
               {categoryLabel}
               {paymentFilter === "paid" && (
@@ -275,8 +273,8 @@ export default async function CostDetailPage({ searchParams }: Props) {
             {transactions.length > 0 && (
               <ExportButtons
                 transactions={transactions}
-                projectCode={project.code}
-                projectName={project.name}
+                projectCode={selectedProjects.length === 1 ? selectedProjects[0].code : "multi"}
+                projectName={projectLabel}
                 categoryLabel={categoryLabel}
                 asOf={asOf}
               />
@@ -285,13 +283,16 @@ export default async function CostDetailPage({ searchParams }: Props) {
         </div>
 
         <div className="print:hidden">
-          {noAppFolio && (
+          {linkedPropertyIds.length === 0 && (
             <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
-              This project is not linked to an AppFolio property — no transaction data available.
+              {selectedProjects.length === 1
+                ? "This project is not linked to an AppFolio property"
+                : "None of the selected projects are linked to AppFolio properties"}{" "}
+              — no transaction data available.
             </div>
           )}
 
-          {!noAppFolio && transactions.length === 0 && (
+          {linkedPropertyIds.length > 0 && transactions.length === 0 && (
             <div className="rounded-lg border border-dashed p-12 text-center">
               <p className="text-muted-foreground text-sm">
                 No AppFolio transactions found
@@ -321,6 +322,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-800 text-white">
+                  {showProjectCol && <th data-col="project" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Project</th>}
                   <th data-col="bill_date" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Bill Date</th>
                   <th data-col="vendor" className="px-3 py-2.5 text-left font-medium">Vendor</th>
                   <th data-col="description" className="px-3 py-2.5 text-left font-medium">Description</th>
@@ -336,8 +338,15 @@ export default async function CostDetailPage({ searchParams }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((tx) => (
+                {transactions.map((tx) => {
+                  const txProject = propertyToProject.get((tx as Transaction & { appfolio_property_id: string }).appfolio_property_id);
+                  return (
                   <tr key={tx.id} className="border-t border-slate-100 hover:bg-slate-50/50">
+                    {showProjectCol && (
+                      <td data-col="project" className="px-3 py-2 whitespace-nowrap">
+                        <span className="font-mono text-[10px] text-muted-foreground">{txProject?.code ?? "—"}</span>
+                      </td>
+                    )}
                     <td data-col="bill_date" className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
                       {fmtDate(tx.bill_date)}
                     </td>
@@ -395,22 +404,28 @@ export default async function CostDetailPage({ searchParams }: Props) {
                       <TransactionNoteCell
                         appfolioBillId={tx.appfolio_bill_id}
                         initialNote={notesByBillId.get(tx.appfolio_bill_id) ?? null}
+                        isAdmin={isAdmin}
                       />
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-400 bg-slate-800 text-white font-bold text-xs">
-                  <td className="px-3 py-3" colSpan={5}>
-                    TOTAL — {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular-nums">{usd(totalInvoice)}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{usd(totalPaid)}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">
-                    {totalUnpaid !== 0 ? usd(totalUnpaid) : "—"}
-                  </td>
-                  <td colSpan={4} />
+                  {showProjectCol && <td data-col="project" className="px-3 py-3" />}
+                  <td data-col="bill_date" className="px-3 py-3" />
+                  <td data-col="vendor" className="px-3 py-3">TOTAL — {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}</td>
+                  <td data-col="description" className="px-3 py-3" />
+                  <td data-col="gl_account" className="px-3 py-3" />
+                  <td data-col="cost_category" className="px-3 py-3" />
+                  <td data-col="invoice_amt" className="px-3 py-3 text-right tabular-nums">{usd(totalInvoice)}</td>
+                  <td data-col="paid" className="px-3 py-3 text-right tabular-nums">{usd(totalPaid)}</td>
+                  <td data-col="unpaid" className="px-3 py-3 text-right tabular-nums">{totalUnpaid !== 0 ? usd(totalUnpaid) : "—"}</td>
+                  <td data-col="status" className="px-3 py-3" />
+                  <td data-col="check_num" className="px-3 py-3" />
+                  <td data-col="reference" className="px-3 py-3" />
+                  <td data-col="notes" className="px-3 py-3" />
                 </tr>
               </tfoot>
             </table>

@@ -68,7 +68,8 @@ interface ProjectInfo {
 
 interface Props {
   searchParams: Promise<{
-    projectId?: string;
+    projectIds?: string;
+    projectId?: string; // legacy single-project support
     dateFrom?: string;
     dateTo?: string;
     run?: string;
@@ -77,7 +78,9 @@ interface Props {
 
 export default async function TrialBalancePage({ searchParams }: Props) {
   const sp = await searchParams;
-  const projectId = sp.projectId ?? null;
+  // Support new ?projectIds=id1,id2 and legacy ?projectId=id
+  const rawIds = sp.projectIds ?? sp.projectId ?? null;
+  const projectIds = rawIds ? rawIds.split(",").map((s) => s.trim()).filter(Boolean) : [];
   const dateFrom = sp.dateFrom ?? null;
   const dateTo = sp.dateTo ?? today();
 
@@ -91,6 +94,7 @@ export default async function TrialBalancePage({ searchParams }: Props) {
   const projects = (allProjects ?? []) as ProjectInfo[];
 
   const hasRunParam =
+    sp.projectIds !== undefined ||
     sp.projectId !== undefined ||
     sp.dateFrom !== undefined ||
     sp.dateTo !== undefined ||
@@ -104,7 +108,7 @@ export default async function TrialBalancePage({ searchParams }: Props) {
         <div className="p-6">
           <ReportControls
             projects={projects}
-            currentProjectId={null}
+            currentProjectIds={[]}
             currentDateFrom={null}
             currentDateTo={null}
           />
@@ -118,8 +122,12 @@ export default async function TrialBalancePage({ searchParams }: Props) {
     );
   }
 
-  /* ── Build query ──────────────────────────────────── */
-  const linkedPropertyIds = projects
+  /* ── Resolve property IDs ─────────────────────────── */
+  const selectedProjects = projectIds.length > 0
+    ? projects.filter((p) => projectIds.includes(p.id))
+    : projects;
+
+  const linkedPropertyIds = selectedProjects
     .map((p) => p.appfolio_property_id)
     .filter((id): id is string => !!id);
 
@@ -134,30 +142,17 @@ export default async function TrialBalancePage({ searchParams }: Props) {
         "id, appfolio_property_id, appfolio_bill_id, vendor_name, gl_account_id, gl_account_name, " +
         "bill_date, invoice_amount, paid_amount, unpaid_amount, description, reference_number"
       )
+      .in("appfolio_property_id", linkedPropertyIds)
       .lte("bill_date", effectiveDateTo)
       .order("gl_account_id", { ascending: true })
       .order("bill_date", { ascending: true });
-
-    if (projectId) {
-      const selectedProject = projects.find((p) => p.id === projectId);
-      if (selectedProject?.appfolio_property_id) {
-        query = query.eq("appfolio_property_id", selectedProject.appfolio_property_id);
-      } else {
-        transactions = [];
-        linkedPropertyIds.length = 0; // skip the fetch
-      }
-    } else {
-      query = query.in("appfolio_property_id", linkedPropertyIds);
-    }
 
     if (dateFrom) {
       query = query.gte("bill_date", dateFrom);
     }
 
-    if (linkedPropertyIds.length > 0) {
-      const { data: rawTx } = await query;
-      transactions = (rawTx ?? []) as RawTx[];
-    }
+    const { data: rawTx } = await query;
+    transactions = (rawTx ?? []) as RawTx[];
   }
 
   /* ── Build project lookup ──────────────────────────── */
@@ -196,16 +191,17 @@ export default async function TrialBalancePage({ searchParams }: Props) {
   const grandUnpaid = transactions.reduce((s, t) => s + Number(t.unpaid_amount), 0);
 
   /* ── Labels ───────────────────────────────────────── */
-  const selectedProject = projectId ? projects.find((p) => p.id === projectId) : null;
-  const projectLabel = selectedProject
-    ? `${selectedProject.code} — ${selectedProject.name}`
-    : "All Projects";
+  const projectLabel = selectedProjects.length === projects.length
+    ? "All Projects"
+    : selectedProjects.length === 1
+    ? `${selectedProjects[0].code} — ${selectedProjects[0].name}`
+    : selectedProjects.map((p) => p.code).join(", ") + ` (${selectedProjects.length} projects)`;
 
   const dateLabel = dateFrom
     ? `${fmtDate(dateFrom)} – ${fmtDate(dateTo)}`
     : `Through ${fmtDate(dateTo)}`;
 
-  const showProjectCol = !selectedProject;
+  const showProjectCol = projectIds.length !== 1;
 
   return (
     <div>
@@ -214,7 +210,7 @@ export default async function TrialBalancePage({ searchParams }: Props) {
         <div className="print:hidden">
           <ReportControls
             projects={projects}
-            currentProjectId={projectId}
+            currentProjectIds={projectIds}
             currentDateFrom={dateFrom}
             currentDateTo={dateTo}
           />

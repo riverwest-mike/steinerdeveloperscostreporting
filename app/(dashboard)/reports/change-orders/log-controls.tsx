@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ProjectMultiSelect } from "@/components/project-multi-select";
 
 interface Project { id: string; name: string; code: string }
 interface Category { id: string; name: string; code: string }
@@ -37,15 +38,6 @@ export function COLogControls({
   const [dateTo, setDateTo] = useState(currentDateTo ?? "");
   const [type, setType] = useState(currentType);
 
-  function toggleProject(id: string) {
-    setSelectedProjects((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   function handleRun() {
     const params = new URLSearchParams();
     if (selectedProjects.size > 0) {
@@ -67,24 +59,12 @@ export function COLogControls({
         {/* Project multi-select */}
         <div className="space-y-1 sm:col-span-2 lg:col-span-2">
           <label className="text-xs font-medium">Projects</label>
-          <div className="rounded border border-input bg-background p-2 max-h-36 overflow-y-auto space-y-1">
-            {projects.map((p) => (
-              <label key={p.id} className="flex items-center gap-2 cursor-pointer hover:bg-muted/30 rounded px-1 py-0.5">
-                <input
-                  type="checkbox"
-                  checked={selectedProjects.has(p.id)}
-                  onChange={() => toggleProject(p.id)}
-                  className="rounded"
-                />
-                <span className="text-xs">
-                  <span className="font-mono text-muted-foreground">{p.code}</span>
-                  <span className="mx-1">—</span>
-                  {p.name}
-                </span>
-              </label>
-            ))}
-          </div>
-          <p className="text-[10px] text-muted-foreground">Leave blank for all projects</p>
+          <ProjectMultiSelect
+            projects={projects}
+            selectedIds={selectedProjects}
+            onChange={setSelectedProjects}
+          />
+          <p className="text-[10px] text-muted-foreground">None selected = all projects</p>
         </div>
 
         <div className="space-y-3">

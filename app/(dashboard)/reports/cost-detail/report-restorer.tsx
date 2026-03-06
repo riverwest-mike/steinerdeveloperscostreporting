@@ -21,20 +21,22 @@ export function ReportRestorer() {
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.searchParams.get("projectId")) return;
+    if (url.searchParams.get("projectIds") || url.searchParams.get("projectId")) return;
 
     try {
       const raw = localStorage.getItem("cost_detail_last_filter");
       if (!raw) return;
-      const { projectId, categoryCode, asOf } = JSON.parse(raw) as {
+      const { projectIds, projectId, categoryCode, asOf } = JSON.parse(raw) as {
+        projectIds?: string[];
         projectId?: string;
         categoryCode?: string;
         asOf?: string;
       };
-      if (!projectId) return;
+      const ids = projectIds ?? (projectId ? [projectId] : []);
+      if (ids.length === 0) return;
 
       const params = new URLSearchParams();
-      params.set("projectId", projectId);
+      params.set("projectIds", ids.join(","));
       if (categoryCode) params.set("categoryCode", categoryCode);
       if (asOf) params.set("asOf", asOf);
       router.replace(`/reports/cost-detail?${params.toString()}`);
