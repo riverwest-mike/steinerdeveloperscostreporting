@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { MessageCircle, X, Send, Loader2 } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type Anthropic from "@anthropic-ai/sdk";
 
@@ -111,6 +111,13 @@ export function AiChatWidget() {
     setOpen(false);
   }
 
+  function handleClear() {
+    abortRef.current?.abort();
+    setStreaming(false);
+    setMessages([]);
+    setInput("");
+  }
+
   // ── Shared panel content ───────────────────────────────────────────────
   const panelContent = (
     <div className={cn(
@@ -127,13 +134,25 @@ export function AiChatWidget() {
           </div>
           <span className="text-sm font-semibold">Ask anything</span>
         </div>
-        <button
-          onClick={handleClose}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Close"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {messages.length > 0 && (
+            <button
+              onClick={handleClear}
+              className="text-muted-foreground hover:text-destructive transition-colors"
+              aria-label="Clear chat"
+              title="Clear chat"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            onClick={handleClose}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
