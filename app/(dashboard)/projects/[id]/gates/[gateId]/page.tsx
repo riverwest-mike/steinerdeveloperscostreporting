@@ -16,7 +16,7 @@ export default async function GatePage({ params }: Props) {
   const { id: projectId, gateId } = await params;
   const supabase = createAdminClient();
 
-  const [{ data: gate }, { data: project }, { data: categories }, { data: budgets }, userRole] =
+  const [{ data: gate }, { data: project }, { data: categories }, { data: budgets }, { data: gateChangeOrders }, userRole] =
     await Promise.all([
       supabase.from("gates").select("*").eq("id", gateId).single(),
       supabase.from("projects").select("id, name, code, appfolio_property_id").eq("id", projectId).single(),
@@ -29,6 +29,11 @@ export default async function GatePage({ params }: Props) {
         .from("gate_budgets")
         .select("cost_category_id, original_budget, approved_co_amount, revised_budget")
         .eq("gate_id", gateId),
+      supabase
+        .from("change_orders")
+        .select("id, co_number, description, amount, status, proposed_date, approved_date, teams_url, notes, rejection_reason, gate_id, cost_category_id, contract_id")
+        .eq("gate_id", gateId)
+        .order("proposed_date", { ascending: false }),
       getMyRole(),
     ]);
 
@@ -124,6 +129,13 @@ export default async function GatePage({ params }: Props) {
           gate={gate}
           projectId={projectId}
           budgetRows={rows}
+          categories={(categories ?? []).map((c: CategoryRecord) => ({ id: c.id, name: c.name, code: c.code }))}
+          changeOrders={(gateChangeOrders ?? []) as {
+            id: string; co_number: string; description: string; amount: number; status: string;
+            proposed_date: string; approved_date: string | null; teams_url: string | null;
+            notes: string | null; rejection_reason: string | null; gate_id: string;
+            cost_category_id: string; contract_id: string | null;
+          }[]}
           isAdmin={userRole === "admin"}
         />
       </div>

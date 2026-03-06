@@ -8,7 +8,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Stats bar", desc: "Active projects, portfolio budget, total deployed costs, and pending change orders — all scoped to projects you have access to." },
       { label: "Project cards", desc: "Each card shows budget consumption. Green = under budget, amber = over 90%, red = over. Click any card to open the project." },
       { label: "Recent Bills", desc: "Last 90 days of AppFolio transactions. Use the dropdown to filter by time range. Click a project name to go to that project." },
-      { label: "Pending COs", desc: "Change orders awaiting approval. Age-coded dots: grey = recent, amber = 14+ days, red = 30+ days. Click to open the contract." },
+      { label: "Pending COs", desc: "Change orders awaiting approval across all your projects. Age-coded dots: grey = recent, amber = 14+ days, red = 30+ days. Includes both contract COs and budget-level COs. Click a row to open the contract or gate where the CO lives." },
     ],
     tip: "The dashboard updates every time the page loads. AppFolio data reflects the most recent sync.",
   },
@@ -42,21 +42,29 @@ export const HELP: Record<string, PageHelpContent> = {
     description: "A single contract: its value, gates, cost category, change orders, and Schedule of Values (SOV) line items.",
     actions: [
       { label: "Schedule of Values", desc: "Split the contract's value across multiple cost categories. Each SOV line maps an amount to a cost code. The PCM Report uses SOV lines instead of the top-level category when they exist." },
-      { label: "Add Change Order", desc: "Use '+ Add CO' to create a change order. Proposed COs appear in PCM column D. Approve them to move the amount into committed totals (column G)." },
+      { label: "Add Change Order", desc: "Use '+ Add CO' to create a change order. Fill in the description, amount, cost category, and proposed date. The CO number auto-generates (CO-001, CO-002…) unless you enter one manually." },
+      { label: "CO Workflow", desc: "Proposed COs appear in PCM column D (Proposed Adj.) — they don't affect committed totals yet. Click Approve to move the amount into column B (Authorized Adj.) and column G (Total Committed). Click Reject to capture a rejection reason and remove the CO from the forecast. Approved COs can be Voided to reverse their budget impact." },
+      { label: "Edit a CO", desc: "Click Edit on any proposed (not yet approved) change order to update its description, amount, cost category, or date. Approved and rejected COs are locked." },
+      { label: "Reject with reason", desc: "When rejecting a CO, an optional reason field lets you record why. The reason appears on the CO row and in the Change Order Log report." },
       { label: "Edit Contract", desc: "Update vendor name, gates, value, retainage %, status, and dates. Terminating a contract removes it from committed totals." },
+    ],
+    sections: [
+      { heading: "CO Status Reference", body: "Proposed → CO is pending review. Appears in PCM column D.\nApproved → CO is confirmed. Increases Authorized Adj. (col B) and Total Committed (col G).\nRejected → CO was declined. No budget impact. Rejection reason is stored.\nVoided → Previously approved CO was reversed. Budget impact removed." },
     ],
     tip: "If a contract covers multiple cost codes (e.g. concrete + framing), add one SOV line per cost code. Each line feeds its own row in the PCM Report.",
   },
 
   gateDetail: {
     title: "Gate Budget",
-    description: "Set and review the budget for this gate (phase) by cost category. Each row is one cost code.",
+    description: "Set and review the budget for this gate (phase) by cost category. Each row is one cost code. Budget change orders let you adjust the gate budget without touching a contract.",
     actions: [
       { label: "Enter budgets", desc: "Type the Original Budget amount for each cost category row and click Save Budgets. You can edit any row at any time unless the gate is locked." },
-      { label: "Revised Budget", desc: "Shows the original budget plus any approved gate-level change orders. This is the number that flows into PCM column A and C." },
+      { label: "Revised Budget", desc: "Shows the original budget plus the total of all approved budget change orders for each category. This flows into PCM column C (Current Budget)." },
+      { label: "Add Budget CO", desc: "Click '+ Add Budget CO' to create a change order that adjusts the gate budget without being tied to a contract. Use this for scope additions or reductions at the budget level. Proposed budget COs appear in PCM column D; approved ones add to column B (Authorized Adj.)." },
+      { label: "Budget CO Workflow", desc: "Budget COs follow the same proposed → approved / rejected / voided workflow as contract COs. You can also edit or delete proposed budget COs. All actions are logged in the audit trail." },
       { label: "Lock/Unlock", desc: "Admins can lock a gate to prevent further budget edits. A lock icon appears on locked gates." },
     ],
-    tip: "Approved change orders on the gate (not contract COs) appear as 'Authorized Adjustments' in PCM column B.",
+    tip: "Use budget COs when the project scope changes and you need to adjust the budget before a contract is executed. For changes to an existing contract, add the CO on the contract detail page instead.",
   },
 
   reports: {
@@ -83,7 +91,14 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Click columns J or K", desc: "Opens Cost Detail pre-filtered to that project + cost category + paid/unpaid status." },
     ],
     sections: [
-      { heading: "Column Reference", body: "A=Original Budget · B=Authorized Adj. · C=Current Budget (A+B) · D=Proposed Adj. · E=Projected Budget (C+D) · F=Variance (A−E) · G=Total Committed · H=% Committed · I=Uncommitted (C−G) · J=Costs Paid · K=Costs Unpaid · L=Total Incurred (J+K) · M=Balance to Complete (C−L)" },
+      {
+        heading: "Column Reference",
+        body: "A=Original Budget · B=Authorized Adj. · C=Current Budget (A+B) · D=Proposed Adj. · E=Projected Budget (C+D) · F=Variance (A−E) · G=Total Committed · H=% Committed · I=Uncommitted (C−G) · J=Costs Paid · K=Costs Unpaid · L=Total Incurred (J+K) · M=Balance to Complete (C−L)",
+      },
+      {
+        heading: "Change Orders in the PCM Report",
+        body: "Column B (Authorized Adj.) — Sum of all approved change orders for each cost category. Includes both contract COs and budget-level COs (no contract required). Approved COs increase C (Current Budget).\n\nColumn D (Proposed Adj.) — Sum of all proposed (pending) change orders. These are not yet confirmed and don't affect committed totals, but they show the projected impact if approved.\n\nColumn G (Total Committed) — Includes contract base values plus all approved contract change orders. Budget-level COs (gate-only, no contract) are not included in G — they affect B and D only.",
+      },
     ],
     tip: "Use Export to Excel for a formatted spreadsheet, or Print / PDF for a landscape-formatted print-ready version.",
   },
@@ -109,6 +124,23 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Date range", desc: "Filter to a specific time window." },
     ],
     tip: "Useful for checking whether a vendor's invoices match their contract commitments.",
+  },
+
+  changeOrderLog: {
+    title: "Change Order Log",
+    description: "A complete, filterable record of every change order across all projects — both contract COs and budget-level COs. Use this to audit CO activity, track approvals, or review rejection reasons.",
+    actions: [
+      { label: "Filter by project", desc: "Check one or more projects. Leave all unchecked to see COs across every project you have access to." },
+      { label: "Filter by status", desc: "Show only Proposed, Approved, Rejected, or Voided COs — or all statuses at once." },
+      { label: "Filter by type", desc: "Contract COs are tied to a specific contract. Budget COs adjust a gate budget with no contract attached." },
+      { label: "Filter by cost category", desc: "Narrow to a specific cost code." },
+      { label: "Date range", desc: "Filter by proposed date to see COs from a specific time window." },
+      { label: "Export to Excel", desc: "Downloads all filtered rows as a formatted spreadsheet. Includes rejection reasons and notes." },
+    ],
+    sections: [
+      { heading: "CO Type Reference", body: "Contract CO — Tied to a specific contract and vendor. Affects PCM columns B, D, and G.\n\nBudget CO — Tied to a gate and cost category only, with no contract. Affects PCM columns B and D only (not G, since there is no commitment)." },
+    ],
+    tip: "Click a CO number to go directly to the contract detail page, or click the gate name to open the gate budget. Rejection reasons entered during the reject workflow are visible in this report.",
   },
 
   commitmentDetail: {

@@ -22,6 +22,9 @@ interface ChangeOrderRow {
   approved_date: string | null;
   teams_url: string | null;
   notes: string | null;
+  rejection_reason: string | null;
+  gate_id: string;
+  cost_category_id: string;
 }
 
 export default async function ContractPage({ params }: Props) {
@@ -48,7 +51,7 @@ export default async function ContractPage({ params }: Props) {
         .order("display_order"),
       supabase
         .from("change_orders")
-        .select("id, co_number, description, amount, status, proposed_date, approved_date, teams_url, notes")
+        .select("id, co_number, description, amount, status, proposed_date, approved_date, teams_url, notes, rejection_reason, gate_id, cost_category_id")
         .eq("contract_id", contractId)
         .order("proposed_date", { ascending: false }),
       getMyRole(),

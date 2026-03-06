@@ -31,6 +31,12 @@ const AVAILABLE_REPORTS = [
       "Lists every contract and its approved change orders by cost category — showing base amount, approved COs, and total committed.",
   },
   {
+    href: "/reports/change-orders",
+    title: "Change Order Log",
+    description:
+      "All change orders across projects and gates — filter by project, status, cost category, or date range. Export to Excel.",
+  },
+  {
     href: "/reports/balance-sheet",
     title: "Balance Sheet Report",
     description:
