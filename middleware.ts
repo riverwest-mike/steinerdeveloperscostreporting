@@ -8,13 +8,15 @@ const isPublicRoute = createRouteMatcher([
   "/api/webhooks(.*)",
 ]);
 
-const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
-
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {
-    await auth.protect();
+    const { userId } = await auth();
+    if (!userId) {
+      const signInUrl = new URL("/sign-in", req.url);
+      signInUrl.searchParams.set("redirect_url", req.nextUrl.pathname);
+      return NextResponse.redirect(signInUrl);
+    }
   }
-
   // Admin route protection — checked at layout level with full role data
   // Middleware only handles auth; role checks happen in server components
 });
