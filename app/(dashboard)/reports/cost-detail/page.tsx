@@ -1,13 +1,28 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
-import { ArrowLeft } from "lucide-react";
 import { ExportButtons } from "./export-buttons";
+import { TransactionNoteCell } from "@/components/transaction-note-cell";
+import { ColumnPicker } from "@/components/column-picker";
 import { HELP } from "@/lib/help";
+
+const COST_DETAIL_COLUMNS = [
+  { key: "bill_date", label: "Bill Date" },
+  { key: "vendor", label: "Vendor", required: true },
+  { key: "description", label: "Description" },
+  { key: "gl_account", label: "GL Account" },
+  { key: "cost_category", label: "Cost Category" },
+  { key: "invoice_amt", label: "Invoice Amt", required: true },
+  { key: "paid", label: "Paid" },
+  { key: "unpaid", label: "Unpaid" },
+  { key: "status", label: "Status" },
+  { key: "check_num", label: "Check #" },
+  { key: "reference", label: "Reference" },
+  { key: "notes", label: "Notes" },
+];
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -180,6 +195,19 @@ export default async function CostDetailPage({ searchParams }: Props) {
     transactions = (rawTx ?? []) as Transaction[];
   }
 
+  // Fetch notes for all transactions on this page
+  const billIds = transactions.map((t) => t.appfolio_bill_id);
+  const notesByBillId = new Map<string, string>();
+  if (billIds.length > 0) {
+    const { data: rawNotes } = await supabase
+      .from("transaction_notes")
+      .select("appfolio_bill_id, note")
+      .in("appfolio_bill_id", billIds);
+    for (const n of (rawNotes ?? []) as { appfolio_bill_id: string; note: string }[]) {
+      notesByBillId.set(n.appfolio_bill_id, n.note);
+    }
+  }
+
   // AppFolio base URL for bill deep-links (server-side only — env var never reaches client)
   const appfolioBaseUrl = process.env.APPFOLIO_DATABASE_URL
     ? `https://${process.env.APPFOLIO_DATABASE_URL}`
@@ -199,8 +227,6 @@ export default async function CostDetailPage({ searchParams }: Props) {
     ? `${selectedCategory.code} — ${selectedCategory.name}`
     : categoryCode ?? "All Categories";
 
-  const backUrl = `/reports/cost-management?projectId=${projectId}&asOf=${asOf}`;
-
   return (
     <div>
       <Header title="Cost Detail Report" helpContent={HELP.costDetail} />
@@ -217,7 +243,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
 
         {/* Report header */}
         <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
+          <div className="print-header">
             <h2 className="text-xl font-bold tracking-tight">Cost Detail Report</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
               {project.code} — {project.name}
@@ -241,7 +267,11 @@ export default async function CostDetailPage({ searchParams }: Props) {
               })}
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 print:hidden">
+            <ColumnPicker
+              columns={COST_DETAIL_COLUMNS}
+              storageKey="cols_cost_detail"
+            />
             {transactions.length > 0 && (
               <ExportButtons
                 transactions={transactions}
@@ -251,13 +281,6 @@ export default async function CostDetailPage({ searchParams }: Props) {
                 asOf={asOf}
               />
             )}
-            <Link
-              href={backUrl}
-              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors print:hidden"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              Back to PCMR
-            </Link>
           </div>
         </div>
 
@@ -289,7 +312,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
           <>
           <style>{`
             @media print {
-              @page { size: landscape; margin: 0.4in; }
+              @page { size: landscape; margin: 0; }
               table { font-size: 7pt !important; min-width: 0 !important; width: 100% !important; }
               th, td { padding: 1pt 3pt !important; }
             }
@@ -298,42 +321,43 @@ export default async function CostDetailPage({ searchParams }: Props) {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-800 text-white">
-                  <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Bill Date</th>
-                  <th className="px-3 py-2.5 text-left font-medium">Vendor</th>
-                  <th className="px-3 py-2.5 text-left font-medium">Description</th>
-                  <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">GL Account</th>
-                  <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Cost Category</th>
-                  <th className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Invoice Amt</th>
-                  <th className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Paid</th>
-                  <th className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Unpaid</th>
-                  <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Status</th>
-                  <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Check #</th>
-                  <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Reference</th>
+                  <th data-col="bill_date" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Bill Date</th>
+                  <th data-col="vendor" className="px-3 py-2.5 text-left font-medium">Vendor</th>
+                  <th data-col="description" className="px-3 py-2.5 text-left font-medium">Description</th>
+                  <th data-col="gl_account" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">GL Account</th>
+                  <th data-col="cost_category" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Cost Category</th>
+                  <th data-col="invoice_amt" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Invoice Amt</th>
+                  <th data-col="paid" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Paid</th>
+                  <th data-col="unpaid" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Unpaid</th>
+                  <th data-col="status" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Status</th>
+                  <th data-col="check_num" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Check #</th>
+                  <th data-col="reference" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Reference</th>
+                  <th data-col="notes" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {transactions.map((tx) => (
                   <tr key={tx.id} className="border-t border-slate-100 hover:bg-slate-50/50">
-                    <td className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
+                    <td data-col="bill_date" className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
                       {fmtDate(tx.bill_date)}
                     </td>
-                    <td className="px-3 py-2 font-medium">{tx.vendor_name}</td>
-                    <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
+                    <td data-col="vendor" className="px-3 py-2 font-medium">{tx.vendor_name}</td>
+                    <td data-col="description" className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
                       {tx.description ?? "—"}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                    <td data-col="gl_account" className="px-3 py-2 whitespace-nowrap text-muted-foreground">
                       <span className="font-mono">{tx.gl_account_id || "—"}</span>
                       {tx.gl_account_name && (
                         <span className="ml-1 text-[10px]">{tx.gl_account_name}</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                    <td data-col="cost_category" className="px-3 py-2 whitespace-nowrap text-muted-foreground">
                       <span className="font-mono">{tx.cost_category_code ?? "—"}</span>
                       {tx.cost_category_name && (
                         <span className="ml-1 text-[10px]">{tx.cost_category_name}</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums font-medium">
+                    <td data-col="invoice_amt" className="px-3 py-2 text-right tabular-nums font-medium">
                       {appfolioBaseUrl ? (
                         <a
                           href={`${appfolioBaseUrl}/payable_bills/${tx.appfolio_bill_id}`}
@@ -346,13 +370,13 @@ export default async function CostDetailPage({ searchParams }: Props) {
                         </a>
                       ) : usd(Number(tx.invoice_amount))}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-green-700">
+                    <td data-col="paid" className="px-3 py-2 text-right tabular-nums text-green-700">
                       {usd(Number(tx.paid_amount))}
                     </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-amber-700">
+                    <td data-col="unpaid" className="px-3 py-2 text-right tabular-nums text-amber-700">
                       {Number(tx.unpaid_amount) !== 0 ? usd(Number(tx.unpaid_amount)) : "—"}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td data-col="status" className="px-3 py-2 whitespace-nowrap">
                       <span
                         className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
                           /^paid$/i.test(tx.payment_status)
@@ -365,8 +389,14 @@ export default async function CostDetailPage({ searchParams }: Props) {
                         {tx.payment_status}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground">{tx.check_number ?? "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{tx.reference_number ?? "—"}</td>
+                    <td data-col="check_num" className="px-3 py-2 text-muted-foreground">{tx.check_number ?? "—"}</td>
+                    <td data-col="reference" className="px-3 py-2 text-muted-foreground">{tx.reference_number ?? "—"}</td>
+                    <td data-col="notes" className="px-3 py-2">
+                      <TransactionNoteCell
+                        appfolioBillId={tx.appfolio_bill_id}
+                        initialNote={notesByBillId.get(tx.appfolio_bill_id) ?? null}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -380,7 +410,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
                   <td className="px-3 py-3 text-right tabular-nums">
                     {totalUnpaid !== 0 ? usd(totalUnpaid) : "—"}
                   </td>
-                  <td colSpan={3} />
+                  <td colSpan={4} />
                 </tr>
               </tfoot>
             </table>

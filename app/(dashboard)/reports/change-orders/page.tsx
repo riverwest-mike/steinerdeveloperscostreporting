@@ -6,6 +6,21 @@ import { Header } from "@/components/layout/header";
 import { HELP } from "@/lib/help";
 import { COLogControls } from "./log-controls";
 import { COLogExport } from "./log-export";
+import { ColumnPicker } from "@/components/column-picker";
+
+const CO_LOG_COLUMNS = [
+  { key: "project", label: "Project" },
+  { key: "co_num", label: "CO #", required: true },
+  { key: "status", label: "Status", required: true },
+  { key: "gate", label: "Gate" },
+  { key: "contract", label: "Contract / Type" },
+  { key: "cost_category", label: "Cost Category" },
+  { key: "description", label: "Description" },
+  { key: "amount", label: "Amount", required: true },
+  { key: "proposed_date", label: "Proposed" },
+  { key: "approved_date", label: "Approved" },
+  { key: "notes", label: "Notes" },
+];
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -264,9 +279,15 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
               {rows.length} change order{rows.length !== 1 ? "s" : ""}
             </p>
           </div>
-          {rows.length > 0 && (
-            <COLogExport rows={rows} projectLabel={projectLabel} showProjectCol={showProjectCol} />
-          )}
+          <div className="flex items-center gap-2 shrink-0 print:hidden">
+            <ColumnPicker
+              columns={CO_LOG_COLUMNS}
+              storageKey="cols_co_log"
+            />
+            {rows.length > 0 && (
+              <COLogExport rows={rows} projectLabel={projectLabel} showProjectCol={showProjectCol} />
+            )}
+          </div>
         </div>
 
         {/* Summary cards */}
@@ -295,7 +316,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
           <>
             <style>{`
               @media print {
-                @page { size: landscape; margin: 0.4in; }
+                @page { size: landscape; margin: 0; }
                 table { font-size: 7pt !important; width: 100% !important; }
                 th, td { padding: 1pt 3pt !important; }
               }
@@ -305,24 +326,25 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
                 <thead>
                   <tr className="bg-slate-800 text-white">
                     {showProjectCol && (
-                      <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Project</th>
+                      <th data-col="project" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Project</th>
                     )}
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">CO #</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Status</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Gate</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Contract / Type</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Cost Category</th>
-                    <th className="px-3 py-2.5 text-left font-medium">Description</th>
-                    <th className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Amount</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Proposed</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Approved</th>
+                    <th data-col="co_num" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">CO #</th>
+                    <th data-col="status" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Status</th>
+                    <th data-col="gate" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Gate</th>
+                    <th data-col="contract" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Contract / Type</th>
+                    <th data-col="cost_category" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Cost Category</th>
+                    <th data-col="description" className="px-3 py-2.5 text-left font-medium">Description</th>
+                    <th data-col="amount" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Amount</th>
+                    <th data-col="proposed_date" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Proposed</th>
+                    <th data-col="approved_date" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Approved</th>
+                    <th data-col="notes" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Notes</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/50">
                       {showProjectCol && (
-                        <td className="px-3 py-2 whitespace-nowrap">
+                        <td data-col="project" className="px-3 py-2 whitespace-nowrap">
                           <Link
                             href={`/projects/${row.projectId}`}
                             className="font-mono text-[10px] text-primary underline underline-offset-2 hover:opacity-75"
@@ -331,7 +353,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
                           </Link>
                         </td>
                       )}
-                      <td className="px-3 py-2 font-mono font-medium whitespace-nowrap">
+                      <td data-col="co_num" className="px-3 py-2 font-mono font-medium whitespace-nowrap">
                         {row.contractId ? (
                           <Link
                             href={`/projects/${row.projectId}/contracts/${row.contractId}`}
@@ -343,12 +365,12 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
                           row.coNumber
                         )}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td data-col="status" className="px-3 py-2 whitespace-nowrap">
                         <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${STATUS_BADGE[row.status] ?? "bg-gray-100"}`}>
                           {row.status}
                         </span>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+                      <td data-col="gate" className="px-3 py-2 whitespace-nowrap text-muted-foreground">
                         <Link
                           href={`/projects/${row.projectId}/gates/${row.gateId}`}
                           className="hover:text-foreground hover:underline underline-offset-2"
@@ -356,7 +378,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
                           {row.gateName}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td data-col="contract" className="px-3 py-2 whitespace-nowrap">
                         {row.contractVendor ? (
                           <Link
                             href={`/projects/${row.projectId}/contracts/${row.contractId}`}
@@ -370,13 +392,13 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
                           </span>
                         )}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td data-col="cost_category" className="px-3 py-2 whitespace-nowrap">
                         <span className="font-mono text-[10px] text-muted-foreground">{row.costCategoryCode}</span>
                         {row.costCategoryName && (
                           <span className="ml-1 text-muted-foreground">{row.costCategoryName}</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 max-w-[240px]">
+                      <td data-col="description" className="px-3 py-2 max-w-[240px]">
                         <p className="truncate">{row.description}</p>
                         {row.status === "rejected" && row.rejectionReason && (
                           <p className="text-[10px] text-destructive mt-0.5 truncate">
@@ -384,14 +406,21 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
                           </p>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-medium whitespace-nowrap">
+                      <td data-col="amount" className="px-3 py-2 text-right tabular-nums font-medium whitespace-nowrap">
                         {usd(row.amount)}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
+                      <td data-col="proposed_date" className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
                         {fmtDate(row.proposedDate)}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
+                      <td data-col="approved_date" className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
                         {fmtDate(row.approvedDate)}
+                      </td>
+                      <td data-col="notes" className="px-3 py-2 text-muted-foreground max-w-[180px]">
+                        {row.notes ? (
+                          <p className="truncate text-xs">{row.notes}</p>
+                        ) : (
+                          <span className="text-muted-foreground/40">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -402,7 +431,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
                       TOTAL — {rows.length} CO{rows.length !== 1 ? "s" : ""}
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums">{usd(totalAmount)}</td>
-                    <td colSpan={2} />
+                    <td colSpan={3} />
                   </tr>
                 </tfoot>
               </table>

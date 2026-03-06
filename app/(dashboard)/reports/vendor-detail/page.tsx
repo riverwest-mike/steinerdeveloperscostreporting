@@ -6,7 +6,25 @@ import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
 import { ExportButtons } from "./export-buttons";
+import { TransactionNoteCell } from "@/components/transaction-note-cell";
+import { ColumnPicker } from "@/components/column-picker";
 import { HELP } from "@/lib/help";
+
+const VENDOR_DETAIL_COLUMNS = [
+  { key: "project", label: "Project" },
+  { key: "bill_date", label: "Bill Date" },
+  { key: "vendor", label: "Vendor", required: true },
+  { key: "description", label: "Description" },
+  { key: "gl_account", label: "GL Account" },
+  { key: "cost_category", label: "Cost Category" },
+  { key: "invoice_amt", label: "Invoice Amt", required: true },
+  { key: "paid", label: "Paid" },
+  { key: "unpaid", label: "Unpaid" },
+  { key: "status", label: "Status" },
+  { key: "check_num", label: "Check #" },
+  { key: "reference", label: "Reference" },
+  { key: "notes", label: "Notes" },
+];
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -193,6 +211,19 @@ export default async function VendorDetailPage({ searchParams }: Props) {
     }
   }
 
+  // Fetch notes for displayed transactions
+  const billIds = transactions.map((t) => t.appfolio_bill_id);
+  const notesByBillId = new Map<string, string>();
+  if (billIds.length > 0) {
+    const { data: rawNotes } = await supabase
+      .from("transaction_notes")
+      .select("appfolio_bill_id, note")
+      .in("appfolio_bill_id", billIds);
+    for (const n of (rawNotes ?? []) as { appfolio_bill_id: string; note: string }[]) {
+      notesByBillId.set(n.appfolio_bill_id, n.note);
+    }
+  }
+
   // AppFolio base URL for bill deep-links
   const appfolioBaseUrl = process.env.APPFOLIO_DATABASE_URL
     ? `https://${process.env.APPFOLIO_DATABASE_URL}`
@@ -253,14 +284,20 @@ export default async function VendorDetailPage({ searchParams }: Props) {
               })}
             </p>
           </div>
-          {transactions.length > 0 && (
-            <ExportButtons
-              transactions={transactions}
-              projects={projects}
-              vendorLabel={vendorLabel}
-              asOf={asOf}
+          <div className="flex items-center gap-2 shrink-0 print:hidden">
+            <ColumnPicker
+              columns={VENDOR_DETAIL_COLUMNS}
+              storageKey="cols_vendor_detail"
             />
-          )}
+            {transactions.length > 0 && (
+              <ExportButtons
+                transactions={transactions}
+                projects={projects}
+                vendorLabel={vendorLabel}
+                asOf={asOf}
+              />
+            )}
+          </div>
         </div>
 
         {noAppFolioLink && (
@@ -281,7 +318,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
           <>
           <style>{`
             @media print {
-              @page { size: landscape; margin: 0.4in; }
+              @page { size: landscape; margin: 0; }
               table { font-size: 7pt !important; min-width: 0 !important; width: 100% !important; }
               th, td { padding: 1pt 3pt !important; }
             }
@@ -304,6 +341,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
                   <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Status</th>
                   <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Check #</th>
                   <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Reference</th>
+                  <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Notes</th>
                 </tr>
               </thead>
               <tbody>
@@ -389,6 +427,12 @@ export default async function VendorDetailPage({ searchParams }: Props) {
                       </td>
                       <td className="px-3 py-2 text-muted-foreground">{tx.check_number ?? "—"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{tx.reference_number ?? "—"}</td>
+                      <td className="px-3 py-2">
+                        <TransactionNoteCell
+                          appfolioBillId={tx.appfolio_bill_id}
+                          initialNote={notesByBillId.get(tx.appfolio_bill_id) ?? null}
+                        />
+                      </td>
                     </tr>
                   );
                 })}
@@ -403,7 +447,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
                   <td className="px-3 py-3 text-right tabular-nums">
                     {totalUnpaid !== 0 ? usd(totalUnpaid) : "—"}
                   </td>
-                  <td colSpan={3} />
+                  <td colSpan={4} />
                 </tr>
               </tfoot>
             </table>

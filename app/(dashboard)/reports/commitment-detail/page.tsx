@@ -6,7 +6,23 @@ import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
 import { ExportButtons } from "./export-buttons";
+import { ColumnPicker } from "@/components/column-picker";
 import { HELP } from "@/lib/help";
+
+const COMMITMENT_COLUMNS = [
+  { key: "project", label: "Project" },
+  { key: "vendor", label: "Vendor", required: true },
+  { key: "contract_num", label: "Contract #" },
+  { key: "description", label: "Description" },
+  { key: "cost_category", label: "Cost Category" },
+  { key: "gates", label: "Gate(s)" },
+  { key: "exec_date", label: "Execution Date" },
+  { key: "status", label: "Status" },
+  { key: "base_amount", label: "Base Amount", required: true },
+  { key: "approved_cos", label: "Approved COs" },
+  { key: "total_committed", label: "Total Committed", required: true },
+  { key: "retainage", label: "Retainage %" },
+];
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -393,7 +409,7 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
 
         {/* Report header */}
         <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
+          <div className="print-header">
             <h2 className="text-xl font-bold tracking-tight">Commitment Detail Report</h2>
             <p className="text-sm text-muted-foreground mt-0.5">
               {projectLabel}
@@ -409,16 +425,22 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
               })}
             </p>
           </div>
-          {rows.length > 0 && (
-            <ExportButtons
-              rows={rows}
-              projectLabel={projectLabel}
-              categoryLabel={categoryLabel}
-              statusLabel={statusLabel}
-              asOf={asOf}
-              showProjectCol={showProjectCol}
+          <div className="flex items-center gap-2 shrink-0 print:hidden">
+            <ColumnPicker
+              columns={COMMITMENT_COLUMNS}
+              storageKey="cols_commitment_detail"
             />
-          )}
+            {rows.length > 0 && (
+              <ExportButtons
+                rows={rows}
+                projectLabel={projectLabel}
+                categoryLabel={categoryLabel}
+                statusLabel={statusLabel}
+                asOf={asOf}
+                showProjectCol={showProjectCol}
+              />
+            )}
+          </div>
         </div>
 
         {rows.length === 0 ? (
@@ -431,7 +453,7 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
           <>
             <style>{`
               @media print {
-                @page { size: landscape; margin: 0.4in; }
+                @page { size: landscape; margin: 0; }
                 table { font-size: 7pt !important; min-width: 0 !important; width: 100% !important; }
                 th, td { padding: 1pt 3pt !important; }
               }
@@ -441,19 +463,19 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
                 <thead>
                   <tr className="bg-slate-800 text-white">
                     {showProjectCol && (
-                      <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Project</th>
+                      <th data-col="project" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Project</th>
                     )}
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Vendor</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Contract #</th>
-                    <th className="px-3 py-2.5 text-left font-medium">Contract Description</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Cost Category</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Gate(s)</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Execution Date</th>
-                    <th className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Status</th>
-                    <th className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Base Amount</th>
-                    <th className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Approved COs</th>
-                    <th className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Total Committed</th>
-                    <th className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Retainage %</th>
+                    <th data-col="vendor" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Vendor</th>
+                    <th data-col="contract_num" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Contract #</th>
+                    <th data-col="description" className="px-3 py-2.5 text-left font-medium">Contract Description</th>
+                    <th data-col="cost_category" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Cost Category</th>
+                    <th data-col="gates" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Gate(s)</th>
+                    <th data-col="exec_date" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Execution Date</th>
+                    <th data-col="status" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Status</th>
+                    <th data-col="base_amount" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Base Amount</th>
+                    <th data-col="approved_cos" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Approved COs</th>
+                    <th data-col="total_committed" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Total Committed</th>
+                    <th data-col="retainage" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Retainage %</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -461,11 +483,11 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
                     <tr key={`${row.contractId}-${row.costCategoryCode}-${idx}`}
                         className="border-t border-slate-100 hover:bg-slate-50/50">
                       {showProjectCol && (
-                        <td className="px-3 py-2 whitespace-nowrap">
+                        <td data-col="project" className="px-3 py-2 whitespace-nowrap">
                           <span className="font-mono text-[10px] text-muted-foreground">{row.projectCode}</span>
                         </td>
                       )}
-                      <td className="px-3 py-2 font-medium whitespace-nowrap">
+                      <td data-col="vendor" className="px-3 py-2 font-medium whitespace-nowrap">
                         <Link
                           href={`/projects/${row.projectId}/contracts/${row.contractId}`}
                           className="text-primary underline underline-offset-2 hover:opacity-75"
@@ -473,25 +495,25 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
                           {row.vendorName}
                         </Link>
                       </td>
-                      <td className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">
+                      <td data-col="contract_num" className="px-3 py-2 font-mono text-muted-foreground whitespace-nowrap">
                         {row.contractNumber ?? "—"}
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
+                      <td data-col="description" className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
                         {row.contractDescription}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td data-col="cost_category" className="px-3 py-2 whitespace-nowrap">
                         <span className="font-mono text-[10px] text-muted-foreground">{row.costCategoryCode}</span>
                         {row.costCategoryName && (
                           <span className="ml-1">{row.costCategoryName}</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                      <td data-col="gates" className="px-3 py-2 text-muted-foreground whitespace-nowrap">
                         {row.gates || "—"}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
+                      <td data-col="exec_date" className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
                         {fmtDate(row.executionDate)}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
+                      <td data-col="status" className="px-3 py-2 whitespace-nowrap">
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
                             row.status === "active"
@@ -504,12 +526,12 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
                           {row.status}
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">{usd(row.baseAmount)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                      <td data-col="base_amount" className="px-3 py-2 text-right tabular-nums">{usd(row.baseAmount)}</td>
+                      <td data-col="approved_cos" className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                         {usd(row.approvedCOs)}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-semibold">{usd(row.totalCommitted)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
+                      <td data-col="total_committed" className="px-3 py-2 text-right tabular-nums font-semibold">{usd(row.totalCommitted)}</td>
+                      <td data-col="retainage" className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                         {row.retainagePct > 0 ? `${row.retainagePct}%` : "—"}
                       </td>
                     </tr>

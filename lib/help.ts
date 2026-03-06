@@ -75,9 +75,12 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Cost Detail", desc: "Line-by-line AppFolio transactions. Drill into PCM columns J or K to open this pre-filtered." },
       { label: "Vendor Detail", desc: "All transactions grouped by vendor across any project." },
       { label: "Commitment Detail", desc: "Every contract that makes up PCM column G (Total Committed)." },
+      { label: "Change Order Log", desc: "All change orders across projects — filter by status, type, cost category, or date range." },
       { label: "Balance Sheet", desc: "AppFolio balance sheet data synced per project." },
+      { label: "Trial Balance", desc: "All AppFolio transactions grouped by GL account for a selected project and date range." },
+      { label: "Reporting Package", desc: "Open the PCM Report and Balance Sheet for a project side-by-side in two new tabs." },
     ],
-    tip: "Every report saves your last filter settings and restores them when you return.",
+    tip: "Use the Columns button on any report to show or hide individual columns. Your column preferences are saved per report.",
   },
 
   pcmReport: {
@@ -166,6 +169,21 @@ export const HELP: Record<string, PageHelpContent> = {
     tip: "Balance sheet data is only as current as the last AppFolio sync. Run from Admin › AppFolio to force an update.",
   },
 
+  trialBalance: {
+    title: "Trial Balance",
+    description: "All AppFolio transactions for a project and date range, grouped by GL account. Shows invoice, paid, and unpaid totals per account.",
+    actions: [
+      { label: "Project filter", desc: "Select one project to see its transactions, or leave blank to see all projects you have access to." },
+      { label: "Date range", desc: "Set From and To dates to filter transactions by bill date. Leave From blank to include all history through the To date." },
+      { label: "Run Report", desc: "Loads transactions matching your filters. Each GL account shows a header row with totals, followed by its individual transactions." },
+      { label: "Export Excel", desc: "Downloads all rows as a formatted spreadsheet, grouped by GL account with subtotals." },
+    ],
+    sections: [
+      { heading: "Reading the Report", body: "Each bold row is a GL account header showing the account total (invoice, paid, unpaid). The indented rows below it are the individual transactions that make up that total." },
+    ],
+    tip: "Use the date range filters to produce a period-specific trial balance — for example, a full-year view or a single month.",
+  },
+
   adminIndex: {
     title: "Admin Panel",
     description: "System administration for the Cost Tracker. Each section manages a different part of the configuration.",
@@ -186,7 +204,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Add User", desc: "Click '+ Add User' to send an invitation email. Set the user's role (Read Only, Project Manager, or Admin) before sending." },
       { label: "Activate / Deactivate", desc: "Toggle a user's active status. Inactive users cannot log in but their data is preserved." },
       { label: "Project Access matrix", desc: "Check boxes in the Project Access section to grant a user access to specific projects. Admins always see all projects." },
-      { label: "Budget Import History", desc: "The table at the bottom logs every Excel gate budget upload: project, gate, filename, row count, who uploaded it, and when." },
+      { label: "Budget Import History", desc: "Excel gate budget upload history has moved to Admin › Audit Log. A link at the bottom of this page takes you there." },
     ],
     sections: [
       { heading: "Roles", body: "Read Only: view all data. Project Manager: create/edit projects, gates, contracts, and change orders. Admin: all PM capabilities plus user management, cost categories, and AppFolio settings." },

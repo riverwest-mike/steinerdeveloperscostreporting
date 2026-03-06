@@ -112,7 +112,13 @@
 
   @page {
     size: landscape;
-    margin: 0.4in;
+    /* margin: 0 removes the space where browsers print URL/title/date headers/footers */
+    margin: 0;
+  }
+
+  /* Replaces the @page margin so content has proper inset on the page */
+  html, body {
+    padding: 0.4in;
   }
 
   /* ── Hide chrome ── */

@@ -2,11 +2,11 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ProjectAccessSection } from "../project-access";
 import { UsersSection } from "../users-section";
-import { BudgetImportHistory } from "../budget-import-history";
 import { HELP } from "@/lib/help";
 
 export default async function AdminUsersPage() {
@@ -27,33 +27,11 @@ export default async function AdminUsersPage() {
     { data: users },
     { data: projects },
     { data: projectUsers },
-    { data: gates },
-    { data: budgetImports },
   ] = await Promise.all([
     supabase.from("users").select("id, email, full_name, role, is_active, created_at").order("full_name"),
     supabase.from("projects").select("id, name, code").order("name"),
     supabase.from("project_users").select("project_id, user_id"),
-    supabase.from("gates").select("id, name").order("name"),
-    supabase
-      .from("budget_imports")
-      .select("id, project_id, gate_id, filename, row_count, imported_at, imported_by, notes")
-      .order("imported_at", { ascending: false })
-      .limit(200),
   ]);
-
-  type ProjectRow = { id: string; name: string; code: string };
-  type UserRow = { id: string; full_name: string; email: string };
-  type GateRow = { id: string; name: string };
-
-  const projectMap = new Map<string, { name: string; code: string }>(
-    ((projects ?? []) as ProjectRow[]).map((p) => [p.id, { name: p.name, code: p.code }])
-  );
-  const userMap = new Map<string, { full_name: string; email: string }>(
-    ((users ?? []) as UserRow[]).map((u) => [u.id, { full_name: u.full_name, email: u.email }])
-  );
-  const gateMap = new Map<string, { name: string }>(
-    ((gates ?? []) as GateRow[]).map((g) => [g.id, { name: g.name }])
-  );
 
   return (
     <div>
@@ -62,7 +40,7 @@ export default async function AdminUsersPage() {
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Users & Access</h2>
           <p className="text-muted-foreground mt-1 text-sm">
-            Manage user accounts, roles, project assignments, and budget import history.
+            Manage user accounts, roles, and project assignments.
           </p>
         </div>
 
@@ -77,12 +55,15 @@ export default async function AdminUsersPage() {
           assignments={(projectUsers ?? []) as { project_id: string; user_id: string }[]}
         />
 
-        <BudgetImportHistory
-          imports={(budgetImports ?? []) as { id: string; project_id: string | null; gate_id: string | null; filename: string; row_count: number | null; imported_at: string; imported_by: string | null; notes: string | null }[]}
-          projectMap={projectMap}
-          userMap={userMap}
-          gateMap={gateMap}
-        />
+        <div className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground flex items-center justify-between gap-4">
+          <span>Budget Import History has moved to the Audit Log.</span>
+          <Link
+            href="/admin/audit-log"
+            className="shrink-0 rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors text-foreground"
+          >
+            Go to Audit Log →
+          </Link>
+        </div>
       </div>
     </div>
   );

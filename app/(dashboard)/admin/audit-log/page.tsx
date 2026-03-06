@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { AuditLogFilters } from "./audit-log-filters";
 import { LocalTime } from "@/components/local-time";
+import { BudgetImportHistory } from "../budget-import-history";
 import { HELP } from "@/lib/help";
 
 const PAGE_SIZE = 100;
@@ -103,10 +104,18 @@ export default async function AuditLogPage({ searchParams }: Props) {
     { data: logs, count },
     { data: allUsers },
     { data: allProjects },
+    { data: allGates },
+    { data: budgetImports },
   ] = await Promise.all([
     query,
     supabase.from("users").select("id, full_name, email").order("full_name"),
     supabase.from("projects").select("id, name, code").order("name"),
+    supabase.from("gates").select("id, name").order("name"),
+    supabase
+      .from("budget_imports")
+      .select("id, project_id, gate_id, filename, row_count, imported_at, imported_by, notes")
+      .order("imported_at", { ascending: false })
+      .limit(200),
   ]);
 
   const userMap = new Map<string, { id: string; full_name: string; email: string }>(
@@ -114,6 +123,15 @@ export default async function AuditLogPage({ searchParams }: Props) {
   );
   const projectMap = new Map<string, { id: string; name: string; code: string }>(
     ((allProjects ?? []) as { id: string; name: string; code: string }[]).map((p) => [p.id, p])
+  );
+  const budgetProjectMap = new Map<string, { name: string; code: string }>(
+    ((allProjects ?? []) as { id: string; name: string; code: string }[]).map((p) => [p.id, { name: p.name, code: p.code }])
+  );
+  const gateMap = new Map<string, { name: string }>(
+    ((allGates ?? []) as { id: string; name: string }[]).map((g) => [g.id, { name: g.name }])
+  );
+  const budgetUserMap = new Map<string, { full_name: string; email: string }>(
+    ((allUsers ?? []) as { id: string; full_name: string; email: string }[]).map((u) => [u.id, { full_name: u.full_name, email: u.email }])
   );
 
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE);
@@ -256,6 +274,27 @@ export default async function AuditLogPage({ searchParams }: Props) {
             )}
           </div>
         )}
+
+        {/* Budget Import History ─────────────────────────────────────────── */}
+        <div className="mt-10 border-t pt-8">
+          <BudgetImportHistory
+            imports={
+              (budgetImports ?? []) as {
+                id: string;
+                project_id: string | null;
+                gate_id: string | null;
+                filename: string;
+                row_count: number | null;
+                imported_at: string;
+                imported_by: string | null;
+                notes: string | null;
+              }[]
+            }
+            projectMap={budgetProjectMap}
+            userMap={budgetUserMap}
+            gateMap={gateMap}
+          />
+        </div>
       </div>
     </div>
   );
