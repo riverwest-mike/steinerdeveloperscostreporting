@@ -796,12 +796,12 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
             <p className="font-semibold text-slate-700 mb-2 uppercase tracking-wide text-[10px]">Column Definitions</p>
             <div className="grid grid-cols-2 gap-x-8 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
               <div><span className="font-semibold text-slate-800">A</span> — Original Budget (sum of all approved gates)</div>
-              <div><span className="font-semibold text-slate-800">B</span> — Authorized Adjustments (approved change orders)</div>
+              <div><span className="font-semibold text-slate-800">B</span> — Authorized Adjustments (approved COs — contract and budget-level)</div>
               <div><span className="font-semibold text-slate-800">C = A+B</span> — Current Budget</div>
-              <div><span className="font-semibold text-slate-800">D</span> — Proposed Adjustments (pending change orders)</div>
+              <div><span className="font-semibold text-slate-800">D</span> — Proposed Adjustments (pending COs, not yet approved)</div>
               <div><span className="font-semibold text-slate-800">E = C+D</span> — Projected Budget</div>
               <div><span className="font-semibold text-slate-800">F = A−E</span> — Variance (original vs. projected)</div>
-              <div><span className="font-semibold text-slate-800">G</span> — Total Committed (active contract values)</div>
+              <div><span className="font-semibold text-slate-800">G</span> — Total Committed (contracts + approved contract COs only)</div>
               <div><span className="font-semibold text-slate-800">H = G÷C</span> — % of Budget Committed</div>
               <div><span className="font-semibold text-slate-800">I = C−G</span> — Uncommitted Budget</div>
               <div><span className="font-semibold text-slate-800">J</span> — Incurred and Paid Costs (through report date)</div>

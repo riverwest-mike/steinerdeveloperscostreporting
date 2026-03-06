@@ -23,6 +23,7 @@ const reportItems = [
   { href: "/reports/cost-detail", label: "Cost Detail" },
   { href: "/reports/vendor-detail", label: "Vendor Detail" },
   { href: "/reports/commitment-detail", label: "Commitment Detail" },
+  { href: "/reports/change-orders", label: "Change Order Log" },
   { href: "/reports/balance-sheet", label: "Balance Sheet" },
 ];
 

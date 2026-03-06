@@ -3,6 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { activateGate, closeGate, deleteGate, updateGate, upsertGateBudgets } from "../actions";
+import {
+  createBudgetChangeOrder,
+  approveChangeOrder,
+  rejectChangeOrder,
+  voidChangeOrder,
+  deleteChangeOrder,
+  updateChangeOrder,
+} from "../contracts/actions";
 
 interface Gate {
   id: string;
@@ -26,10 +34,34 @@ interface BudgetRow {
   actual_amount: number;
 }
 
+interface GateCO {
+  id: string;
+  co_number: string;
+  description: string;
+  amount: number;
+  status: string;
+  proposed_date: string;
+  approved_date: string | null;
+  teams_url: string | null;
+  notes: string | null;
+  rejection_reason: string | null;
+  gate_id: string;
+  cost_category_id: string;
+  contract_id: string | null;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface GateDetailProps {
   gate: Gate;
   projectId: string;
   budgetRows: BudgetRow[];
+  categories: Category[];
+  changeOrders: GateCO[];
   isAdmin: boolean;
 }
 
@@ -52,7 +84,7 @@ function fmtCurrency(n: number) {
   }).format(n);
 }
 
-export function GateDetail({ gate, projectId, budgetRows, isAdmin }: GateDetailProps) {
+export function GateDetail({ gate, projectId, budgetRows, categories, changeOrders, isAdmin }: GateDetailProps) {
   const [editingInfo, setEditingInfo] = useState(false);
 
   return (
@@ -110,6 +142,15 @@ export function GateDetail({ gate, projectId, budgetRows, isAdmin }: GateDetailP
         projectId={projectId}
         rows={budgetRows}
         locked={gate.is_locked}
+      />
+
+      {/* Change Orders section */}
+      <GateChangeOrdersSection
+        gate={gate}
+        projectId={projectId}
+        categories={categories}
+        changeOrders={changeOrders}
+        isAdmin={isAdmin}
       />
     </div>
   );
@@ -558,6 +599,510 @@ function InfoCard({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border p-4">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{label}</p>
       <p className="text-sm font-medium">{value}</p>
+    </div>
+  );
+}
+
+/* ─── Gate Change Orders Section ───────────────────────── */
+
+const STATUS_BADGE: Record<string, string> = {
+  proposed: "bg-amber-100 text-amber-800",
+  approved: "bg-green-100 text-green-800",
+  rejected: "bg-red-100 text-red-800",
+  voided: "bg-gray-100 text-gray-500 line-through",
+};
+
+function GateChangeOrdersSection({
+  gate,
+  projectId,
+  categories,
+  changeOrders,
+  isAdmin,
+}: {
+  gate: Gate;
+  projectId: string;
+  categories: Category[];
+  changeOrders: GateCO[];
+  isAdmin: boolean;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
+
+  return (
+    <div className="rounded-lg border">
+      <div className="px-4 py-3 border-b bg-muted/50 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-sm">Change Orders</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Budget-level adjustments for this gate (no contract required)
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAdd((v) => !v)}
+          className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+        >
+          {showAdd ? "Cancel" : "+ Add Budget CO"}
+        </button>
+      </div>
+
+      {showAdd && (
+        <div className="p-4 border-b bg-muted/20">
+          <AddBudgetCOForm
+            gateId={gate.id}
+            projectId={projectId}
+            categories={categories}
+            onDone={() => setShowAdd(false)}
+          />
+        </div>
+      )}
+
+      {changeOrders.length === 0 && !showAdd ? (
+        <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+          No change orders for this gate.
+        </div>
+      ) : (
+        <div className="divide-y">
+          {changeOrders.map((co) => (
+            <GateCORow
+              key={co.id}
+              co={co}
+              gateId={gate.id}
+              projectId={projectId}
+              categories={categories}
+              isAdmin={isAdmin}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Add Budget CO Form ───────────────────────────────── */
+
+function AddBudgetCOForm({
+  gateId,
+  projectId,
+  categories,
+  onDone,
+}: {
+  gateId: string;
+  projectId: string;
+  categories: Category[];
+  onDone: () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    startTransition(async () => {
+      try {
+        const result = await createBudgetChangeOrder(projectId, gateId, fd);
+        if (result?.error) { setError(result.error); return; }
+        onDone();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="space-y-1">
+          <label className="text-xs font-medium">CO # <span className="text-muted-foreground font-normal">(auto)</span></label>
+          <input
+            name="co_number"
+            placeholder="Auto"
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <label className="text-xs font-medium">Description <span className="text-destructive">*</span></label>
+          <input
+            name="description"
+            required
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium">Amount <span className="text-destructive">*</span></label>
+          <input
+            name="amount"
+            type="number"
+            step="0.01"
+            required
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="space-y-1">
+          <label className="text-xs font-medium">Cost Category <span className="text-destructive">*</span></label>
+          <select
+            name="cost_category_id"
+            required
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          >
+            <option value="">Select…</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium">Proposed Date <span className="text-destructive">*</span></label>
+          <input
+            name="proposed_date"
+            type="date"
+            required
+            defaultValue={new Date().toISOString().split("T")[0]}
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <label className="text-xs font-medium">Notes</label>
+          <input
+            name="notes"
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+        >
+          {isPending ? "Saving…" : "Add Budget CO"}
+        </button>
+        <button type="button" onClick={onDone} className="rounded border px-3 py-1.5 text-xs font-medium">
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* ─── Gate CO Row ──────────────────────────────────────── */
+
+function GateCORow({
+  co,
+  gateId,
+  projectId,
+  categories,
+  isAdmin,
+}: {
+  co: GateCO;
+  gateId: string;
+  projectId: string;
+  categories: Category[];
+  isAdmin: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const catName = categories.find((c) => c.id === co.cost_category_id);
+
+  function act(fn: () => Promise<{ error?: string } | void>) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const r = await fn();
+        if (r && "error" in r && r.error) setError(r.error);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Error");
+      }
+    });
+  }
+
+  if (editing && co.status === "proposed") {
+    return (
+      <div className="p-4 bg-muted/20">
+        <EditGateCOForm
+          co={co}
+          gateId={gateId}
+          projectId={projectId}
+          categories={categories}
+          onDone={() => setEditing(false)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-3 flex items-start gap-3">
+      <div className="flex-1 min-w-0 space-y-0.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-mono text-xs font-medium">{co.co_number}</span>
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[co.status] ?? "bg-gray-100"}`}>
+            {co.status}
+          </span>
+          {catName && (
+            <span className="text-xs text-muted-foreground">{catName.code} — {catName.name}</span>
+          )}
+          <span className="text-xs text-muted-foreground">{fmtDate(co.proposed_date)}</span>
+        </div>
+        <p className="text-sm">{co.description}</p>
+        {co.notes && <p className="text-xs text-muted-foreground">{co.notes}</p>}
+        {co.status === "rejected" && co.rejection_reason && (
+          <p className="text-xs text-destructive">Reason: {co.rejection_reason}</p>
+        )}
+        {error && <p className="text-xs text-destructive mt-1">{error}</p>}
+      </div>
+
+      <div className="text-right shrink-0">
+        <p className="font-mono text-sm font-medium">{fmtCurrency(co.amount)}</p>
+        {co.approved_date && (
+          <p className="text-xs text-muted-foreground">Approved {fmtDate(co.approved_date)}</p>
+        )}
+        {co.status === "proposed" && (
+          <div className="flex gap-1 mt-1.5 justify-end flex-wrap">
+            <button
+              disabled={isPending}
+              onClick={() => act(() => approveChangeOrder(co.id, null, projectId))}
+              className="rounded bg-green-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+            >
+              Approve
+            </button>
+            <button
+              disabled={isPending}
+              onClick={() => setShowRejectModal(true)}
+              className="rounded border border-destructive/50 px-2 py-0.5 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+            >
+              Reject
+            </button>
+            <button
+              disabled={isPending}
+              onClick={() => setEditing(true)}
+              className="rounded border px-2 py-0.5 text-xs font-medium hover:bg-accent disabled:opacity-50"
+            >
+              Edit
+            </button>
+            {isAdmin && (
+              <button
+                disabled={isPending}
+                onClick={() => {
+                  if (!confirm("Permanently delete this change order?")) return;
+                  act(() => deleteChangeOrder(co.id, projectId, null));
+                }}
+                className="rounded border border-destructive/30 px-2 py-0.5 text-xs font-medium text-destructive/70 hover:bg-destructive/10 disabled:opacity-50"
+              >
+                Delete
+              </button>
+            )}
+          </div>
+        )}
+        {co.status === "approved" && (
+          <div className="flex gap-1 mt-1.5 justify-end">
+            <button
+              disabled={isPending}
+              onClick={() => {
+                if (!confirm("Void this approved CO? This will reverse its budget impact.")) return;
+                act(() => voidChangeOrder(co.id, null, projectId));
+              }}
+              className="rounded border px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent disabled:opacity-50"
+            >
+              Void
+            </button>
+          </div>
+        )}
+      </div>
+
+      {showRejectModal && (
+        <GateCORejectModal
+          co={co}
+          projectId={projectId}
+          onClose={() => setShowRejectModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ─── Edit Gate CO Form ────────────────────────────────── */
+
+function EditGateCOForm({
+  co,
+  gateId,
+  projectId,
+  categories,
+  onDone,
+}: {
+  co: GateCO;
+  gateId: string;
+  projectId: string;
+  categories: Category[];
+  onDone: () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  void gateId; // gate_id stays fixed; only metadata editable
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const fd = new FormData(e.currentTarget);
+    startTransition(async () => {
+      try {
+        const result = await updateChangeOrder(co.id, projectId, fd);
+        if (result?.error) { setError(result.error); return; }
+        onDone();
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="space-y-1">
+          <label className="text-xs font-medium">CO #</label>
+          <input
+            name="co_number"
+            defaultValue={co.co_number}
+            required
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <label className="text-xs font-medium">Description <span className="text-destructive">*</span></label>
+          <input
+            name="description"
+            defaultValue={co.description}
+            required
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium">Amount <span className="text-destructive">*</span></label>
+          <input
+            name="amount"
+            type="number"
+            step="0.01"
+            defaultValue={co.amount}
+            required
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="space-y-1">
+          <label className="text-xs font-medium">Cost Category <span className="text-destructive">*</span></label>
+          <select
+            name="cost_category_id"
+            defaultValue={co.cost_category_id}
+            required
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          >
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium">Proposed Date <span className="text-destructive">*</span></label>
+          <input
+            name="proposed_date"
+            type="date"
+            defaultValue={co.proposed_date}
+            required
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <label className="text-xs font-medium">Notes</label>
+          <input
+            name="notes"
+            defaultValue={co.notes ?? ""}
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={isPending}
+          className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50"
+        >
+          {isPending ? "Saving…" : "Save Changes"}
+        </button>
+        <button type="button" onClick={onDone} className="rounded border px-3 py-1.5 text-xs font-medium">
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* ─── Gate CO Reject Modal ─────────────────────────────── */
+
+function GateCORejectModal({
+  co,
+  projectId,
+  onClose,
+}: {
+  co: GateCO;
+  projectId: string;
+  onClose: () => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleReject() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        const r = await rejectChangeOrder(co.id, null, projectId, reason || undefined);
+        if (r?.error) { setError(r.error); return; }
+        onClose();
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Error");
+      }
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-background rounded-lg border p-6 w-full max-w-md shadow-xl">
+        <h3 className="font-semibold mb-3">Reject Change Order</h3>
+        <p className="text-sm text-muted-foreground mb-1">
+          <span className="font-mono">{co.co_number}</span> — {co.description}
+        </p>
+        <p className="text-sm font-medium mb-4">{fmtCurrency(co.amount)}</p>
+        <label className="text-xs font-medium block mb-1">Rejection Reason <span className="text-muted-foreground font-normal">(optional)</span></label>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="Explain why this CO is being rejected…"
+          className="w-full rounded border border-input bg-background px-3 py-2 text-sm min-h-[80px] mb-3"
+        />
+        {error && <p className="text-xs text-destructive mb-2">{error}</p>}
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onClose}
+            className="rounded border px-3 py-1.5 text-sm font-medium"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleReject}
+            disabled={isPending}
+            className="rounded bg-destructive px-3 py-1.5 text-sm font-medium text-destructive-foreground disabled:opacity-50"
+          >
+            {isPending ? "Rejecting…" : "Reject CO"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
