@@ -235,13 +235,14 @@ export default async function DashboardPage() {
           <h2 className="text-2xl font-bold tracking-tight">
             <TimeGreeting name={user?.full_name} />
           </h2>
-          <p className="text-muted-foreground mt-1">
-            Here&apos;s an overview of your construction projects.
-          </p>
           <div className="mt-4">
             <DashboardChatInput />
           </div>
         </div>
+
+        <p className="text-muted-foreground -mt-2 text-sm">
+          Here&apos;s an overview of your construction projects.
+        </p>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <div className="rounded-lg border bg-card px-5 py-4">
