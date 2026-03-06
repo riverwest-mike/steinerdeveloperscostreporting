@@ -129,7 +129,7 @@ export default async function GatePage({ params }: Props) {
           gate={gate}
           projectId={projectId}
           budgetRows={rows}
-          categories={(categories ?? []).map((c) => ({ id: c.id, name: c.name, code: c.code }))}
+          categories={(categories ?? []).map((c: CategoryRecord) => ({ id: c.id, name: c.name, code: c.code }))}
           changeOrders={(gateChangeOrders ?? []) as {
             id: string; co_number: string; description: string; amount: number; status: string;
             proposed_date: string; approved_date: string | null; teams_url: string | null;
