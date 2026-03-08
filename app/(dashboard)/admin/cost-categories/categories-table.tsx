@@ -27,11 +27,8 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
   function handleDelete(id: string, name: string) {
     if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
     startTransition(async () => {
-      try {
-        await deleteCategory(id);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : "Delete failed");
-      }
+      const result = await deleteCategory(id);
+      if (result?.error) alert(result.error);
     });
   }
 

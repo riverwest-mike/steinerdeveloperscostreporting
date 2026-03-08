@@ -75,62 +75,46 @@ export async function seedDefaultCategories() {
   revalidatePath("/admin/cost-categories");
 }
 
-export async function deleteCategory(id: string) {
-  const { supabase } = await requireAdmin();
+export async function deleteCategory(id: string): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await requireAdmin();
 
-  // Check for FK references before attempting delete so we can show a
-  // meaningful message instead of a raw Postgres constraint error.
-  const [
-    { count: budgetCount },
-    { count: contractCount },
-    { count: changeOrderCount },
-    { count: bridgeCount },
-    { count: txMappingCount },
-    { count: lineItemCount },
-  ] = await Promise.all([
-    supabase
-      .from("gate_budgets")
-      .select("id", { count: "exact", head: true })
-      .eq("cost_category_id", id),
-    supabase
-      .from("contracts")
-      .select("id", { count: "exact", head: true })
-      .eq("cost_category_id", id),
-    supabase
-      .from("change_orders")
-      .select("id", { count: "exact", head: true })
-      .eq("cost_category_id", id),
-    supabase
-      .from("bridge_mappings")
-      .select("id", { count: "exact", head: true })
-      .eq("cost_category_id", id),
-    supabase
-      .from("transaction_mappings")
-      .select("id", { count: "exact", head: true })
-      .eq("cost_category_id", id),
-    supabase
-      .from("contract_line_items")
-      .select("id", { count: "exact", head: true })
-      .eq("cost_category_id", id),
-  ]);
+    // Check for FK references before attempting delete so we can show a
+    // meaningful message instead of a raw Postgres constraint error.
+    const [budgetRes, contractRes, changeOrderRes, lineItemRes] =
+      await Promise.all([
+        supabase.from("gate_budgets").select("id", { count: "exact", head: true }).eq("cost_category_id", id),
+        supabase.from("contracts").select("id", { count: "exact", head: true }).eq("cost_category_id", id),
+        supabase.from("change_orders").select("id", { count: "exact", head: true }).eq("cost_category_id", id),
+        supabase.from("contract_line_items").select("id", { count: "exact", head: true }).eq("cost_category_id", id),
+      ]);
 
-  const uses: string[] = [];
-  if (budgetCount) uses.push(`${budgetCount} gate budget${budgetCount > 1 ? "s" : ""}`);
-  if (contractCount) uses.push(`${contractCount} contract${contractCount > 1 ? "s" : ""}`);
-  if (changeOrderCount) uses.push(`${changeOrderCount} change order${changeOrderCount > 1 ? "s" : ""}`);
-  if (bridgeCount) uses.push(`${bridgeCount} bridge mapping${bridgeCount > 1 ? "s" : ""}`);
-  if (txMappingCount) uses.push(`${txMappingCount} transaction mapping${txMappingCount > 1 ? "s" : ""}`);
-  if (lineItemCount) uses.push(`${lineItemCount} schedule-of-values line item${lineItemCount > 1 ? "s" : ""}`);
+    const budgetCount = budgetRes.count ?? 0;
+    const contractCount = contractRes.count ?? 0;
+    const changeOrderCount = changeOrderRes.count ?? 0;
+    const lineItemCount = lineItemRes.count ?? 0;
 
-  if (uses.length > 0) {
-    throw new Error(
-      `Cannot delete: this category is referenced by ${uses.join(" and ")}. Deactivate it instead.`
-    );
+    const uses: string[] = [];
+    if (budgetCount) uses.push(`${budgetCount} gate budget${budgetCount > 1 ? "s" : ""}`);
+    if (contractCount) uses.push(`${contractCount} contract${contractCount > 1 ? "s" : ""}`);
+    if (changeOrderCount) uses.push(`${changeOrderCount} change order${changeOrderCount > 1 ? "s" : ""}`);
+    if (lineItemCount) uses.push(`${lineItemCount} schedule-of-values line item${lineItemCount > 1 ? "s" : ""}`);
+
+    if (uses.length > 0) {
+      return {
+        error: `Cannot delete: this category is referenced by ${uses.join(" and ")}. Deactivate it instead.`,
+      };
+    }
+
+    const { error } = await supabase.from("cost_categories").delete().eq("id", id);
+    if (error) return { error: error.message };
+
+    revalidatePath("/admin/cost-categories");
+    return {};
+  } catch (err) {
+    console.error("[deleteCategory]", err);
+    return { error: err instanceof Error ? err.message : "Failed to delete category" };
   }
-
-  const { error } = await supabase.from("cost_categories").delete().eq("id", id);
-  if (error) throw new Error(error.message);
-  revalidatePath("/admin/cost-categories");
 }
 
 export async function toggleCategoryActive(id: string, currentValue: boolean) {
