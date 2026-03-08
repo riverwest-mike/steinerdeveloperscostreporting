@@ -7,11 +7,13 @@ import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
 import { ExportButtons } from "./export-buttons";
 import { TransactionNoteCell } from "@/components/transaction-note-cell";
+import { TransactionGateCell } from "@/components/transaction-gate-cell";
 import { ColumnPicker } from "@/components/column-picker";
 import { HELP } from "@/lib/help";
 
 const COST_DETAIL_COLUMNS = [
   { key: "project", label: "Project" },
+  { key: "gate", label: "Gate" },
   { key: "bill_date", label: "Bill Date" },
   { key: "vendor", label: "Vendor", required: true },
   { key: "description", label: "Description" },
@@ -83,6 +85,12 @@ interface Transaction {
   description: string | null;
 }
 
+interface GateInfo {
+  id: string;
+  name: string;
+  sequence_number: number;
+}
+
 /* ─── Page ────────────────────────────────────────────── */
 
 interface Props {
@@ -102,7 +110,9 @@ export default async function CostDetailPage({ searchParams }: Props) {
   const { data: currentUser } = userId
     ? await supabase.from("users").select("role").eq("id", userId).single()
     : { data: null };
-  const isAdmin = (currentUser as { role?: string } | null)?.role === "admin";
+  const role = (currentUser as { role?: string } | null)?.role;
+  const isAdmin = role === "admin";
+  const canEditGate = role === "admin" || role === "project_manager";
 
   // Load projects and cost categories for controls
   const [{ data: allProjects }, { data: rawCategories }] = await Promise.all([
@@ -186,6 +196,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   }
 
   // Fetch notes for all transactions on this page
+  const txIds = transactions.map((t) => t.id);
   const billIds = transactions.map((t) => t.appfolio_bill_id);
   const notesByBillId = new Map<string, string>();
   if (billIds.length > 0) {
@@ -195,6 +206,35 @@ export default async function CostDetailPage({ searchParams }: Props) {
       .in("appfolio_bill_id", billIds);
     for (const n of (rawNotes ?? []) as { appfolio_bill_id: string; note: string }[]) {
       notesByBillId.set(n.appfolio_bill_id, n.note);
+    }
+  }
+
+  // ── Fetch gate assignments ────────────────────────────
+  type GateAssignment = { appfolio_transaction_id: string; gate_id: string; is_override: boolean };
+  const gateAssignmentByTxId = new Map<string, GateAssignment>();
+  if (txIds.length > 0) {
+    const { data: rawGAs } = await supabase
+      .from("transaction_gate_assignments")
+      .select("appfolio_transaction_id, gate_id, is_override")
+      .in("appfolio_transaction_id", txIds);
+    for (const ga of (rawGAs ?? []) as GateAssignment[]) {
+      gateAssignmentByTxId.set(ga.appfolio_transaction_id, ga);
+    }
+  }
+
+  // Fetch gates for selected projects (for display + dropdown)
+  const gatesByProjectId = new Map<string, GateInfo[]>();
+  const gateNameById = new Map<string, { name: string; sequence_number: number }>();
+  if (selectedProjects.length > 0) {
+    const { data: rawGates } = await supabase
+      .from("gates")
+      .select("id, project_id, name, sequence_number")
+      .in("project_id", selectedProjects.map((p) => p.id))
+      .order("sequence_number", { ascending: true });
+    for (const g of (rawGates ?? []) as (GateInfo & { project_id: string })[]) {
+      if (!gatesByProjectId.has(g.project_id)) gatesByProjectId.set(g.project_id, []);
+      gatesByProjectId.get(g.project_id)!.push({ id: g.id, name: g.name, sequence_number: g.sequence_number });
+      gateNameById.set(g.id, { name: g.name, sequence_number: g.sequence_number });
     }
   }
 
@@ -224,6 +264,16 @@ export default async function CostDetailPage({ searchParams }: Props) {
     : "Unknown Project(s)";
 
   const showProjectCol = selectedProjects.length > 1;
+
+  // Build enriched transactions for export (includes gate name)
+  const txWithGate = transactions.map((tx) => {
+    const ga = gateAssignmentByTxId.get(tx.id);
+    const gateData = ga ? gateNameById.get(ga.gate_id) : null;
+    return {
+      ...tx,
+      gate_name: gateData ? `Gate ${gateData.sequence_number} — ${gateData.name}` : "",
+    };
+  });
 
   return (
     <div>
@@ -272,7 +322,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
             />
             {transactions.length > 0 && (
               <ExportButtons
-                transactions={transactions}
+                transactions={txWithGate}
                 projectCode={selectedProjects.length === 1 ? selectedProjects[0].code : "multi"}
                 projectName={projectLabel}
                 categoryLabel={categoryLabel}
@@ -327,6 +377,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
               <thead>
                 <tr className="bg-slate-800 text-white">
                   {showProjectCol && <th data-col="project" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Project</th>}
+                  <th data-col="gate" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Gate</th>
                   <th data-col="bill_date" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Bill Date</th>
                   <th data-col="vendor" className="px-3 py-2.5 text-left font-medium">Vendor</th>
                   <th data-col="description" className="px-3 py-2.5 text-left font-medium">Description</th>
@@ -344,6 +395,9 @@ export default async function CostDetailPage({ searchParams }: Props) {
               <tbody>
                 {transactions.map((tx) => {
                   const txProject = propertyToProject.get((tx as Transaction & { appfolio_property_id: string }).appfolio_property_id);
+                  const ga = gateAssignmentByTxId.get(tx.id);
+                  const gateData = ga ? gateNameById.get(ga.gate_id) : null;
+                  const projectGates = txProject ? (gatesByProjectId.get(txProject.id) ?? []) : [];
                   return (
                   <tr key={tx.id} className="border-t border-slate-100 hover:bg-slate-50/50">
                     {showProjectCol && (
@@ -351,6 +405,17 @@ export default async function CostDetailPage({ searchParams }: Props) {
                         <span className="font-mono text-[10px] text-muted-foreground">{txProject?.code ?? "—"}</span>
                       </td>
                     )}
+                    <td data-col="gate" className="px-3 py-2">
+                      <TransactionGateCell
+                        transactionId={tx.id}
+                        currentGateId={ga?.gate_id ?? null}
+                        currentGateName={gateData?.name ?? null}
+                        currentGateSequence={gateData?.sequence_number ?? null}
+                        isOverride={ga?.is_override ?? false}
+                        projectGates={projectGates}
+                        canEdit={canEditGate}
+                      />
+                    </td>
                     <td data-col="bill_date" className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
                       {fmtDate(tx.bill_date)}
                     </td>
@@ -418,6 +483,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
               <tfoot>
                 <tr className="border-t-2 border-slate-400 bg-slate-800 text-white font-bold text-xs">
                   {showProjectCol && <td data-col="project" className="px-3 py-3" />}
+                  <td data-col="gate" className="px-3 py-3" />
                   <td data-col="bill_date" className="px-3 py-3" />
                   <td data-col="vendor" className="px-3 py-3">TOTAL — {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}</td>
                   <td data-col="description" className="px-3 py-3" />

@@ -19,9 +19,8 @@ function ExcelIcon({ className = "h-4 w-4" }: { className?: string }) {
   );
 }
 
-interface VendorTransaction {
+interface GateTransaction {
   appfolio_property_id: string;
-  appfolio_bill_id: string;
   vendor_name: string;
   description: string | null;
   gl_account_id: string;
@@ -29,47 +28,33 @@ interface VendorTransaction {
   cost_category_code: string | null;
   cost_category_name: string | null;
   bill_date: string | null;
-  due_date: string | null;
-  payment_date: string | null;
   invoice_amount: number;
   paid_amount: number;
   unpaid_amount: number;
   payment_status: string;
-  payment_type: string | null;
   check_number: string | null;
   reference_number: string | null;
   gate_name: string;
-}
-
-interface ProjectInfo {
-  id: string;
-  name: string;
-  code: string;
-  appfolio_property_id: string | null;
+  project_code: string;
+  project_name: string;
 }
 
 interface ExportButtonsProps {
-  transactions: VendorTransaction[];
-  projects: ProjectInfo[];
-  vendorLabel: string;
+  transactions: GateTransaction[];
+  reportLabel: string;
   asOf: string;
 }
 
-export function ExportButtons({ transactions, projects, vendorLabel, asOf }: ExportButtonsProps) {
+export function ExportButtons({ transactions, reportLabel, asOf }: ExportButtonsProps) {
   const handleExcelExport = useCallback(async () => {
     const XLSX = await import("xlsx");
-
-    const propertyToProject = new Map<string, ProjectInfo>();
-    for (const p of projects) {
-      if (p.appfolio_property_id) propertyToProject.set(p.appfolio_property_id, p);
-    }
 
     const dateLabel = new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
       month: "long", day: "numeric", year: "numeric",
     });
 
     const data: (string | number)[][] = [
-      [`Vendor Detail Report — ${vendorLabel}`],
+      [`Gate Detail Report — ${reportLabel}`],
       [`As of ${dateLabel}`],
       [],
       [
@@ -77,15 +62,14 @@ export function ExportButtons({ transactions, projects, vendorLabel, asOf }: Exp
         "Bill Date", "Vendor", "Description", "GL Account", "GL Account Name",
         "Cost Category Code", "Cost Category Name",
         "Invoice Amount", "Paid", "Unpaid",
-        "Status", "Payment Type", "Check #", "Reference",
+        "Status", "Check #", "Reference",
       ],
     ];
 
     for (const tx of transactions) {
-      const proj = propertyToProject.get(tx.appfolio_property_id);
       data.push([
-        proj?.code ?? "",
-        proj?.name ?? "",
+        tx.project_code,
+        tx.project_name,
         tx.gate_name,
         tx.bill_date ?? "",
         tx.vendor_name,
@@ -98,7 +82,6 @@ export function ExportButtons({ transactions, projects, vendorLabel, asOf }: Exp
         Number(tx.paid_amount),
         Number(tx.unpaid_amount),
         tx.payment_status,
-        tx.payment_type ?? "",
         tx.check_number ?? "",
         tx.reference_number ?? "",
       ]);
@@ -112,7 +95,7 @@ export function ExportButtons({ transactions, projects, vendorLabel, asOf }: Exp
       `TOTAL — ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}`,
       "", "", "", "", "", "", "", "", "",
       totalInvoice, totalPaid, totalUnpaid,
-      "", "", "", "",
+      "", "", "",
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
@@ -121,14 +104,14 @@ export function ExportButtons({ transactions, projects, vendorLabel, asOf }: Exp
       { wch: 12 }, { wch: 28 }, { wch: 30 }, { wch: 12 }, { wch: 24 },
       { wch: 20 }, { wch: 24 },
       { wch: 14 }, { wch: 12 }, { wch: 12 },
-      { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 14 },
+      { wch: 10 }, { wch: 10 }, { wch: 14 },
     ];
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Vendor Detail");
-    const safeVendor = vendorLabel.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
-    XLSX.writeFile(wb, `Vendor_Detail_${safeVendor}_${asOf}.xlsx`);
-  }, [transactions, projects, vendorLabel, asOf]);
+    XLSX.utils.book_append_sheet(wb, ws, "Gate Detail");
+    const safeLabel = reportLabel.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);
+    XLSX.writeFile(wb, `Gate_Detail_${safeLabel}_${asOf}.xlsx`);
+  }, [transactions, reportLabel, asOf]);
 
   return (
     <div className="flex gap-2 print:hidden">

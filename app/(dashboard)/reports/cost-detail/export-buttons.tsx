@@ -36,6 +36,7 @@ interface Transaction {
   payment_status: string;
   check_number: string | null;
   reference_number: string | null;
+  gate_name: string;
 }
 
 interface ExportButtonsProps {
@@ -61,6 +62,7 @@ export function ExportButtons({
       [`Cost Detail Report — ${categoryLabel} — As of ${dateLabel}`],
       [],
       [
+        "Gate",
         "Bill Date", "Vendor", "Description", "GL Account", "GL Account Name",
         "Cost Category Code", "Cost Category Name",
         "Invoice Amount", "Paid", "Unpaid",
@@ -70,6 +72,7 @@ export function ExportButtons({
 
     for (const tx of transactions) {
       data.push([
+        tx.gate_name,
         tx.bill_date ?? "",
         tx.vendor_name,
         tx.description ?? "",
@@ -93,13 +96,14 @@ export function ExportButtons({
     data.push([]);
     data.push([
       `TOTAL — ${transactions.length} transaction${transactions.length !== 1 ? "s" : ""}`,
-      "", "", "", "", "", "",
+      "", "", "", "", "", "", "",
       totalInvoice, totalPaid, totalUnpaid,
       "", "", "",
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws["!cols"] = [
+      { wch: 24 },
       { wch: 12 }, { wch: 28 }, { wch: 30 }, { wch: 12 }, { wch: 24 },
       { wch: 20 }, { wch: 24 },
       { wch: 14 }, { wch: 12 }, { wch: 12 },

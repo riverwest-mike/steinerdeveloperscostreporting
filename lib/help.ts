@@ -79,6 +79,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Change Order Log", desc: "All change orders across projects — filter by status, type, cost category, or date range." },
       { label: "Balance Sheet", desc: "AppFolio balance sheet data synced per project." },
       { label: "Trial Balance", desc: "All AppFolio transactions grouped by GL account for a selected project and date range." },
+      { label: "Gate Detail", desc: "Transactions filtered by gate (budget phase). Shows everything assigned to a specific gate with project, vendor, cost category, and amounts." },
       { label: "Reporting Package", desc: "Open the PCM Report and Balance Sheet for a project side-by-side in two new tabs." },
     ],
     tip: "Use the Columns button on any report to show or hide individual columns. Your column preferences are saved per report.",
@@ -115,6 +116,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Filter by cost category", desc: "Narrow to a specific cost code, or leave blank for all categories." },
       { label: "Paid / Unpaid", desc: "Toggle between paid (J) and unpaid (K) transactions, or show all." },
       { label: "Date range", desc: "Filter transactions to a specific date window." },
+      { label: "Gate column", desc: "Shows which gate (budget phase) each transaction has been assigned to. Assignments are set automatically during sync based on the transaction's bill date. A small blue dot indicates the gate was manually assigned. Admins and Project Managers can change the gate by hovering over the row and clicking the pencil icon — a dropdown lists all gates for that project." },
     ],
     tip: "Click a bill description to open the invoice directly in AppFolio (requires your AppFolio URL to be configured in Admin).",
   },
@@ -126,8 +128,23 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Vendor filter", desc: "Type a vendor name to narrow the list. Partial matches work." },
       { label: "Project filter", desc: "Limit to one project, or show the vendor across all projects you have access to." },
       { label: "Date range", desc: "Filter to a specific time window." },
+      { label: "Gate column", desc: "Shows which gate (budget phase) each transaction has been assigned to. Assignments are set automatically during sync based on the transaction's bill date. A small blue dot indicates the gate was manually assigned. Admins and Project Managers can change the gate by hovering over the row and clicking the pencil icon." },
     ],
     tip: "Useful for checking whether a vendor's invoices match their contract commitments.",
+  },
+
+  gateDetailReport: {
+    title: "Gate Detail Report",
+    description: "All transactions assigned to a specific gate (budget phase). Use this to review every dollar of actual spend within a gate — broken down by vendor, cost category, and payment status.",
+    actions: [
+      { label: "Project filter", desc: "Select one or more projects. At least one project must be selected to run the report." },
+      { label: "Gate filter", desc: "Auto-populates with all gates once a project is selected. Select a specific gate to narrow the report to that phase, or leave blank to see all gates for the selected project(s). When multiple projects are selected, gate options are prefixed with the project code." },
+      { label: "Cost Category filter", desc: "Narrow to a specific cost code, or leave blank for all categories." },
+      { label: "Payment filter", desc: "Show all transactions, paid only, or unpaid only." },
+      { label: "As of Date", desc: "Filters transactions to activity through this date. Useful for month-end reporting." },
+      { label: "Gate column", desc: "Shows the assigned gate for each transaction. Admins and Project Managers can reassign a transaction to a different gate by clicking the pencil icon. A blue dot indicates the gate was manually assigned rather than auto-assigned." },
+    ],
+    tip: "Gate assignments are set automatically during sync when the transaction's bill date falls within the gate's start and end date window. Set start and end dates on your gates in the Project › Gate Detail page to enable auto-assignment.",
   },
 
   changeOrderLog: {
