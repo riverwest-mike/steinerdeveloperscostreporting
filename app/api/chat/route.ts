@@ -5,19 +5,26 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 const client = new Anthropic();
 
-const SYSTEM_PROMPT = `You are a helpful assistant for Steiner Developers' construction cost tracking application. You have direct access to the live database and should use your tools to answer questions with real data whenever possible.
+const SYSTEM_PROMPT = `You are a financial assistant for Steiner Developers' construction cost tracking application. You have direct access to the live database and must use your tools to answer questions with real data.
 
 The application tracks:
 - Projects: construction projects with name, code, status, linked to AppFolio properties
 - Gates: project phases with revised budgets per cost category
 - Change Orders: proposed/approved/rejected cost changes on contracts or gates
-- AppFolio Transactions: bills and payments (paid_amount, unpaid_amount, payment_status, vendor_name)
+- AppFolio Transactions: bills and payments (paid_amount, unpaid_amount, payment_status, vendor_name, cost_category_name)
 - Contracts: committed costs with vendors, original_value, approved_co_amount
-- Cost Categories: codes that categorize spend
+- Cost Categories: codes and names that categorize spend (e.g. "Surveys", "Concrete", "Engineering")
 
-Available reports: /reports/cost-management, /reports/cost-detail, /reports/vendor-detail, /reports/commitment-detail, /reports/change-orders, /reports/balance-sheet
+Available reports: /reports/cost-management, /reports/cost-detail, /reports/vendor-detail, /reports/commitment-detail, /reports/change-orders, /reports/balance-sheet, /reports/trial-balance
 
-Be concise. Always use tools to get real data before answering financial questions. Format dollar amounts with commas. When referencing a page, include its path.`;
+## Response guidelines
+- Always call tools to get real data before answering any financial question. Never guess amounts.
+- Present financial data in **markdown tables** whenever comparing multiple items, projects, or categories.
+- Use **bold** for totals and key figures. Use bullet points for lists.
+- Format all dollar amounts with $ and commas (e.g. $1,234,567).
+- Draw clear conclusions: "Project X is 12% over budget" not just raw numbers.
+- If a question spans multiple projects or categories, summarize first then show the breakdown table.
+- When referencing a page in the app, include its path like /reports/cost-detail.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -48,15 +55,54 @@ const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "summarize_spend",
+    description:
+      "Aggregate AppFolio transaction totals — no row limit. Use this to answer 'how much was spent on X' questions. Returns total paid and unpaid amounts. Can group by cost_category or vendor. Supports date range filtering.",
+    input_schema: {
+      type: "object",
+      properties: {
+        project_id: {
+          type: "string",
+          description: "Filter to one project by UUID. Omit for all accessible projects.",
+        },
+        cost_category: {
+          type: "string",
+          description: "Partial case-insensitive match on cost category name OR code (e.g. 'survey', 'concrete', '01500').",
+        },
+        vendor_name: {
+          type: "string",
+          description: "Partial case-insensitive match on vendor name.",
+        },
+        date_from: {
+          type: "string",
+          description: "Start date inclusive, format YYYY-MM-DD (e.g. '2026-01-01').",
+        },
+        date_to: {
+          type: "string",
+          description: "End date inclusive, format YYYY-MM-DD (e.g. '2026-12-31').",
+        },
+        group_by: {
+          type: "string",
+          enum: ["cost_category", "vendor", "project", "none"],
+          description: "How to group the results. Default: none (returns a single total).",
+        },
+      },
+    },
+  },
+  {
     name: "query_transactions",
     description:
-      "Query AppFolio transactions with optional filters. Returns up to 25 rows sorted by bill_date descending.",
+      "Query individual AppFolio transactions with optional filters. Returns up to 30 rows sorted by bill_date descending. Use summarize_spend instead when you only need totals.",
     input_schema: {
       type: "object",
       properties: {
         project_id: {
           type: "string",
           description: "Filter to one project by project UUID",
+        },
+        cost_category: {
+          type: "string",
+          description: "Partial case-insensitive match on cost category name OR code.",
         },
         vendor_name: {
           type: "string",
@@ -67,9 +113,13 @@ const TOOLS: Anthropic.Tool[] = [
           enum: ["paid", "unpaid", "all"],
           description: "Default: all",
         },
-        days: {
-          type: "number",
-          description: "Limit to transactions in the last N days",
+        date_from: {
+          type: "string",
+          description: "Start date inclusive, format YYYY-MM-DD.",
+        },
+        date_to: {
+          type: "string",
+          description: "End date inclusive, format YYYY-MM-DD.",
         },
       },
     },
@@ -119,15 +169,39 @@ async function executeTool(
 ): Promise<unknown> {
   const db = createAdminClient();
 
-  // Helper: apply project scope filter
   function inProjects(id: string) {
     return isAdmin ? true : accessibleProjectIds.includes(id);
   }
 
+  // Resolve accessible property IDs (scoped to user)
+  async function getScopedPropertyIds(projectId?: string): Promise<string[] | null> {
+    if (projectId) {
+      if (!isAdmin && !inProjects(projectId)) return null;
+      const { data: proj } = await db
+        .from("projects")
+        .select("appfolio_property_id")
+        .eq("id", projectId)
+        .single();
+      return proj?.appfolio_property_id ? [proj.appfolio_property_id] : [];
+    }
+    if (!isAdmin) {
+      const { data: projs } = await db
+        .from("projects")
+        .select("appfolio_property_id")
+        .in("id", accessibleProjectIds)
+        .not("appfolio_property_id", "is", null);
+      return ((projs ?? []) as { appfolio_property_id: string | null }[])
+        .map((p) => p.appfolio_property_id)
+        .filter((id): id is string => Boolean(id));
+    }
+    return null; // admin, no restriction
+  }
+
   switch (name) {
+
+    // ── list_projects ──────────────────────────────────────────────────────
     case "list_projects": {
       const statusFilter = (input.status as string) ?? "active";
-
       let q = db.from("projects").select("id, name, code, status, appfolio_property_id").order("name");
       if (statusFilter === "active") q = q.eq("status", "active");
       if (!isAdmin) q = q.in("id", accessibleProjectIds);
@@ -136,15 +210,11 @@ async function executeTool(
       const projects = (rawProjects ?? []) as { id: string; name: string; code: string; status: string; appfolio_property_id: string | null }[];
       if (!projects.length) return { projects: [] };
 
-      // Get budgets per project
       const projectIds = projects.map((p) => p.id);
-      const { data: rawGates } = await db
-        .from("gates")
-        .select("id, project_id")
-        .in("project_id", projectIds);
+      const { data: rawGates } = await db.from("gates").select("id, project_id").in("project_id", projectIds);
       const gates = (rawGates ?? []) as { id: string; project_id: string }[];
-
       const gateIds = gates.map((g) => g.id);
+
       const { data: rawBudgets } = gateIds.length
         ? await db.from("gate_budgets").select("gate_id, revised_budget").in("gate_id", gateIds)
         : { data: [] };
@@ -157,22 +227,15 @@ async function executeTool(
         if (pid) budgetByProject.set(pid, (budgetByProject.get(pid) ?? 0) + Number(b.revised_budget));
       }
 
-      // Get spend per project via appfolio_property_id
       const propIds = projects.filter((p) => p.appfolio_property_id).map((p) => p.appfolio_property_id as string);
       const { data: rawTxSums } = propIds.length
-        ? await db
-            .from("appfolio_transactions")
-            .select("appfolio_property_id, paid_amount, unpaid_amount")
-            .in("appfolio_property_id", propIds)
+        ? await db.from("appfolio_transactions").select("appfolio_property_id, paid_amount, unpaid_amount").in("appfolio_property_id", propIds)
         : { data: [] };
       const txSums = (rawTxSums ?? []) as { appfolio_property_id: string; paid_amount: number; unpaid_amount: number }[];
 
       const spendByProp = new Map<string, number>();
       for (const t of txSums) {
-        spendByProp.set(
-          t.appfolio_property_id,
-          (spendByProp.get(t.appfolio_property_id) ?? 0) + Number(t.paid_amount) + Number(t.unpaid_amount)
-        );
+        spendByProp.set(t.appfolio_property_id, (spendByProp.get(t.appfolio_property_id) ?? 0) + Number(t.paid_amount) + Number(t.unpaid_amount));
       }
 
       return {
@@ -187,59 +250,37 @@ async function executeTool(
       };
     }
 
+    // ── get_project_financials ─────────────────────────────────────────────
     case "get_project_financials": {
       const projectId = input.project_id as string;
       if (!isAdmin && !inProjects(projectId)) return { error: "Access denied" };
 
-      const { data: project } = await db
-        .from("projects")
-        .select("id, name, code, status, appfolio_property_id")
-        .eq("id", projectId)
-        .single();
-
+      const { data: project } = await db.from("projects").select("id, name, code, status, appfolio_property_id").eq("id", projectId).single();
       if (!project) return { error: "Project not found" };
 
-      // Budget
-      const { data: rawGates2 } = await db.from("gates").select("id").eq("project_id", projectId);
-      const gateIds = (rawGates2 ?? [] as { id: string }[]).map((g: { id: string }) => g.id);
-      const { data: rawBudgets2 } = gateIds.length
+      const { data: rawGates } = await db.from("gates").select("id").eq("project_id", projectId);
+      const gateIds = ((rawGates ?? []) as { id: string }[]).map((g) => g.id);
+      const { data: rawBudgets } = gateIds.length
         ? await db.from("gate_budgets").select("revised_budget").in("gate_id", gateIds)
         : { data: [] };
-      const budgets2 = (rawBudgets2 ?? []) as { revised_budget: number }[];
-      const totalBudget = budgets2.reduce((s, b) => s + Number(b.revised_budget), 0);
+      const totalBudget = ((rawBudgets ?? []) as { revised_budget: number }[]).reduce((s, b) => s + Number(b.revised_budget), 0);
 
-      // Committed (contracts)
-      const { data: rawContracts } = await db
-        .from("contracts")
-        .select("original_value, approved_co_amount, status")
-        .eq("project_id", projectId)
-        .neq("status", "terminated");
-      const contracts = (rawContracts ?? []) as { original_value: number; approved_co_amount: number | null; status: string }[];
-      const totalCommitted = contracts.reduce(
-        (s, c) => s + Number(c.original_value) + Number(c.approved_co_amount ?? 0),
-        0
+      const { data: rawContracts } = await db.from("contracts").select("original_value, approved_co_amount").eq("project_id", projectId).neq("status", "terminated");
+      const totalCommitted = ((rawContracts ?? []) as { original_value: number; approved_co_amount: number | null }[]).reduce(
+        (s, c) => s + Number(c.original_value) + Number(c.approved_co_amount ?? 0), 0
       );
 
-      // Pending COs
-      const { data: rawPendingCOs } = await db
-        .from("change_orders")
-        .select("amount")
-        .eq("project_id", projectId)
-        .eq("status", "proposed");
+      const { data: rawPendingCOs } = await db.from("change_orders").select("amount").eq("project_id", projectId).eq("status", "proposed");
       const pendingCOs = (rawPendingCOs ?? []) as { amount: number }[];
       const pendingCOValue = pendingCOs.reduce((s, co) => s + Number(co.amount), 0);
 
-      // Incurred (transactions)
-      let totalPaid = 0;
-      let totalUnpaid = 0;
+      let totalPaid = 0, totalUnpaid = 0;
       if (project.appfolio_property_id) {
-        const { data: rawTxTotals } = await db
-          .from("appfolio_transactions")
-          .select("paid_amount, unpaid_amount")
-          .eq("appfolio_property_id", project.appfolio_property_id);
-        const txTotals = (rawTxTotals ?? []) as { paid_amount: number; unpaid_amount: number }[];
-        totalPaid = txTotals.reduce((s, t) => s + Number(t.paid_amount), 0);
-        totalUnpaid = txTotals.reduce((s, t) => s + Number(t.unpaid_amount), 0);
+        const { data: rawTx } = await db.from("appfolio_transactions").select("paid_amount, unpaid_amount").eq("appfolio_property_id", project.appfolio_property_id);
+        for (const t of (rawTx ?? []) as { paid_amount: number; unpaid_amount: number }[]) {
+          totalPaid += Number(t.paid_amount);
+          totalUnpaid += Number(t.unpaid_amount);
+        }
       }
 
       return {
@@ -256,76 +297,120 @@ async function executeTool(
       };
     }
 
+    // ── summarize_spend ────────────────────────────────────────────────────
+    case "summarize_spend": {
+      const projectId = input.project_id as string | undefined;
+      const costCategory = input.cost_category as string | undefined;
+      const vendorName = input.vendor_name as string | undefined;
+      const dateFrom = input.date_from as string | undefined;
+      const dateTo = input.date_to as string | undefined;
+      const groupBy = (input.group_by as string) ?? "none";
+
+      const propIds = await getScopedPropertyIds(projectId);
+      if (propIds === null && projectId) return { error: "Access denied" };
+
+      let q = db.from("appfolio_transactions").select(
+        "appfolio_property_id, cost_category_code, cost_category_name, vendor_name, paid_amount, unpaid_amount, bill_date"
+      );
+
+      if (propIds !== null) q = q.in("appfolio_property_id", propIds);
+      if (costCategory) {
+        q = q.or(`cost_category_name.ilike.%${costCategory}%,cost_category_code.ilike.%${costCategory}%`);
+      }
+      if (vendorName) q = q.ilike("vendor_name", `%${vendorName}%`);
+      if (dateFrom) q = q.gte("bill_date", dateFrom);
+      if (dateTo) q = q.lte("bill_date", dateTo);
+
+      const { data: rawTx } = await q;
+      const txs = (rawTx ?? []) as {
+        appfolio_property_id: string;
+        cost_category_code: string | null;
+        cost_category_name: string | null;
+        vendor_name: string;
+        paid_amount: number;
+        unpaid_amount: number;
+        bill_date: string;
+      }[];
+
+      if (txs.length === 0) {
+        return { total_paid: 0, total_unpaid: 0, total_incurred: 0, count: 0, groups: [] };
+      }
+
+      // Build project lookup for grouping
+      const allPropIds = [...new Set(txs.map((t) => t.appfolio_property_id))];
+      const { data: rawProjMap } = await db.from("projects").select("appfolio_property_id, name, code").in("appfolio_property_id", allPropIds);
+      const propToProject = new Map(((rawProjMap ?? []) as { appfolio_property_id: string; name: string; code: string }[]).map((p) => [p.appfolio_property_id, `${p.name} (${p.code})`]));
+
+      const totalPaid = txs.reduce((s, t) => s + Number(t.paid_amount), 0);
+      const totalUnpaid = txs.reduce((s, t) => s + Number(t.unpaid_amount), 0);
+
+      if (groupBy === "none") {
+        return { total_paid: totalPaid, total_unpaid: totalUnpaid, total_incurred: totalPaid + totalUnpaid, transaction_count: txs.length };
+      }
+
+      // Group aggregation
+      const groupMap = new Map<string, { paid: number; unpaid: number; count: number }>();
+      for (const t of txs) {
+        let key = "";
+        if (groupBy === "cost_category") key = t.cost_category_name ? `${t.cost_category_code} ${t.cost_category_name}` : (t.cost_category_code ?? "Unmatched");
+        else if (groupBy === "vendor") key = t.vendor_name;
+        else if (groupBy === "project") key = propToProject.get(t.appfolio_property_id) ?? t.appfolio_property_id;
+        const existing = groupMap.get(key) ?? { paid: 0, unpaid: 0, count: 0 };
+        groupMap.set(key, { paid: existing.paid + Number(t.paid_amount), unpaid: existing.unpaid + Number(t.unpaid_amount), count: existing.count + 1 });
+      }
+
+      const groups = [...groupMap.entries()]
+        .map(([key, v]) => ({ group: key, paid: v.paid, unpaid: v.unpaid, total: v.paid + v.unpaid, count: v.count }))
+        .sort((a, b) => b.total - a.total);
+
+      return { total_paid: totalPaid, total_unpaid: totalUnpaid, total_incurred: totalPaid + totalUnpaid, transaction_count: txs.length, groups };
+    }
+
+    // ── query_transactions ─────────────────────────────────────────────────
     case "query_transactions": {
       const projectId = input.project_id as string | undefined;
+      const costCategory = input.cost_category as string | undefined;
       const vendorName = input.vendor_name as string | undefined;
       const paymentStatus = (input.payment_status as string) ?? "all";
-      const days = input.days as number | undefined;
+      const dateFrom = input.date_from as string | undefined;
+      const dateTo = input.date_to as string | undefined;
 
-      // Resolve appfolio_property_id
-      let propIds: string[] | null = null;
-      if (projectId) {
-        if (!isAdmin && !inProjects(projectId)) return { error: "Access denied" };
-        const { data: proj } = await db
-          .from("projects")
-          .select("appfolio_property_id")
-          .eq("id", projectId)
-          .single();
-        if (proj?.appfolio_property_id) propIds = [proj.appfolio_property_id];
-      } else if (!isAdmin) {
-        // Scope to accessible projects' property IDs
-        const { data: projs } = await db
-          .from("projects")
-          .select("appfolio_property_id")
-          .in("id", accessibleProjectIds)
-          .not("appfolio_property_id", "is", null);
-        propIds = ((projs ?? []) as { appfolio_property_id: string | null }[])
-          .map((p) => p.appfolio_property_id)
-          .filter((id): id is string => Boolean(id));
-      }
+      const propIds = await getScopedPropertyIds(projectId);
+      if (propIds === null && projectId) return { error: "Access denied" };
 
       let q = db
         .from("appfolio_transactions")
-        .select(
-          "id, bill_date, vendor_name, cost_category_name, paid_amount, unpaid_amount, payment_status, appfolio_property_id, description"
-        )
+        .select("id, bill_date, vendor_name, cost_category_code, cost_category_name, paid_amount, unpaid_amount, payment_status, appfolio_property_id, description")
         .order("bill_date", { ascending: false })
-        .limit(25);
+        .limit(30);
 
-      if (propIds) q = q.in("appfolio_property_id", propIds);
+      if (propIds !== null) q = q.in("appfolio_property_id", propIds);
+      if (costCategory) q = q.or(`cost_category_name.ilike.%${costCategory}%,cost_category_code.ilike.%${costCategory}%`);
       if (vendorName) q = q.ilike("vendor_name", `%${vendorName}%`);
       if (paymentStatus === "paid") q = q.gt("paid_amount", 0);
       if (paymentStatus === "unpaid") q = q.gt("unpaid_amount", 0);
-      if (days) {
-        const since = new Date();
-        since.setDate(since.getDate() - days);
-        q = q.gte("bill_date", since.toISOString().slice(0, 10));
-      }
+      if (dateFrom) q = q.gte("bill_date", dateFrom);
+      if (dateTo) q = q.lte("bill_date", dateTo);
 
       const { data: rawTxs } = await q;
       const txs = (rawTxs ?? []) as {
-        bill_date: string; vendor_name: string; cost_category_name: string | null;
+        bill_date: string; vendor_name: string; cost_category_code: string | null; cost_category_name: string | null;
         paid_amount: number; unpaid_amount: number; payment_status: string;
         appfolio_property_id: string; description: string | null;
       }[];
 
-      // Map property_id back to project name
       const allPropIds = [...new Set(txs.map((t) => t.appfolio_property_id))];
       const { data: rawProjMap } = allPropIds.length
-        ? await db
-            .from("projects")
-            .select("appfolio_property_id, name, code")
-            .in("appfolio_property_id", allPropIds)
+        ? await db.from("projects").select("appfolio_property_id, name, code").in("appfolio_property_id", allPropIds)
         : { data: [] };
-      const projMap = (rawProjMap ?? []) as { appfolio_property_id: string; name: string; code: string }[];
-      const propToProject = new Map(projMap.map((p) => [p.appfolio_property_id, `${p.name} (${p.code})`]));
+      const propToProject = new Map(((rawProjMap ?? []) as { appfolio_property_id: string; name: string; code: string }[]).map((p) => [p.appfolio_property_id, `${p.name} (${p.code})`]));
 
       return {
         count: txs.length,
         transactions: txs.map((t) => ({
           date: t.bill_date,
           vendor: t.vendor_name,
-          category: t.cost_category_name,
+          category: t.cost_category_name ?? t.cost_category_code ?? "Unmatched",
           paid: Number(t.paid_amount),
           unpaid: Number(t.unpaid_amount),
           status: t.payment_status,
@@ -335,42 +420,28 @@ async function executeTool(
       };
     }
 
+    // ── get_change_orders ──────────────────────────────────────────────────
     case "get_change_orders": {
       const projectId = input.project_id as string | undefined;
       const status = (input.status as string) ?? "all";
 
-      let q = db
-        .from("change_orders")
-        .select("id, project_id, co_number, description, amount, status, proposed_date, rejection_reason")
-        .order("proposed_date", { ascending: false })
-        .limit(30);
-
+      let q = db.from("change_orders").select("id, project_id, co_number, description, amount, status, proposed_date, rejection_reason").order("proposed_date", { ascending: false }).limit(30);
       if (projectId) {
         if (!isAdmin && !inProjects(projectId)) return { error: "Access denied" };
         q = q.eq("project_id", projectId);
       } else if (!isAdmin) {
         q = q.in("project_id", accessibleProjectIds);
       }
-
       if (status !== "all") q = q.eq("status", status);
 
       const { data: rawCos } = await q;
-      const cos = (rawCos ?? []) as {
-        co_number: string; project_id: string; description: string;
-        amount: number; status: string; proposed_date: string; rejection_reason: string | null;
-      }[];
+      const cos = (rawCos ?? []) as { co_number: string; project_id: string; description: string; amount: number; status: string; proposed_date: string; rejection_reason: string | null }[];
 
-      // Get project names
       const pids = [...new Set(cos.map((c) => c.project_id))];
-      const { data: rawProjs2 } = pids.length
-        ? await db.from("projects").select("id, name, code").in("id", pids)
-        : { data: [] };
-      const projs2 = (rawProjs2 ?? []) as { id: string; name: string; code: string }[];
-      const pidToName = new Map(projs2.map((p) => [p.id, `${p.name} (${p.code})`]));
+      const { data: rawProjs } = pids.length ? await db.from("projects").select("id, name, code").in("id", pids) : { data: [] };
+      const pidToName = new Map(((rawProjs ?? []) as { id: string; name: string; code: string }[]).map((p) => [p.id, `${p.name} (${p.code})`]));
 
-      const totalProposed = cos
-        .filter((c) => c.status === "proposed")
-        .reduce((s, c) => s + Number(c.amount), 0);
+      const totalProposed = cos.filter((c) => c.status === "proposed").reduce((s, c) => s + Number(c.amount), 0);
 
       return {
         count: cos.length,
@@ -387,35 +458,23 @@ async function executeTool(
       };
     }
 
+    // ── get_contracts ──────────────────────────────────────────────────────
     case "get_contracts": {
       const projectId = input.project_id as string;
       const status = (input.status as string) ?? "all";
-
       if (!isAdmin && !inProjects(projectId)) return { error: "Access denied" };
 
-      let q = db
-        .from("contracts")
-        .select("id, vendor_name, contract_number, original_value, approved_co_amount, status, execution_date")
-        .eq("project_id", projectId)
-        .order("vendor_name");
-
+      let q = db.from("contracts").select("id, vendor_name, contract_number, original_value, approved_co_amount, status, execution_date").eq("project_id", projectId).order("vendor_name");
       if (status !== "all") q = q.eq("status", status);
 
-      const { data: rawContracts2 } = await q;
-      const contracts2 = (rawContracts2 ?? []) as {
-        vendor_name: string; contract_number: string | null; original_value: number;
-        approved_co_amount: number | null; status: string; execution_date: string | null;
-      }[];
-
-      const total = contracts2.reduce(
-        (s, c) => s + Number(c.original_value) + Number(c.approved_co_amount ?? 0),
-        0
-      );
+      const { data: rawContracts } = await q;
+      const contracts = (rawContracts ?? []) as { vendor_name: string; contract_number: string | null; original_value: number; approved_co_amount: number | null; status: string; execution_date: string | null }[];
+      const total = contracts.reduce((s, c) => s + Number(c.original_value) + Number(c.approved_co_amount ?? 0), 0);
 
       return {
-        count: contracts2.length,
+        count: contracts.length,
         total_committed: total,
-        contracts: contracts2.map((c) => ({
+        contracts: contracts.map((c) => ({
           vendor: c.vendor_name,
           contract_number: c.contract_number,
           original_value: Number(c.original_value),
@@ -437,30 +496,18 @@ async function executeTool(
 export async function POST(req: NextRequest) {
   const headersList = await headers();
   const userId = headersList.get("x-clerk-user-id");
-
-  if (!userId) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  if (!userId) return new Response("Unauthorized", { status: 401 });
 
   const { messages } = await req.json();
   const trimmed = (messages as Anthropic.MessageParam[]).slice(-20);
 
-  // Determine user role and accessible project IDs
   const db = createAdminClient();
-  const { data: user } = await db
-    .from("users")
-    .select("role")
-    .eq("id", userId)
-    .single();
-
+  const { data: user } = await db.from("users").select("role").eq("id", userId).single();
   const isAdmin = user?.role === "admin";
-  let accessibleProjectIds: string[] = [];
 
+  let accessibleProjectIds: string[] = [];
   if (!isAdmin) {
-    const { data: pu } = await db
-      .from("project_users")
-      .select("project_id")
-      .eq("user_id", userId);
+    const { data: pu } = await db.from("project_users").select("project_id").eq("user_id", userId);
     accessibleProjectIds = ((pu ?? []) as { project_id: string }[]).map((r) => r.project_id);
   }
 
@@ -468,57 +515,34 @@ export async function POST(req: NextRequest) {
   let loopMessages = [...trimmed];
   let finalText = "";
 
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 8; i++) {
     const response = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 1024,
-      system: [
-        {
-          type: "text",
-          text: SYSTEM_PROMPT,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
+      model: "claude-sonnet-4-6",
+      max_tokens: 2048,
+      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       tools: TOOLS,
       messages: loopMessages,
     });
 
     if (response.stop_reason === "end_turn") {
-      finalText =
-        (response.content.find((b) => b.type === "text") as Anthropic.TextBlock | undefined)
-          ?.text ?? "";
+      finalText = (response.content.find((b) => b.type === "text") as Anthropic.TextBlock | undefined)?.text ?? "";
       break;
     }
 
     if (response.stop_reason === "tool_use") {
-      const toolBlocks = response.content.filter(
-        (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-      );
-
+      const toolBlocks = response.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
       loopMessages.push({ role: "assistant", content: response.content });
 
       const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
         toolBlocks.map(async (block) => {
-          const result = await executeTool(
-            block.name,
-            block.input as Record<string, unknown>,
-            accessibleProjectIds,
-            isAdmin
-          );
-          return {
-            type: "tool_result" as const,
-            tool_use_id: block.id,
-            content: JSON.stringify(result),
-          };
+          const result = await executeTool(block.name, block.input as Record<string, unknown>, accessibleProjectIds, isAdmin);
+          return { type: "tool_result" as const, tool_use_id: block.id, content: JSON.stringify(result) };
         })
       );
 
       loopMessages.push({ role: "user", content: toolResults });
     } else {
-      // Unexpected stop reason — extract any text and bail
-      finalText =
-        (response.content.find((b) => b.type === "text") as Anthropic.TextBlock | undefined)
-          ?.text ?? "";
+      finalText = (response.content.find((b) => b.type === "text") as Anthropic.TextBlock | undefined)?.text ?? "";
       break;
     }
   }
@@ -531,7 +555,5 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return new Response(readable, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
-  });
+  return new Response(readable, { headers: { "Content-Type": "text/plain; charset=utf-8" } });
 }
