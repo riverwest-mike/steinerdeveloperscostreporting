@@ -7,15 +7,32 @@ const client = new Anthropic();
 
 const SYSTEM_PROMPT = `You are a financial assistant for Steiner Developers' construction cost tracking application. You have direct access to the live database and must use your tools to answer questions with real data.
 
+## Data access and access control
+You only have access to projects and data that the logged-in user is authorized to see. Never reference, guess, or infer data for projects the user has not been granted access to. If a tool returns no results for a project, it means the user does not have access or no data exists — do not speculate.
+
 The application tracks:
 - Projects: construction projects with name, code, status, linked to AppFolio properties
-- Gates: project phases with revised budgets per cost category
+- Gates: project phases (status: pending = not yet started, active = currently in progress, closed = complete). Only one gate can be active at a time per project. Use get_gates to see gate status.
 - Change Orders: proposed/approved/rejected cost changes on contracts or gates
 - AppFolio Transactions: bills and payments (paid_amount, unpaid_amount, payment_status, vendor_name, cost_category_name)
 - Contracts: committed costs with vendors, original_value, approved_co_amount
 - Cost Categories: codes and names that categorize spend (e.g. "Surveys", "Concrete", "Engineering")
 
-Available reports: /reports/cost-management, /reports/cost-detail, /reports/vendor-detail, /reports/commitment-detail, /reports/change-orders, /reports/balance-sheet, /reports/trial-balance
+## Navigation
+When the user asks to go to a report or page, respond with a markdown link using the exact app path. Internal app links will be clickable and navigate directly.
+
+Available paths:
+- /reports/cost-management — Project Cost Management Report (add ?projectIds=ID to pre-select a project, &gateId=GATE_ID to filter to one gate)
+- /reports/cost-detail — Cost Detail Report (add ?projectIds=ID&categoryCode=CODE)
+- /reports/vendor-detail — Vendor Detail Report
+- /reports/commitment-detail — Commitment Detail Report
+- /reports/change-orders — Change Order Log
+- /reports/balance-sheet — Balance Sheet Report
+- /reports/trial-balance — Trial Balance
+- /projects — Projects list
+- /dashboard — Dashboard
+
+Example: "Take me to the PCM report for project ABC" → call list_projects to find the project ID, then respond: [Open PCM Report for ABC](/reports/cost-management?projectIds=PROJECT_ID)
 
 ## Response guidelines
 - Always call tools to get real data before answering any financial question. Never guess amounts.
@@ -24,7 +41,7 @@ Available reports: /reports/cost-management, /reports/cost-detail, /reports/vend
 - Format all dollar amounts with $ and commas (e.g. $1,234,567).
 - Draw clear conclusions: "Project X is 12% over budget" not just raw numbers.
 - If a question spans multiple projects or categories, summarize first then show the breakdown table.
-- When referencing a page in the app, include its path like /reports/cost-detail.`;
+- For gate questions: clearly state which gate is currently active, which are closed, and which are pending.`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -138,6 +155,18 @@ const TOOLS: Anthropic.Tool[] = [
           description: "Default: all",
         },
       },
+    },
+  },
+  {
+    name: "get_gates",
+    description:
+      "Get all gates (phases) for a project, including their status (pending/active/closed), sequence number, dates, and budget totals. Use this to answer questions about which gate is currently open, which are closed, or what phase a project is in.",
+    input_schema: {
+      type: "object",
+      properties: {
+        project_id: { type: "string", description: "Required project UUID from list_projects" },
+      },
+      required: ["project_id"],
     },
   },
   {
@@ -454,6 +483,65 @@ async function executeTool(
           status: c.status,
           date: c.proposed_date,
           rejection_reason: c.rejection_reason,
+        })),
+      };
+    }
+
+    // ── get_gates ──────────────────────────────────────────────────────────
+    case "get_gates": {
+      const projectId = input.project_id as string;
+      if (!isAdmin && !inProjects(projectId)) return { error: "Access denied" };
+
+      const { data: project } = await db.from("projects").select("id, name, code").eq("id", projectId).single();
+      if (!project) return { error: "Project not found" };
+
+      const { data: rawGates } = await db
+        .from("gates")
+        .select("id, name, sequence_number, status, start_date, end_date, notes, closed_at")
+        .eq("project_id", projectId)
+        .order("sequence_number");
+
+      type GateRecord = { id: string; name: string; sequence_number: number; status: string; start_date: string | null; end_date: string | null; notes: string | null; closed_at: string | null };
+      const gates = (rawGates ?? []) as GateRecord[];
+      if (!gates.length) return { project: { name: (project as { name: string }).name, code: (project as { code: string }).code }, gates: [], message: "No gates defined for this project." };
+
+      // Fetch budget totals per gate
+      const gateIds = gates.map((g) => g.id);
+      const { data: rawBudgets } = gateIds.length
+        ? await db.from("gate_budgets").select("gate_id, original_budget, approved_co_amount").in("gate_id", gateIds)
+        : { data: [] };
+      const budgetByGate = new Map<string, { original: number; revised: number }>();
+      for (const b of (rawBudgets ?? []) as { gate_id: string; original_budget: number; approved_co_amount: number }[]) {
+        const prev = budgetByGate.get(b.gate_id) ?? { original: 0, revised: 0 };
+        budgetByGate.set(b.gate_id, {
+          original: prev.original + Number(b.original_budget),
+          revised: prev.revised + Number(b.original_budget) + Number(b.approved_co_amount),
+        });
+      }
+
+      const activeGate = gates.find((g) => g.status === "active");
+      const closedGates = gates.filter((g) => g.status === "closed");
+      const pendingGates = gates.filter((g) => g.status === "pending");
+
+      return {
+        project: { name: (project as { name: string }).name, code: (project as { code: string }).code },
+        summary: {
+          total_gates: gates.length,
+          active_gate: activeGate ? `Gate ${activeGate.sequence_number} — ${activeGate.name}` : null,
+          closed_count: closedGates.length,
+          pending_count: pendingGates.length,
+        },
+        gates: gates.map((g) => ({
+          sequence_number: g.sequence_number,
+          name: g.name,
+          status: g.status,
+          is_current: g.status === "active",
+          start_date: g.start_date,
+          end_date: g.end_date,
+          closed_at: g.closed_at,
+          notes: g.notes,
+          original_budget: budgetByGate.get(g.id)?.original ?? 0,
+          revised_budget: budgetByGate.get(g.id)?.revised ?? 0,
         })),
       };
     }

@@ -353,11 +353,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         .from("transaction_gate_assignments")
         .select("appfolio_transaction_id")
         .eq("gate_id", filterGateId);
-      assignedTxIds = (gateAssignments ?? []).map(
-        (ga: { appfolio_transaction_id: string }) => ga.appfolio_transaction_id
-      );
-      // If no transactions assigned to this gate, short-circuit
-      if (assignedTxIds.length === 0) assignedTxIds = ["__none__"];
+      const rawIds = ((gateAssignments ?? []) as { appfolio_transaction_id: string }[])
+        .map((ga) => ga.appfolio_transaction_id);
+      assignedTxIds = rawIds.length === 0 ? ["__none__"] : rawIds;
     }
 
     let txQuery = supabase
