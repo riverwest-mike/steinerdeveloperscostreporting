@@ -10,7 +10,6 @@ import {
   ClipboardCheck,
   Scale,
   BookOpen,
-  GitBranch,
 } from "lucide-react";
 import { HELP } from "@/lib/help";
 
@@ -42,15 +41,6 @@ const AVAILABLE_REPORTS = [
     Icon: Building2,
     iconColor: "text-violet-600",
     iconBg: "bg-violet-50 group-hover:bg-violet-100",
-  },
-  {
-    href: "/reports/gate-detail",
-    title: "Gate Detail Report",
-    description:
-      "View all transactions assigned to a specific gate (budget phase) — filter by project, gate, cost category, and payment status.",
-    Icon: GitBranch,
-    iconColor: "text-cyan-600",
-    iconBg: "bg-cyan-50 group-hover:bg-cyan-100",
   },
   {
     href: "/reports/commitment-detail",

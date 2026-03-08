@@ -11,24 +11,61 @@ interface Project {
   appfolio_property_id: string | null;
 }
 
+interface Gate {
+  id: string;
+  project_id: string;
+  name: string;
+  sequence_number: number;
+}
+
 interface ReportControlsProps {
   projects: Project[];
+  gates: Gate[];
   currentProjectIds: string[];
+  currentGateId: string | null;
   currentAsOf: string;
 }
 
-export function ReportControls({ projects, currentProjectIds, currentAsOf }: ReportControlsProps) {
+export function ReportControls({
+  projects,
+  gates,
+  currentProjectIds,
+  currentGateId,
+  currentAsOf,
+}: ReportControlsProps) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(currentProjectIds));
+  const [gateId, setGateId] = useState(currentGateId ?? "");
   const [asOf, setAsOf] = useState(currentAsOf);
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [syncMsg, setSyncMsg] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  function buildUrl(ids: Set<string>, date: string) {
+  // Gates available for the currently selected projects
+  const availableGates = gates
+    .filter((g) => selectedIds.has(g.project_id))
+    .sort((a, b) => {
+      if (a.project_id !== b.project_id) return a.project_id.localeCompare(b.project_id);
+      return a.sequence_number - b.sequence_number;
+    });
+
+  const showProjectInGate = selectedIds.size > 1;
+  const projectMap = new Map(projects.map((p) => [p.id, p]));
+
+  function handleProjectChange(ids: Set<string>) {
+    setSelectedIds(ids);
+    setSyncStatus("idle");
+    if (gateId) {
+      const valid = gates.filter((g) => ids.has(g.project_id)).some((g) => g.id === gateId);
+      if (!valid) setGateId("");
+    }
+  }
+
+  function buildUrl(ids: Set<string>, gate: string, date: string) {
     const params = new URLSearchParams();
     const sorted = [...ids].sort();
     if (sorted.length > 0) params.set("projectIds", sorted.join(","));
+    if (gate) params.set("gateId", gate);
     if (date) params.set("asOf", date);
     return `/reports/cost-management?${params.toString()}`;
   }
@@ -37,13 +74,17 @@ export function ReportControls({ projects, currentProjectIds, currentAsOf }: Rep
     if (selectedIds.size === 0) return;
 
     try {
-      localStorage.setItem("pcmr_last_filter", JSON.stringify({ projectIds: [...selectedIds], asOf }));
+      localStorage.setItem("pcmr_last_filter", JSON.stringify({
+        projectIds: [...selectedIds],
+        gateId: gateId || null,
+        asOf,
+      }));
     } catch { /* ignore */ }
 
     const toSync = projects.filter((p) => selectedIds.has(p.id) && p.appfolio_property_id);
 
     if (toSync.length === 0) {
-      router.push(buildUrl(selectedIds, asOf));
+      router.push(buildUrl(selectedIds, gateId, asOf));
       return;
     }
 
@@ -88,7 +129,7 @@ export function ReportControls({ projects, currentProjectIds, currentAsOf }: Rep
         setSyncMsg(err instanceof Error ? err.message : "Sync failed");
       }
 
-      router.push(buildUrl(selectedIds, asOf));
+      router.push(buildUrl(selectedIds, gateId, asOf));
       router.refresh();
     });
   }
@@ -104,8 +145,34 @@ export function ReportControls({ projects, currentProjectIds, currentAsOf }: Rep
           <ProjectMultiSelect
             projects={projects}
             selectedIds={selectedIds}
-            onChange={(ids) => { setSelectedIds(ids); setSyncStatus("idle"); }}
+            onChange={handleProjectChange}
           />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="pcm-gate" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Gate
+          </label>
+          <select
+            id="pcm-gate"
+            value={gateId}
+            onChange={(e) => { setGateId(e.target.value); setSyncStatus("idle"); }}
+            disabled={availableGates.length === 0}
+            className="h-9 min-w-[240px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:opacity-50"
+          >
+            <option value="">
+              {selectedIds.size === 0 ? "— Select a project first —" : "— All Gates —"}
+            </option>
+            {availableGates.map((g) => {
+              const proj = projectMap.get(g.project_id);
+              const label = showProjectInGate && proj
+                ? `${proj.code} · Gate ${g.sequence_number} — ${g.name}`
+                : `Gate ${g.sequence_number} — ${g.name}`;
+              return (
+                <option key={g.id} value={g.id}>{label}</option>
+              );
+            })}
+          </select>
         </div>
 
         <div className="flex flex-col gap-1.5">

@@ -107,7 +107,7 @@ function addToTotals(t: SectionTotals, r: CategoryRow): SectionTotals {
 /* ─── Page ────────────────────────────────────────────── */
 
 interface Props {
-  searchParams: { projectIds?: string; projectId?: string; asOf?: string };
+  searchParams: { projectIds?: string; projectId?: string; asOf?: string; gateId?: string };
 }
 
 export default async function CostManagementReportPage({ searchParams }: Props) {
@@ -115,6 +115,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   const rawIds = searchParams.projectIds ?? searchParams.projectId ?? null;
   const projectIds = rawIds ? rawIds.split(",").map((s) => s.trim()).filter(Boolean) : [];
   const asOf = searchParams.asOf ?? today();
+  const filterGateId = searchParams.gateId ?? null;
 
   const supabase = createAdminClient();
 
@@ -134,7 +135,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         <div className="p-4 sm:p-6">
           <ReportControls
             projects={projects}
+            gates={[]}
             currentProjectIds={[]}
+            currentGateId={null}
             currentAsOf={asOf}
           />
           <ReportRestorer />
@@ -172,12 +175,20 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   // ── Load gates for all selected projects ─────────────
   const { data: rawGates, error: gatesError } = await supabase
     .from("gates")
-    .select("id, name, sequence_number, status")
+    .select("id, project_id, name, sequence_number, status")
     .in("project_id", projectIds)
     .order("sequence_number");
 
-  const gateIds = (rawGates ?? []).map((g: { id: string }) => g.id);
+  type GateRow = { id: string; project_id: string; name: string; sequence_number: number; status: string };
+  const allGates = (rawGates ?? []) as GateRow[];
+  const gateIds = allGates.map((g) => g.id);
   const gateCount = gateIds.length;
+
+  // Lookup for gate name display in report header
+  const filterGateInfo = filterGateId ? allGates.find((g) => g.id === filterGateId) ?? null : null;
+
+  // When a gate is selected, restrict budget/commitment/cost queries to that gate only
+  const budgetGateIds = filterGateId ? [filterGateId] : gateIds;
 
   // ── A + B: gate_budgets (all gates, all time) ─────────
   const budgetMap = new Map<string, { a: number; b: number }>();
@@ -187,11 +198,11 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
 
   if (gatesError) {
     budgetError = `Could not load gates: ${gatesError.message}`;
-  } else if (gateIds.length > 0) {
+  } else if (budgetGateIds.length > 0) {
     const { data: rawBudgets, error: rawBudgetsError } = await supabase
       .from("gate_budgets")
       .select("cost_category_id, original_budget, approved_co_amount")
-      .in("gate_id", gateIds);
+      .in("gate_id", budgetGateIds);
 
     if (rawBudgetsError) {
       budgetError = `Could not load gate budgets: ${rawBudgetsError.message}`;
@@ -215,12 +226,19 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   // ── D: proposed change orders (proposed_date <= asOf) ─
   const proposedMap = new Map<string, number>();
   {
-    const { data: rawCOs } = await supabase
+    let coQuery = supabase
       .from("change_orders")
       .select("cost_category_id, amount")
-      .in("project_id", projectIds)
       .eq("status", "proposed")
       .lte("proposed_date", asOf);
+
+    if (filterGateId) {
+      coQuery = coQuery.eq("gate_id", filterGateId);
+    } else {
+      coQuery = coQuery.in("project_id", projectIds);
+    }
+
+    const { data: rawCOs } = await coQuery;
 
     for (const co of (rawCOs ?? []) as { cost_category_id: string; amount: number }[]) {
       proposedMap.set(
@@ -239,8 +257,13 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     let contractQuery = supabase
       .from("contracts")
       .select("id, cost_category_id, revised_value, contract_line_items(cost_category_id, amount)")
-      .in("project_id", projectIds)
       .neq("status", "terminated");
+
+    if (filterGateId) {
+      contractQuery = contractQuery.eq("gate_id", filterGateId);
+    } else {
+      contractQuery = contractQuery.in("project_id", projectIds);
+    }
 
     contractQuery = contractQuery.or(
       `execution_date.is.null,execution_date.lte.${asOf}`
@@ -322,11 +345,32 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     }
 
     const txDateCap = asOf < appfolioDateCap() ? asOf : appfolioDateCap();
-    const { data: rawTx } = await supabase
+
+    // When a gate filter is active, only include transactions assigned to that gate
+    let assignedTxIds: string[] | null = null;
+    if (filterGateId) {
+      const { data: gateAssignments } = await supabase
+        .from("transaction_gate_assignments")
+        .select("appfolio_transaction_id")
+        .eq("gate_id", filterGateId);
+      assignedTxIds = (gateAssignments ?? []).map(
+        (ga: { appfolio_transaction_id: string }) => ga.appfolio_transaction_id
+      );
+      // If no transactions assigned to this gate, short-circuit
+      if (assignedTxIds.length === 0) assignedTxIds = ["__none__"];
+    }
+
+    let txQuery = supabase
       .from("appfolio_transactions")
       .select("cost_category_code, cost_category_name, vendor_name, paid_amount, unpaid_amount")
       .in("appfolio_property_id", linkedPropertyIds)
       .lte("bill_date", txDateCap);
+
+    if (assignedTxIds) {
+      txQuery = txQuery.in("id", assignedTxIds);
+    }
+
+    const { data: rawTx } = await txQuery;
 
     for (const tx of (rawTx ?? []) as {
       cost_category_code: string | null;
@@ -453,7 +497,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         <div className="print:hidden">
           <ReportControls
             projects={projects}
+            gates={allGates}
             currentProjectIds={projectIds}
+            currentGateId={filterGateId}
             currentAsOf={asOf}
           />
         </div>
@@ -465,12 +511,19 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
             : selectedProjects.length === 1
             ? `${selectedProjects[0].code} — ${selectedProjects[0].name}`
             : selectedProjects.map((p) => p.code).join(", ") + ` (${selectedProjects.length} projects)`;
+          const gateLabel = filterGateInfo
+            ? `Gate ${filterGateInfo.sequence_number} — ${filterGateInfo.name}`
+            : "All Gates";
           return (
             <div className="mb-4 flex flex-col sm:flex-row items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold tracking-tight">Project Cost Management Report</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {projectLabel} &nbsp;·&nbsp; All Gates &nbsp;·&nbsp;{" "}
+                  {projectLabel} &nbsp;·&nbsp;{" "}
+                  <span className={filterGateInfo ? "font-medium text-foreground" : ""}>
+                    {gateLabel}
+                  </span>
+                  &nbsp;·&nbsp;{" "}
                   As of{" "}
                   {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
                     month: "long",
@@ -482,7 +535,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
               <ExportButtons
                 rows={rows}
                 sectionOrder={sectionOrder}
-                projectLabel={projectLabel}
+                projectLabel={`${projectLabel} · ${gateLabel}`}
                 asOf={asOf}
               />
             </div>

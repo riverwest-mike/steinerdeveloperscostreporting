@@ -33,6 +33,7 @@ export function ReportRestorer() {
       const saved = JSON.parse(raw) as {
         projectIds?: string[];
         projectId?: string; // legacy single-project format
+        gateId?: string | null;
         asOf?: string;
       };
 
@@ -42,6 +43,7 @@ export function ReportRestorer() {
 
       const params = new URLSearchParams();
       params.set("projectIds", ids.join(","));
+      if (saved.gateId) params.set("gateId", saved.gateId);
       if (saved.asOf) params.set("asOf", saved.asOf);
       router.replace(`/reports/cost-management?${params.toString()}`);
       router.refresh();
