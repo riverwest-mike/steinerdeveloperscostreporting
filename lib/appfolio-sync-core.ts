@@ -212,6 +212,11 @@ export async function runAppfolioSync(opts: SyncOptions): Promise<SyncResult> {
       }
     }
 
+    // ── Gate auto-assignment ─────────────────────────────────────────────────
+    // For each synced transaction that doesn't already have a manual override,
+    // assign it to the gate whose start_date <= bill_date <= end_date.
+    await autoAssignGates(supabase, projects as { id: string; appfolio_property_id: string | null }[]);
+
     await supabase
       .from("appfolio_syncs")
       .update({
@@ -243,6 +248,120 @@ export async function runAppfolioSync(opts: SyncOptions): Promise<SyncResult> {
       .eq("id", syncId);
 
     throw err;
+  }
+}
+
+/* ─── Gate auto-assignment ─────────────────────────────── */
+
+/**
+ * For every transaction that belongs to one of the given projects and does NOT
+ * already have a manual gate override, find the gate whose date window covers
+ * the transaction's bill_date and upsert a transaction_gate_assignments row.
+ *
+ * Matching rule: gate.start_date <= bill_date <= gate.end_date
+ * Only gates with status 'active' or 'closed' are considered (not 'pending').
+ * If multiple gates match (shouldn't happen), the lowest sequence_number wins.
+ * Transactions with no matching gate are left unassigned.
+ */
+async function autoAssignGates(
+  supabase: ReturnType<typeof import("@/lib/supabase/server").createAdminClient>,
+  projects: { id: string; appfolio_property_id: string | null }[]
+): Promise<void> {
+  if (projects.length === 0) return;
+
+  const projectIds = projects.map((p) => p.id);
+
+  // Fetch all active/closed gates with date windows for these projects
+  const { data: gates } = await supabase
+    .from("gates")
+    .select("id, project_id, name, sequence_number, start_date, end_date, status")
+    .in("project_id", projectIds)
+    .in("status", ["active", "closed"])
+    .not("start_date", "is", null)
+    .not("end_date", "is", null)
+    .order("sequence_number", { ascending: true });
+
+  if (!gates || gates.length === 0) return;
+
+  // Build map: project_id → sorted gates with date windows
+  type GateRow = { id: string; project_id: string; sequence_number: number; start_date: string; end_date: string };
+  const gatesByProject = new Map<string, GateRow[]>();
+  for (const g of gates as GateRow[]) {
+    if (!gatesByProject.has(g.project_id)) gatesByProject.set(g.project_id, []);
+    gatesByProject.get(g.project_id)!.push(g);
+  }
+
+  // Build map: appfolio_property_id → project_id
+  const propertyToProjectId = new Map<string, string>();
+  for (const p of projects) {
+    if (p.appfolio_property_id) propertyToProjectId.set(p.appfolio_property_id, p.id);
+  }
+
+  const propertyIds = [...propertyToProjectId.keys()];
+  if (propertyIds.length === 0) return;
+
+  // Fetch transactions for these properties that have a bill_date
+  const { data: transactions } = await supabase
+    .from("appfolio_transactions")
+    .select("id, appfolio_property_id, bill_date")
+    .in("appfolio_property_id", propertyIds)
+    .not("bill_date", "is", null);
+
+  if (!transactions || transactions.length === 0) return;
+
+  // Fetch existing manual overrides so we don't overwrite them
+  const txIds = (transactions as { id: string }[]).map((t) => t.id);
+  const overrideSet = new Set<string>();
+  // Fetch in batches to avoid URL limits
+  const BATCH = 500;
+  for (let i = 0; i < txIds.length; i += BATCH) {
+    const { data: existing } = await supabase
+      .from("transaction_gate_assignments")
+      .select("appfolio_transaction_id, is_override")
+      .in("appfolio_transaction_id", txIds.slice(i, i + BATCH))
+      .eq("is_override", true);
+    for (const e of (existing ?? []) as { appfolio_transaction_id: string }[]) {
+      overrideSet.add(e.appfolio_transaction_id);
+    }
+  }
+
+  // Compute assignments
+  type Assignment = { appfolio_transaction_id: string; gate_id: string; is_override: boolean; assigned_by: null; assigned_at: string };
+  const assignments: Assignment[] = [];
+  const now = new Date().toISOString();
+
+  for (const tx of transactions as { id: string; appfolio_property_id: string; bill_date: string }[]) {
+    if (overrideSet.has(tx.id)) continue; // don't overwrite manual assignments
+
+    const projectId = propertyToProjectId.get(tx.appfolio_property_id);
+    if (!projectId) continue;
+
+    const projectGates = gatesByProject.get(projectId);
+    if (!projectGates) continue;
+
+    // Find the gate whose window covers bill_date (lowest sequence wins if multiple)
+    const matched = projectGates.find(
+      (g) => tx.bill_date >= g.start_date && tx.bill_date <= g.end_date
+    );
+    if (!matched) continue;
+
+    assignments.push({
+      appfolio_transaction_id: tx.id,
+      gate_id: matched.id,
+      is_override: false,
+      assigned_by: null,
+      assigned_at: now,
+    });
+  }
+
+  // Upsert in batches, skipping any that already have is_override=true
+  for (let i = 0; i < assignments.length; i += BATCH) {
+    await supabase
+      .from("transaction_gate_assignments")
+      .upsert(assignments.slice(i, i + BATCH), {
+        onConflict: "appfolio_transaction_id",
+        ignoreDuplicates: false,
+      });
   }
 }
 
