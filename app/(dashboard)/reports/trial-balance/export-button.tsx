@@ -6,14 +6,9 @@ import * as XLSX from "xlsx";
 export interface TbRow {
   glAccountId: string;
   glAccountName: string;
-  billDate: string | null;
-  vendorName: string;
-  description: string | null;
-  referenceNumber: string | null;
-  invoiceAmount: number;
-  paidAmount: number;
-  unpaidAmount: number;
-  projectCode: string;
+  debit: number;
+  credit: number;
+  balance: number;
 }
 
 interface Props {
@@ -28,51 +23,34 @@ export function ExportButton({ rows, projectLabel, dateLabel }: Props) {
       [`Trial Balance — ${projectLabel}`],
       [dateLabel],
       [],
-      ["GL Account", "GL Account Name", "Date", "Vendor", "Description", "Reference", "Invoice", "Paid", "Unpaid", "Project"],
+      ["GL Account", "Account Name", "Debit", "Credit", "Balance"],
     ];
 
-    // Group by GL account for export
-    const groups = new Map<string, TbRow[]>();
     for (const r of rows) {
-      const key = `${r.glAccountId}||${r.glAccountName}`;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push(r);
+      sheetRows.push([r.glAccountId, r.glAccountName, r.debit, r.credit, r.balance]);
     }
 
-    for (const [key, txns] of groups) {
-      const [acctId, acctName] = key.split("||");
-      const totInv = txns.reduce((s, t) => s + t.invoiceAmount, 0);
-      const totPaid = txns.reduce((s, t) => s + t.paidAmount, 0);
-      const totUnpaid = txns.reduce((s, t) => s + t.unpaidAmount, 0);
-
-      // Account header row
-      sheetRows.push([acctId, acctName, "", "", "", "", totInv, totPaid, totUnpaid, ""]);
-
-      for (const t of txns) {
-        sheetRows.push([
-          t.glAccountId,
-          t.glAccountName,
-          t.billDate ?? "",
-          t.vendorName,
-          t.description ?? "",
-          t.referenceNumber ?? "",
-          t.invoiceAmount,
-          t.paidAmount,
-          t.unpaidAmount,
-          t.projectCode,
-        ]);
-      }
-
-      sheetRows.push([]); // blank spacer
-    }
-
-    // Grand total
-    const gtInv = rows.reduce((s, t) => s + t.invoiceAmount, 0);
-    const gtPaid = rows.reduce((s, t) => s + t.paidAmount, 0);
-    const gtUnpaid = rows.reduce((s, t) => s + t.unpaidAmount, 0);
-    sheetRows.push(["GRAND TOTAL", "", "", "", "", "", gtInv, gtPaid, gtUnpaid, ""]);
+    sheetRows.push([]);
+    const totDebit = rows.reduce((s, r) => s + r.debit, 0);
+    const totCredit = rows.reduce((s, r) => s + r.credit, 0);
+    const totBalance = rows.reduce((s, r) => s + r.balance, 0);
+    sheetRows.push(["TOTAL", "", totDebit, totCredit, totBalance]);
 
     const ws = XLSX.utils.aoa_to_sheet(sheetRows);
+
+    // Format currency columns C-E (indices 2-4) starting at data row 5 (index 4)
+    const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+    for (let R = 4; R <= range.e.r; R++) {
+      for (const C of [2, 3, 4]) {
+        const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
+        if (ws[cellAddr] && typeof ws[cellAddr].v === "number") {
+          ws[cellAddr].z = "#,##0.00";
+        }
+      }
+    }
+
+    ws["!cols"] = [{ wch: 16 }, { wch: 40 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Trial Balance");
     XLSX.writeFile(wb, `trial-balance-${Date.now()}.xlsx`);
