@@ -441,9 +441,9 @@ function BudgetTable({
         )}
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[560px]">
         <table className="w-full text-sm">
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="border-b bg-muted/30">
               <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Cost Category</th>
               <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Original Budget</th>
@@ -502,7 +502,7 @@ function BudgetTable({
                                 setValues((v) => ({ ...v, [row.cost_category_id]: e.target.value }))
                               }
                               placeholder="0"
-                              className="w-32 rounded border border-input bg-background px-2 py-1 text-xs text-right font-mono"
+                              className="w-32 rounded border border-input bg-background px-2 py-1 text-sm text-right"
                             />
                           )}
                         </td>
