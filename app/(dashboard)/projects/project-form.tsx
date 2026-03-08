@@ -98,9 +98,6 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormP
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
             onChange={handleNameChange}
           />
-          <p className="text-xs text-muted-foreground">
-            The project name used in this system. Does not need to match AppFolio — the AppFolio Property ID below is what links this project to AppFolio data.
-          </p>
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="code">
