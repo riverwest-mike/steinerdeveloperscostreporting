@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/header";
 import { SyncButton } from "./sync-button";
 import { BalanceSheetSyncButton } from "./balance-sheet-sync-button";
 import { LinkProjects } from "./link-projects";
+import { AssignGatesButton } from "./assign-gates-button";
 import { HELP } from "@/lib/help";
 
 export default async function AppFolioSyncPage() {
@@ -178,6 +179,17 @@ export default async function AppFolioSyncPage() {
               project environment variables.
             </p>
           </div>
+        </div>
+
+        {/* Gate assignment */}
+        <div>
+          <h3 className="text-lg font-semibold mb-1">Gate Assignment</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Re-assigns existing transactions to gates based on each transaction&apos;s invoice date falling within
+            a gate&apos;s date window. Only transactions <em>without</em> a manual gate override will be updated.
+            Run this after adding or adjusting gate date ranges to backfill historical transactions.
+          </p>
+          <AssignGatesButton />
         </div>
 
         {/* Sync history — scrollable compact table */}

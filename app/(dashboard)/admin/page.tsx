@@ -5,7 +5,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
-import { Users, Tag, RefreshCw, ScrollText, Upload, ArrowRight } from "lucide-react";
+import { Users, Tag, RefreshCw, ScrollText, ArrowRight } from "lucide-react";
 import { HELP } from "@/lib/help";
 
 const ADMIN_SECTIONS = [
@@ -40,14 +40,6 @@ const ADMIN_SECTIONS = [
     icon: ScrollText,
     color: "text-orange-600",
     bg: "bg-orange-50",
-  },
-  {
-    href: "/admin/audit-log",
-    title: "Budget Import History",
-    description: "View the log of Excel gate budget uploads, including who imported each file and how many rows were processed.",
-    icon: Upload,
-    color: "text-teal-600",
-    bg: "bg-teal-50",
   },
 ];
 

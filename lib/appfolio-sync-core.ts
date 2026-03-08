@@ -263,7 +263,7 @@ export async function runAppfolioSync(opts: SyncOptions): Promise<SyncResult> {
  * If multiple gates match (shouldn't happen), the lowest sequence_number wins.
  * Transactions with no matching gate are left unassigned.
  */
-async function autoAssignGates(
+export async function autoAssignGates(
   supabase: ReturnType<typeof import("@/lib/supabase/server").createAdminClient>,
   projects: { id: string; appfolio_property_id: string | null }[]
 ): Promise<void> {
