@@ -7,6 +7,7 @@ import { TimeGreeting } from "@/components/time-greeting";
 import { ProjectGrid, type ProjectCard } from "./project-grid";
 import { RecentBills, type BillRow } from "./recent-bills";
 import { PendingCOs, type PendingCO } from "./pending-cos";
+import { BudgetAlerts, type OverBudgetAlert } from "./budget-alerts";
 import { HELP } from "@/lib/help";
 import { DashboardChatInput } from "./dashboard-chat-input";
 
@@ -19,7 +20,13 @@ interface RawProject {
   image_url: string | null;
 }
 interface RawGate { id: string; project_id: string; name: string }
-interface RawGateBudget { gate_id: string; revised_budget: number }
+interface RawGateBudget { gate_id: string; cost_category_id: string; revised_budget: number }
+interface RawCostCategory { id: string; name: string; code: string }
+interface RawTxByCategory {
+  appfolio_property_id: string;
+  gl_account_id: string;
+  invoice_amount: number;
+}
 interface RawCO {
   id: string; project_id: string; co_number: string;
   description: string; amount: number; proposed_date: string;
@@ -110,7 +117,7 @@ export default async function DashboardPage() {
   const { data: rawGateBudgets } = (activeGateIds.length > 0
     ? await dataClient
         .from("gate_budgets")
-        .select("gate_id, revised_budget")
+        .select("gate_id, cost_category_id, revised_budget")
         .in("gate_id", activeGateIds)
     : { data: [] }) as { data: RawGateBudget[] | null };
 
@@ -165,6 +172,83 @@ export default async function DashboardPage() {
       (spentByProperty.get(t.appfolio_property_id) ?? 0) + Number(t.paid_amount) + Number(t.unpaid_amount)
     );
   }
+
+  // Fetch cost categories and per-category actuals for budget alerts
+  const [{ data: rawCategories }, { data: rawTxByCategory }] = await Promise.all([
+    adminSupabase
+      .from("cost_categories")
+      .select("id, name, code")
+      .eq("is_active", true) as Promise<{ data: RawCostCategory[] | null }>,
+    propertyIdList.length > 0 && activeGateIds.length > 0
+      ? adminSupabase
+          .from("appfolio_transactions")
+          .select("appfolio_property_id, gl_account_id, invoice_amount")
+          .in("appfolio_property_id", propertyIdList)
+          .limit(10000) as Promise<{ data: RawTxByCategory[] | null }>
+      : Promise.resolve({ data: [] as RawTxByCategory[] }),
+  ]);
+
+  // Build lookups for budget alerts
+  const codeToCategory = new Map<string, RawCostCategory>();
+  for (const cat of rawCategories ?? []) {
+    codeToCategory.set(cat.code.trim().toUpperCase(), cat);
+  }
+  const categoryById = new Map<string, RawCostCategory>();
+  for (const cat of rawCategories ?? []) {
+    categoryById.set(cat.id, cat);
+  }
+
+  // Aggregate actual spend per (property, cost_category_id)
+  const actualsByPropertyCategory = new Map<string, number>(); // key: `${propertyId}::${categoryId}`
+  for (const tx of rawTxByCategory ?? []) {
+    const glId = (tx.gl_account_id ?? "").trim().toUpperCase();
+    const cat = codeToCategory.get(glId);
+    if (cat) {
+      const key = `${tx.appfolio_property_id}::${cat.id}`;
+      actualsByPropertyCategory.set(key, (actualsByPropertyCategory.get(key) ?? 0) + Number(tx.invoice_amount));
+    }
+  }
+
+  // Build project → property lookup
+  const projectToProperty = new Map<string, string>();
+  for (const p of projectList) {
+    if (p.appfolio_property_id) projectToProperty.set(p.id, p.appfolio_property_id);
+  }
+  const projectNameById = new Map(projectList.map((p) => [p.id, p.name]));
+
+  // Gate → project lookup
+  const gateToProject = new Map<string, string>();
+  for (const g of activeGates) {
+    gateToProject.set(g.id, g.project_id);
+  }
+
+  // Compute over-budget alerts per (gate, cost_category)
+  const overBudgetAlerts: OverBudgetAlert[] = [];
+  for (const gb of rawGateBudgets ?? []) {
+    if (Number(gb.revised_budget) <= 0) continue;
+    const projectId = gateToProject.get(gb.gate_id);
+    if (!projectId) continue;
+    const propertyId = projectToProperty.get(projectId);
+    if (!propertyId) continue;
+    const key = `${propertyId}::${gb.cost_category_id}`;
+    const actual = actualsByPropertyCategory.get(key) ?? 0;
+    const overage = actual - Number(gb.revised_budget);
+    if (overage <= 0) continue;
+    const cat = categoryById.get(gb.cost_category_id);
+    const gate = gateByProject.get(projectId);
+    overBudgetAlerts.push({
+      project_id: projectId,
+      project_name: projectNameById.get(projectId) ?? "Unknown",
+      gate_id: gb.gate_id,
+      gate_name: gate?.name ?? "",
+      category_name: cat?.name ?? gb.cost_category_id,
+      category_code: cat?.code ?? "",
+      revised_budget: Number(gb.revised_budget),
+      actual_amount: actual,
+      overage,
+    });
+  }
+  overBudgetAlerts.sort((a, b) => b.overage - a.overage);
 
   const ninetyDaysAgo = (() => {
     const d = new Date();
@@ -274,6 +358,10 @@ export default async function DashboardPage() {
         </div>
 
         <ProjectGrid projects={projectCards} />
+
+        {overBudgetAlerts.length > 0 && (
+          <BudgetAlerts alerts={overBudgetAlerts} />
+        )}
 
         <div className={`grid grid-cols-1 gap-6 ${role !== "read_only" ? "lg:grid-cols-5" : ""}`}>
           <div className={role !== "read_only" ? "lg:col-span-3" : ""}>
