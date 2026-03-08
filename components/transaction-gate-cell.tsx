@@ -117,13 +117,13 @@ export function TransactionGateCell({
       )}
       {error && <p className="text-[10px] text-destructive">{error}</p>}
       {canEdit && (
-        <div className="ml-auto shrink-0 opacity-0 group-hover/gate:opacity-100 print:hidden transition-opacity">
+        <div className="ml-auto shrink-0 print:hidden">
           <button
             onClick={openEdit}
             title="Edit gate assignment"
-            className="rounded p-0.5 hover:bg-accent"
+            className="rounded p-0.5 hover:bg-accent text-muted-foreground/50 hover:text-muted-foreground transition-colors"
           >
-            <Pencil className="h-3 w-3 text-muted-foreground" />
+            <Pencil className="h-3 w-3" />
           </button>
         </div>
       )}

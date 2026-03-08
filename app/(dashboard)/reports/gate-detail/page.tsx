@@ -101,7 +101,8 @@ interface ProjectInfo {
 
 interface Props {
   searchParams: {
-    projectIds?: string;
+    projectId?: string;
+    projectIds?: string; // legacy — treat first as single
     gateId?: string;
     categoryCode?: string;
     asOf?: string;
@@ -110,9 +111,11 @@ interface Props {
 }
 
 export default async function GateDetailPage({ searchParams }: Props) {
-  const projectIds = searchParams.projectIds
-    ? searchParams.projectIds.split(",").map((s) => s.trim()).filter(Boolean)
-    : [];
+  // Accept single projectId; also handle legacy multi-select (use first id)
+  const rawProjectId = searchParams.projectId
+    ?? (searchParams.projectIds ? searchParams.projectIds.split(",")[0] : undefined)
+    ?? null;
+  const projectIds = rawProjectId ? [rawProjectId] : [];
   const filterGateId = searchParams.gateId ?? null;
   const categoryCode = searchParams.categoryCode ?? null;
   const asOf = searchParams.asOf ?? today();
@@ -162,7 +165,7 @@ export default async function GateDetailPage({ searchParams }: Props) {
             projects={projects}
             categories={categories}
             gatesByProjectId={gatesByProjectId}
-            currentProjectIds={[]}
+            currentProjectId={null}
             currentGateId={null}
             currentCategoryCode={null}
             currentAsOf={asOf}
@@ -274,12 +277,12 @@ export default async function GateDetailPage({ searchParams }: Props) {
       const totalPaid = transactions.reduce((s, t) => s + Number(t.paid_amount), 0);
       const totalUnpaid = transactions.reduce((s, t) => s + Number(t.unpaid_amount), 0);
 
-      // Labels
-      const showProjectCol = selectedProjects.length > 1;
+      // Labels (single project only)
+      const showProjectCol = false;
 
       const projectLabel = selectedProjects.length === 1
         ? `${selectedProjects[0].code} — ${selectedProjects[0].name}`
-        : `${selectedProjects.length} Projects`;
+        : "Unknown Project";
 
       const filterGateInfo = filterGateId ? gateNameById.get(filterGateId) : null;
       const gateLabel = filterGateInfo
@@ -322,7 +325,7 @@ export default async function GateDetailPage({ searchParams }: Props) {
                 projects={projects}
                 categories={categories}
                 gatesByProjectId={gatesByProjectId}
-                currentProjectIds={projectIds}
+                currentProjectId={rawProjectId}
                 currentGateId={filterGateId}
                 currentCategoryCode={categoryCode}
                 currentAsOf={asOf}
@@ -562,7 +565,7 @@ export default async function GateDetailPage({ searchParams }: Props) {
             projects={projects}
             categories={categories}
             gatesByProjectId={gatesByProjectId}
-            currentProjectIds={projectIds}
+            currentProjectId={rawProjectId}
             currentGateId={filterGateId}
             currentCategoryCode={categoryCode}
             currentAsOf={asOf}

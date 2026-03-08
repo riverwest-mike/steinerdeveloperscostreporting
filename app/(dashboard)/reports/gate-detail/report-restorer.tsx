@@ -26,8 +26,9 @@ export function ReportRestorer() {
     try {
       const raw = localStorage.getItem("gate_detail_last_filter");
       if (!raw) return;
-      const { projectIds, gateId, categoryCode, asOf, paymentFilter } = JSON.parse(raw) as {
-        projectIds?: string[];
+      const saved = JSON.parse(raw) as {
+        projectId?: string;
+        projectIds?: string[]; // legacy
         gateId?: string;
         categoryCode?: string;
         asOf?: string;
@@ -35,11 +36,13 @@ export function ReportRestorer() {
       };
 
       const params = new URLSearchParams();
-      if (projectIds && projectIds.length > 0) params.set("projectIds", projectIds.join(","));
-      if (gateId) params.set("gateId", gateId);
-      if (categoryCode) params.set("categoryCode", categoryCode);
-      if (asOf) params.set("asOf", asOf);
-      if (paymentFilter) params.set("paymentFilter", paymentFilter);
+      // Support both new single projectId and legacy array
+      const pid = saved.projectId ?? (saved.projectIds?.[0]);
+      if (pid) params.set("projectId", pid);
+      if (saved.gateId) params.set("gateId", saved.gateId);
+      if (saved.categoryCode) params.set("categoryCode", saved.categoryCode);
+      if (saved.asOf) params.set("asOf", saved.asOf);
+      if (saved.paymentFilter) params.set("paymentFilter", saved.paymentFilter);
       if (!params.toString()) return;
 
       router.replace(`/reports/gate-detail?${params.toString()}`);
