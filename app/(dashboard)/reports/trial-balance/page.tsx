@@ -52,6 +52,11 @@ interface RawTx {
   unpaid_amount: number;
 }
 
+interface RawGlBalance {
+  gl_account_id: string;
+  gl_account_name: string;
+}
+
 interface ProjectInfo {
   id: string;
   name: string;
@@ -126,6 +131,7 @@ export default async function TrialBalancePage({ searchParams }: Props) {
     .filter((id): id is string => !!id);
 
   let transactions: RawTx[] = [];
+  let knownGlAccounts: RawGlBalance[] = [];
 
   if (linkedPropertyIds.length > 0) {
     const effectiveDateTo = dateTo < appfolioDateCap() ? dateTo : appfolioDateCap();
@@ -144,8 +150,17 @@ export default async function TrialBalancePage({ searchParams }: Props) {
       query = query.gte("bill_date", dateFrom);
     }
 
-    const { data: rawTx } = await query;
+    const [{ data: rawTx }, { data: rawGl }] = await Promise.all([
+      query,
+      supabase
+        .from("gl_balances")
+        .select("gl_account_id, gl_account_name")
+        .in("appfolio_property_id", linkedPropertyIds)
+        .lte("as_of_date", effectiveDateTo),
+    ]);
+
     transactions = (rawTx ?? []) as RawTx[];
+    knownGlAccounts = (rawGl ?? []) as RawGlBalance[];
   }
 
   /* ── Build project lookup ──────────────────────────── */
@@ -181,6 +196,20 @@ export default async function TrialBalancePage({ searchParams }: Props) {
     row.balance += Number(tx.unpaid_amount);
   }
 
+  // Seed the map with all known GL accounts from gl_balances (ensures $0 rows appear)
+  for (const gl of knownGlAccounts) {
+    const key = `${gl.gl_account_id}||${gl.gl_account_name}`;
+    if (!glMap.has(key)) {
+      glMap.set(key, {
+        glAccountId: gl.gl_account_id,
+        glAccountName: gl.gl_account_name,
+        debit: 0,
+        credit: 0,
+        balance: 0,
+      });
+    }
+  }
+
   const glRows = [...glMap.values()].sort((a, b) =>
     a.glAccountId.localeCompare(b.glAccountId)
   );
@@ -189,6 +218,9 @@ export default async function TrialBalancePage({ searchParams }: Props) {
   const grandDebit = glRows.reduce((s, r) => s + r.debit, 0);
   const grandCredit = glRows.reduce((s, r) => s + r.credit, 0);
   const grandBalance = glRows.reduce((s, r) => s + r.balance, 0);
+
+  // Debit = Credit + Balance (invoice = paid + unpaid) — data integrity check
+  const isBalanced = Math.abs(grandDebit - grandCredit - grandBalance) < 0.01;
 
   /* ── Export rows (one per GL account) ─────────────── */
   const exportRows: TbRow[] = glRows.map((r) => ({
@@ -290,7 +322,15 @@ export default async function TrialBalancePage({ searchParams }: Props) {
                 <tfoot>
                   <tr className="border-t-2 border-slate-400 bg-slate-800 text-white font-bold">
                     <td className="px-3 py-3" colSpan={2}>
-                      TOTAL — {glRows.length} account{glRows.length !== 1 ? "s" : ""}
+                      <div className="flex items-center gap-3">
+                        <span>TOTAL — {glRows.length} account{glRows.length !== 1 ? "s" : ""}</span>
+                        <span
+                          title={isBalanced ? "Debits = Credits + Balance" : "Debits ≠ Credits + Balance — data may be inconsistent"}
+                          className={`text-xs font-normal px-2 py-0.5 rounded-full ${isBalanced ? "bg-green-600 text-white" : "bg-red-500 text-white"}`}
+                        >
+                          {isBalanced ? "✓ Balanced" : "✗ Out of Balance"}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums">{usd(grandDebit)}</td>
                     <td className="px-3 py-3 text-right tabular-nums">{usd(grandCredit)}</td>
