@@ -2,8 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { MessageCircle, X, Send, Loader2, Trash2 } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Trash2, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type Anthropic from "@anthropic-ai/sdk";
 
 type Message = Anthropic.MessageParam & { id: string };
@@ -163,19 +165,12 @@ export function AiChatWidget() {
           </p>
         )}
         {messages.map((m) => (
-          <div key={m.id} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
-            <div className={cn(
-              "max-w-[85%] rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap",
-              m.role === "user"
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-foreground"
-            )}>
-              {m.content as string}
-              {m.role === "assistant" && streaming && m === messages[messages.length - 1] && (
-                <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current opacity-70 animate-pulse align-middle" />
-              )}
-            </div>
-          </div>
+          <ChatMessage
+            key={m.id}
+            role={m.role as "user" | "assistant"}
+            content={m.content as string}
+            isStreaming={streaming && m === messages[messages.length - 1]}
+          />
         ))}
         <div ref={bottomRef} />
       </div>
@@ -237,6 +232,69 @@ export function AiChatWidget() {
       >
         {open ? <X className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}
       </button>
+    </div>
+  );
+}
+
+// ── ChatMessage ──────────────────────────────────────────────────────────────
+
+function ChatMessage({ role, content, isStreaming }: { role: "user" | "assistant"; content: string; isStreaming: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  if (role === "user") {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-lg px-3 py-2 leading-relaxed whitespace-pre-wrap bg-primary text-primary-foreground text-sm">
+          {content}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex justify-start group">
+      <div className="max-w-[95%] relative">
+        {/* Copy button — appears on hover */}
+        {content && !isStreaming && (
+          <button
+            onClick={handleCopy}
+            className="absolute -top-1 -right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-md p-1 bg-muted border border-border shadow-sm text-muted-foreground hover:text-foreground"
+            title="Copy response"
+            aria-label="Copy response"
+          >
+            {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+          </button>
+        )}
+
+        <div className="rounded-lg px-3 py-2 bg-muted text-foreground text-sm prose prose-sm prose-slate max-w-none
+          [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_table]:my-2
+          [&_th]:bg-slate-100 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold [&_th]:border [&_th]:border-slate-200
+          [&_td]:px-2 [&_td]:py-1.5 [&_td]:border [&_td]:border-slate-200
+          [&_tr:hover]:bg-slate-50/60
+          [&_p]:my-1 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0
+          [&_ul]:my-1 [&_ul]:pl-4 [&_li]:my-0.5
+          [&_ol]:my-1 [&_ol]:pl-4
+          [&_strong]:font-semibold [&_code]:text-[11px] [&_code]:bg-slate-100 [&_code]:px-1 [&_code]:rounded
+          [&_h1]:text-sm [&_h1]:font-bold [&_h1]:mt-2 [&_h1]:mb-1
+          [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:mt-2 [&_h2]:mb-1
+          [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:mt-1.5 [&_h3]:mb-0.5
+          [&_blockquote]:border-l-2 [&_blockquote]:border-primary/40 [&_blockquote]:pl-2 [&_blockquote]:text-muted-foreground
+        ">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {content}
+          </ReactMarkdown>
+          {isStreaming && (
+            <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-current opacity-70 animate-pulse align-middle" />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
