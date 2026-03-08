@@ -38,12 +38,12 @@ export default function SignInPage() {
           {/* Feature pills */}
           <div className="mt-8 flex flex-wrap gap-2">
             {[
-              "Gate budgets",
-              "AppFolio sync",
-              "Cost detail",
-              "Change orders",
-              "Excel export",
-              "Audit log",
+              "Budget vs. actuals",
+              "Gate / phase tracking",
+              "Contract commitments",
+              "Change order workflow",
+              "AppFolio integration",
+              "Vendor cost detail",
             ].map((f) => (
               <span
                 key={f}
@@ -60,15 +60,13 @@ export default function SignInPage() {
           </div>
         </div>
 
-        {/* Footer */}
-        <p className="text-[11px]" style={{ color: "hsl(215 20% 40%)" }}>
-          © {new Date().getFullYear()} Steiner Developers
-        </p>
+        {/* Spacer to balance the three-section flex layout */}
+        <div />
       </div>
 
       {/* Right panel — sign-in form */}
       <div className="flex flex-1 items-center justify-center bg-[hsl(216_33%_97%)] p-6">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-md">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-8 justify-center">
             <div
