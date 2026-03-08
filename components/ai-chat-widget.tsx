@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { MessageCircle, X, Send, Loader2, Trash2, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -12,6 +12,7 @@ type Message = Anthropic.MessageParam & { id: string };
 
 export function AiChatWidget() {
   const pathname = usePathname();
+  const router = useRouter();
   const isDashboard = pathname === "/dashboard";
 
   const [open, setOpen] = useState(false);
@@ -170,6 +171,7 @@ export function AiChatWidget() {
             role={m.role as "user" | "assistant"}
             content={m.content as string}
             isStreaming={streaming && m === messages[messages.length - 1]}
+            onNavigate={(href) => { setOpen(false); router.push(href); }}
           />
         ))}
         <div ref={bottomRef} />
@@ -238,7 +240,7 @@ export function AiChatWidget() {
 
 // ── ChatMessage ──────────────────────────────────────────────────────────────
 
-function ChatMessage({ role, content, isStreaming }: { role: "user" | "assistant"; content: string; isStreaming: boolean }) {
+function ChatMessage({ role, content, isStreaming, onNavigate }: { role: "user" | "assistant"; content: string; isStreaming: boolean; onNavigate: (href: string) => void }) {
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -287,7 +289,29 @@ function ChatMessage({ role, content, isStreaming }: { role: "user" | "assistant
           [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:mt-1.5 [&_h3]:mb-0.5
           [&_blockquote]:border-l-2 [&_blockquote]:border-primary/40 [&_blockquote]:pl-2 [&_blockquote]:text-muted-foreground
         ">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              a: ({ href, children }) => {
+                const isInternal = href && href.startsWith("/");
+                if (isInternal) {
+                  return (
+                    <button
+                      onClick={() => onNavigate(href)}
+                      className="text-primary underline underline-offset-2 hover:opacity-75 font-medium"
+                    >
+                      {children}
+                    </button>
+                  );
+                }
+                return (
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2 hover:opacity-75">
+                    {children}
+                  </a>
+                );
+              },
+            }}
+          >
             {content}
           </ReactMarkdown>
           {isStreaming && (

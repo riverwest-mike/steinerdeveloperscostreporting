@@ -13,7 +13,6 @@ import { HELP } from "@/lib/help";
 
 const COST_DETAIL_COLUMNS = [
   { key: "project", label: "Project" },
-  { key: "gate", label: "Gate" },
   { key: "bill_date", label: "Bill Date" },
   { key: "vendor", label: "Vendor", required: true },
   { key: "description", label: "Description" },
@@ -24,6 +23,7 @@ const COST_DETAIL_COLUMNS = [
   { key: "unpaid", label: "Unpaid" },
   { key: "status", label: "Status" },
   { key: "check_num", label: "Check #" },
+  { key: "gate", label: "Gate" },
   { key: "reference", label: "Reference" },
   { key: "notes", label: "Notes" },
 ];
@@ -377,7 +377,6 @@ export default async function CostDetailPage({ searchParams }: Props) {
               <thead>
                 <tr className="bg-slate-800 text-white">
                   {showProjectCol && <th data-col="project" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Project</th>}
-                  <th data-col="gate" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Gate</th>
                   <th data-col="bill_date" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Bill Date</th>
                   <th data-col="vendor" className="px-3 py-2.5 text-left font-medium">Vendor</th>
                   <th data-col="description" className="px-3 py-2.5 text-left font-medium">Description</th>
@@ -388,6 +387,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
                   <th data-col="unpaid" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Unpaid</th>
                   <th data-col="status" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Status</th>
                   <th data-col="check_num" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Check #</th>
+                  <th data-col="gate" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Gate</th>
                   <th data-col="reference" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Reference</th>
                   <th data-col="notes" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Notes</th>
                 </tr>
@@ -405,17 +405,6 @@ export default async function CostDetailPage({ searchParams }: Props) {
                         <span className="font-mono text-[10px] text-muted-foreground">{txProject?.code ?? "—"}</span>
                       </td>
                     )}
-                    <td data-col="gate" className="px-3 py-2">
-                      <TransactionGateCell
-                        transactionId={tx.id}
-                        currentGateId={ga?.gate_id ?? null}
-                        currentGateName={gateData?.name ?? null}
-                        currentGateSequence={gateData?.sequence_number ?? null}
-                        isOverride={ga?.is_override ?? false}
-                        projectGates={projectGates}
-                        canEdit={canEditGate}
-                      />
-                    </td>
                     <td data-col="bill_date" className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
                       {fmtDate(tx.bill_date)}
                     </td>
@@ -468,6 +457,17 @@ export default async function CostDetailPage({ searchParams }: Props) {
                       </span>
                     </td>
                     <td data-col="check_num" className="px-3 py-2 text-muted-foreground">{tx.check_number ?? "—"}</td>
+                    <td data-col="gate" className="px-3 py-2">
+                      <TransactionGateCell
+                        transactionId={tx.id}
+                        currentGateId={ga?.gate_id ?? null}
+                        currentGateName={gateData?.name ?? null}
+                        currentGateSequence={gateData?.sequence_number ?? null}
+                        isOverride={ga?.is_override ?? false}
+                        projectGates={projectGates}
+                        canEdit={canEditGate}
+                      />
+                    </td>
                     <td data-col="reference" className="px-3 py-2 text-muted-foreground">{tx.reference_number ?? "—"}</td>
                     <td data-col="notes" className="px-3 py-2">
                       <TransactionNoteCell
@@ -483,7 +483,6 @@ export default async function CostDetailPage({ searchParams }: Props) {
               <tfoot>
                 <tr className="border-t-2 border-slate-400 bg-slate-800 text-white font-bold text-xs">
                   {showProjectCol && <td data-col="project" className="px-3 py-3" />}
-                  <td data-col="gate" className="px-3 py-3" />
                   <td data-col="bill_date" className="px-3 py-3" />
                   <td data-col="vendor" className="px-3 py-3">TOTAL — {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}</td>
                   <td data-col="description" className="px-3 py-3" />
@@ -494,6 +493,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
                   <td data-col="unpaid" className="px-3 py-3 text-right tabular-nums">{totalUnpaid !== 0 ? usd(totalUnpaid) : "—"}</td>
                   <td data-col="status" className="px-3 py-3" />
                   <td data-col="check_num" className="px-3 py-3" />
+                  <td data-col="gate" className="px-3 py-3" />
                   <td data-col="reference" className="px-3 py-3" />
                   <td data-col="notes" className="px-3 py-3" />
                 </tr>
