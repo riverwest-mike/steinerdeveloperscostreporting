@@ -5,6 +5,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
+import { VendorDocuments, type VendorDoc } from "./vendor-documents";
 
 interface Props {
   params: Promise<{ name: string }>;
@@ -34,14 +35,6 @@ function usd(n: number): string {
   }).format(n);
 }
 
-function fmtDate(d: string): string {
-  return new Date(d).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
 export default async function VendorProfilePage({ params }: Props) {
   const { name: encodedName } = await params;
   const vendorName = decodeURIComponent(encodedName);
@@ -54,6 +47,7 @@ export default async function VendorProfilePage({ params }: Props) {
     : { data: null };
   const role = (userRow as { role?: string } | null)?.role ?? "read_only";
   const canEdit = role === "admin" || role === "project_manager";
+  const isAdmin = role === "admin";
 
   // Fetch vendor records for this name across all projects
   const { data: rawVendors } = await supabase
@@ -78,14 +72,22 @@ export default async function VendorProfilePage({ params }: Props) {
 
   const projectIds = filteredRows.map((v) => v.project_id);
 
-  const { data: rawProjects } = await supabase
-    .from("projects")
-    .select("id, name, code, appfolio_property_id")
-    .in("id", projectIds)
-    .order("name");
+  const [{ data: rawProjects }, { data: rawDocs }] = await Promise.all([
+    supabase
+      .from("projects")
+      .select("id, name, code, appfolio_property_id")
+      .in("id", projectIds)
+      .order("name"),
+    supabase
+      .from("vendor_documents")
+      .select("*")
+      .ilike("vendor_name", vendorName)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const projects = (rawProjects ?? []) as ProjectRow[];
   const projectById = new Map(projects.map((p) => [p.id, p]));
+  const vendorDocs = (rawDocs ?? []) as VendorDoc[];
 
   // Fetch transaction totals for this vendor across linked projects
   const propertyIds = projects
@@ -168,6 +170,19 @@ export default async function VendorProfilePage({ params }: Props) {
   const activeInProjects = filteredRows.filter((v) => v.is_active).length;
   const reportUrl = `/reports/vendor-detail?vendorName=${encodeURIComponent(vendorName)}`;
 
+  // Compliance summary — count expiring/expired COIs
+  const coiDocs = vendorDocs.filter((d) => d.document_type === "COI");
+  const expiredCOIs = coiDocs.filter(
+    (d) => d.expiration_date && new Date(d.expiration_date + "T00:00:00") < new Date()
+  );
+  const expiringSoonCOIs = coiDocs.filter((d) => {
+    if (!d.expiration_date) return false;
+    const exp = new Date(d.expiration_date + "T00:00:00");
+    const in60 = new Date();
+    in60.setDate(in60.getDate() + 60);
+    return exp >= new Date() && exp <= in60;
+  });
+
   return (
     <div>
       <Header title={vendorName} />
@@ -194,6 +209,24 @@ export default async function VendorProfilePage({ params }: Props) {
             View Transactions →
           </Link>
         </div>
+
+        {/* Compliance alerts */}
+        {(expiredCOIs.length > 0 || expiringSoonCOIs.length > 0) && (
+          <div className="mb-6 space-y-2">
+            {expiredCOIs.length > 0 && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-800 flex items-center gap-2">
+                <span className="font-semibold">⚠ {expiredCOIs.length} expired COI{expiredCOIs.length !== 1 ? "s" : ""}:</span>
+                {expiredCOIs.map((d) => d.display_name).join(", ")}
+              </div>
+            )}
+            {expiringSoonCOIs.length > 0 && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 flex items-center gap-2">
+                <span className="font-semibold">⏰ {expiringSoonCOIs.length} COI{expiringSoonCOIs.length !== 1 ? "s" : ""} expiring within 60 days:</span>
+                {expiringSoonCOIs.map((d) => d.display_name).join(", ")}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Summary cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
@@ -287,6 +320,18 @@ export default async function VendorProfilePage({ params }: Props) {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Compliance Documents — COI, Lien Waivers, W-9s */}
+        <div className="mb-8">
+          <h3 className="text-base font-semibold mb-3">Compliance Documents</h3>
+          <VendorDocuments
+            vendorName={vendorName}
+            documents={vendorDocs}
+            projects={projects.map((p) => ({ id: p.id, name: p.name, code: p.code }))}
+            canEdit={canEdit}
+            isAdmin={isAdmin}
+          />
         </div>
 
         {/* Recent transactions */}
