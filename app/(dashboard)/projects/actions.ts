@@ -55,6 +55,14 @@ export async function createProject(
     const rawCode = (formData.get("code") as string | null)?.trim().toUpperCase() || "";
     const code = rawCode || name.split(/\s+/).filter(Boolean).slice(0, 4).map((w) => w[0].toUpperCase()).join("");
 
+    // Check for duplicate name or code
+    const [{ data: dupByName }, { data: dupByCode }] = await Promise.all([
+      supabase.from("projects").select("id").ilike("name", name).maybeSingle(),
+      supabase.from("projects").select("id").eq("code", code).maybeSingle(),
+    ]);
+    if (dupByName) return { error: `A project named "${name}" already exists.` };
+    if (dupByCode) return { error: `A project with code "${code}" already exists.` };
+
     const payload = {
       name,
       code,
@@ -140,9 +148,20 @@ export async function updateProject(
       if (!access) throw new Error("You do not have permission to edit this project");
     }
 
+    const newName = (formData.get("name") as string).trim();
+    const newCode = (formData.get("code") as string).trim().toUpperCase();
+
+    // Check for duplicate name or code (excluding the current project)
+    const [{ data: dupByName }, { data: dupByCode }] = await Promise.all([
+      supabase.from("projects").select("id").ilike("name", newName).neq("id", id).maybeSingle(),
+      supabase.from("projects").select("id").eq("code", newCode).neq("id", id).maybeSingle(),
+    ]);
+    if (dupByName) return { error: `A project named "${newName}" already exists.` };
+    if (dupByCode) return { error: `A project with code "${newCode}" already exists.` };
+
     const payload: Record<string, unknown> = {
-      name: (formData.get("name") as string).trim(),
-      code: (formData.get("code") as string).trim().toUpperCase(),
+      name: newName,
+      code: newCode,
       appfolio_property_id: (formData.get("appfolio_property_id") as string)?.trim() || null,
       property_type: (formData.get("property_type") as string) || null,
       address: (formData.get("address") as string)?.trim() || null,
