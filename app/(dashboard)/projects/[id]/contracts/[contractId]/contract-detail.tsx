@@ -19,6 +19,7 @@ import { InfoTip } from "@/components/info-tip";
 
 interface Gate { id: string; name: string; sequence_number: number }
 interface Category { id: string; name: string; code: string }
+interface Vendor { name: string }
 
 interface Contract {
   id: string;
@@ -78,7 +79,7 @@ function fmtDate(d: string | null) {
 }
 
 export function ContractDetail({
-  contract, projectId, gates, categories, changeOrders, isAdmin,
+  contract, projectId, gates, categories, changeOrders, isAdmin, vendors,
 }: {
   contract: Contract;
   projectId: string;
@@ -86,6 +87,7 @@ export function ContractDetail({
   categories: Category[];
   changeOrders: ChangeOrder[];
   isAdmin?: boolean;
+  vendors?: Vendor[];
 }) {
   const [editing, setEditing] = useState(false);
   const [showCoForm, setShowCoForm] = useState(false);
@@ -146,6 +148,7 @@ export function ContractDetail({
             projectId={projectId}
             gates={gates}
             categories={categories}
+            vendors={vendors ?? []}
             onDone={() => setEditing(false)}
           />
         </div>
@@ -884,12 +887,13 @@ function SOVLineForm({
 // ── Edit Contract form ────────────────────────────────────────
 
 function EditContractForm({
-  contract, projectId, gates, categories, onDone,
+  contract, projectId, gates, categories, vendors, onDone,
 }: {
   contract: Contract;
   projectId: string;
   gates: Gate[];
   categories: Category[];
+  vendors: Vendor[];
   onDone: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -916,7 +920,15 @@ function EditContractForm({
         <div className="col-span-2 space-y-1">
           <label className="text-xs font-medium" htmlFor="ec-vendor">Vendor <span className="text-destructive">*</span></label>
           <input id="ec-vendor" name="vendor_name" required defaultValue={contract.vendor_name}
+            list={vendors.length > 0 ? "ec-vendor-list" : undefined}
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm" />
+          {vendors.length > 0 && (
+            <datalist id="ec-vendor-list">
+              {vendors.map((v) => (
+                <option key={v.name} value={v.name} />
+              ))}
+            </datalist>
+          )}
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="ec-num">Contract #</label>

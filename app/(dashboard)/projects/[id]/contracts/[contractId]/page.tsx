@@ -31,7 +31,7 @@ export default async function ContractPage({ params }: Props) {
   const { id: projectId, contractId } = await params;
   const supabase = createAdminClient();
 
-  const [{ data: contract }, { data: project }, { data: gates }, { data: categories }, { data: changeOrders }, userRole] =
+  const [{ data: contract }, { data: project }, { data: gates }, { data: categories }, { data: changeOrders }, { data: vendors }, userRole] =
     await Promise.all([
       supabase
         .from("contracts")
@@ -54,6 +54,12 @@ export default async function ContractPage({ params }: Props) {
         .select("id, co_number, description, amount, status, proposed_date, approved_date, teams_url, notes, rejection_reason, gate_id, cost_category_id")
         .eq("contract_id", contractId)
         .order("proposed_date", { ascending: false }),
+      supabase
+        .from("project_vendors")
+        .select("name")
+        .eq("project_id", projectId)
+        .eq("is_active", true)
+        .order("name"),
       getMyRole(),
     ]);
 
@@ -80,6 +86,7 @@ export default async function ContractPage({ params }: Props) {
           categories={(categories ?? []) as { id: string; name: string; code: string }[]}
           changeOrders={(changeOrders ?? []) as ChangeOrderRow[]}
           isAdmin={userRole === "admin"}
+          vendors={(vendors ?? []) as { name: string }[]}
         />
       </div>
     </div>
