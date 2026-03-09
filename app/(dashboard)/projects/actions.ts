@@ -99,6 +99,8 @@ export async function createProject(
       action: "project.create",
       entity_type: "project",
       entity_id: newProject?.id,
+      // project_id must also be set so the admin UI's project filter picks this up
+      project_id: newProject?.id,
       label: payload.name,
       payload: { name: payload.name, code: payload.code },
     });
@@ -216,13 +218,22 @@ export async function linkAppfolioId(
   appfolioId: string
 ): Promise<{ error?: string }> {
   try {
-    const { supabase } = await requireAdmin();
+    const { userId, supabase } = await requireAdmin();
     const value = appfolioId.trim() || null;
     const { error } = await supabase
       .from("projects")
       .update({ appfolio_property_id: value, updated_at: new Date().toISOString() })
       .eq("id", projectId);
     if (error) throw new Error(error.message);
+    await insertAuditLog({
+      user_id: userId,
+      action: "project.link_appfolio",
+      entity_type: "project",
+      entity_id: projectId,
+      project_id: projectId,
+      label: value ?? "(unlinked)",
+      payload: { appfolio_property_id: value },
+    });
     revalidatePath("/admin/appfolio");
     revalidatePath("/projects");
     return {};

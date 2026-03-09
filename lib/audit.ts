@@ -14,8 +14,13 @@ export interface AuditEntry {
 export async function insertAuditLog(entry: AuditEntry): Promise<void> {
   try {
     const supabase = createAdminClient();
-    await supabase.from("audit_logs").insert(entry);
+    // The Supabase JS client never throws for DB-level errors — it returns
+    // { error } instead. Destructure so we can surface those failures.
+    const { error } = await supabase.from("audit_logs").insert(entry);
+    if (error) {
+      console.error("[audit] insert failed:", error.message, entry);
+    }
   } catch (err) {
-    console.error("[audit]", err);
+    console.error("[audit] unexpected error:", err);
   }
 }

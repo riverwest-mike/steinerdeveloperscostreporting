@@ -341,6 +341,15 @@ export async function uploadGates(
       }
     }
 
+    await insertAuditLog({
+      user_id: userId,
+      action: "gate.upload_bulk",
+      entity_type: "gate",
+      project_id: projectId,
+      label: `${created} created, ${updated} updated`,
+      payload: { created, updated, gate_count: rows.length },
+    });
+
     revalidatePath(`/projects/${projectId}`);
     // Also revalidate each gate detail page so the client router cache is cleared
     for (const gateId of processedGateIds) {
@@ -388,6 +397,16 @@ export async function upsertGateBudgets(
       .upsert(upsertRows, { onConflict: "gate_id,cost_category_id", ignoreDuplicates: false });
 
     if (error) throw new Error(error.message);
+
+    await insertAuditLog({
+      user_id: userId,
+      action: "gate.budget_update",
+      entity_type: "gate",
+      entity_id: gateId,
+      project_id: projectId,
+      label: `${rows.length} line${rows.length !== 1 ? "s" : ""} saved`,
+      payload: { row_count: rows.length },
+    });
 
     revalidatePath(`/projects/${projectId}/gates/${gateId}`);
     revalidatePath(`/projects/${projectId}`);

@@ -7,28 +7,32 @@ interface User { id: string; full_name: string; email: string }
 interface Project { id: string; name: string; code: string }
 
 const ACTION_LABELS: Record<string, string> = {
-  "project.create":       "Created project",
-  "project.update":       "Updated project",
-  "project.delete":       "Deleted project",
-  "gate.create":          "Created gate",
-  "gate.update":          "Updated gate",
-  "gate.delete":          "Deleted gate",
-  "gate.activate":        "Activated gate",
-  "gate.close":           "Closed gate",
-  "contract.create":      "Created contract",
-  "contract.update":      "Updated contract",
-  "contract.delete":      "Deleted contract",
-  "change_order.create":  "Proposed change order",
-  "change_order.approve": "Approved change order",
-  "change_order.reject":  "Rejected change order",
-  "change_order.void":    "Voided change order",
+  "project.create":        "Created project",
+  "project.update":        "Updated project",
+  "project.delete":        "Deleted project",
+  "project.link_appfolio": "Linked AppFolio ID",
+  "gate.create":           "Created gate",
+  "gate.update":           "Updated gate",
+  "gate.delete":           "Deleted gate",
+  "gate.activate":         "Activated gate",
+  "gate.close":            "Closed gate",
+  "gate.upload_bulk":      "Bulk gate upload",
+  "gate.budget_update":    "Updated gate budget",
+  "contract.create":       "Created contract",
+  "contract.update":       "Updated contract",
+  "contract.delete":       "Deleted contract",
+  "change_order.create":   "Proposed change order",
+  "change_order.update":   "Updated change order",
+  "change_order.approve":  "Approved change order",
+  "change_order.reject":   "Rejected change order",
+  "change_order.void":     "Voided change order",
 };
 
 const ACTION_GROUPS = [
-  { label: "Projects", values: ["project.create", "project.update", "project.delete"] },
-  { label: "Gates", values: ["gate.create", "gate.update", "gate.delete", "gate.activate", "gate.close"] },
+  { label: "Projects", values: ["project.create", "project.update", "project.delete", "project.link_appfolio"] },
+  { label: "Gates", values: ["gate.create", "gate.update", "gate.delete", "gate.activate", "gate.close", "gate.upload_bulk", "gate.budget_update"] },
   { label: "Contracts", values: ["contract.create", "contract.update", "contract.delete"] },
-  { label: "Change Orders", values: ["change_order.create", "change_order.approve", "change_order.reject", "change_order.void"] },
+  { label: "Change Orders", values: ["change_order.create", "change_order.update", "change_order.approve", "change_order.reject", "change_order.void"] },
 ];
 
 export function AuditLogFilters({
