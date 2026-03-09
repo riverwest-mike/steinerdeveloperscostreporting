@@ -362,7 +362,7 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <p className="text-muted-foreground -mt-2 text-sm">
+        <p className="text-sm font-medium text-foreground -mt-2">
           Here&apos;s an overview of your construction projects.
         </p>
 

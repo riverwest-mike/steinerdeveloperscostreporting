@@ -110,7 +110,7 @@ export default async function TrialBalancePage({ searchParams }: Props) {
           />
           <div className="rounded-lg border border-dashed p-16 text-center mt-4">
             <p className="text-muted-foreground text-sm">
-              Select a project above, then click Run Report.
+              Select a project or leave blank for all projects, then click Run Report.
             </p>
           </div>
         </div>
@@ -120,9 +120,14 @@ export default async function TrialBalancePage({ searchParams }: Props) {
 
   /* ── Resolve selected project ─────────────────────── */
   const selectedProject = projectId ? projects.find((p) => p.id === projectId) ?? null : null;
-  const linkedPropertyIds = selectedProject?.appfolio_property_id
-    ? [selectedProject.appfolio_property_id]
-    : [];
+  const allPropertyIds = projects
+    .filter((p) => p.appfolio_property_id)
+    .map((p) => p.appfolio_property_id as string);
+  const linkedPropertyIds = selectedProject
+    ? (selectedProject.appfolio_property_id ? [selectedProject.appfolio_property_id] : [])
+    : projectId
+    ? [] // projectId set but not found
+    : allPropertyIds; // no project selected = all projects
 
   let transactions: RawTx[] = [];
   let knownGlAccounts: RawGlBalance[] = [];

@@ -50,7 +50,7 @@ export function ReportControls({
             onChange={(e) => setProjectId(e.target.value)}
             className="h-9 min-w-[280px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <option value="">— Select a Project —</option>
+            <option value="">— All Projects —</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.code} — {p.name}
@@ -83,16 +83,12 @@ export function ReportControls({
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide invisible select-none">Run</span>
           <button
             onClick={run}
-            disabled={!projectId}
-            className="h-9 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            className="h-9 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Run Report
           </button>
         </div>
       </div>
-      {!projectId && (
-        <p className="px-5 pb-3 text-xs text-muted-foreground">Select a project to run the report.</p>
-      )}
     </div>
   );
 }
