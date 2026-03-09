@@ -222,7 +222,6 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Add User", desc: "Click '+ Add User' to send an invitation email. Set the user's role (Read Only, Project Manager, or Admin) before sending." },
       { label: "Activate / Deactivate", desc: "Toggle a user's active status. Inactive users cannot log in but their data is preserved." },
       { label: "Project Access matrix", desc: "Check boxes in the Project Access section to grant a user access to specific projects. Admins always see all projects." },
-      { label: "Budget Import History", desc: "Excel gate budget upload history has moved to Admin › Audit Log. A link at the bottom of this page takes you there." },
     ],
     sections: [
       { heading: "Roles", body: "Read Only: view all data. Project Manager: create/edit projects, gates, contracts, and change orders. Admin: all PM capabilities plus user management, cost categories, and AppFolio settings." },
