@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ProjectAccessSection } from "../project-access";
@@ -55,15 +54,6 @@ export default async function AdminUsersPage() {
           assignments={(projectUsers ?? []) as { project_id: string; user_id: string }[]}
         />
 
-        <div className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground flex items-center justify-between gap-4">
-          <span>Budget Import History has moved to the Audit Log.</span>
-          <Link
-            href="/admin/audit-log"
-            className="shrink-0 rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors text-foreground"
-          >
-            Go to Audit Log →
-          </Link>
-        </div>
       </div>
     </div>
   );

@@ -385,7 +385,7 @@ export async function upsertGateBudgets(
 
     const { error } = await supabase
       .from("gate_budgets")
-      .upsert(upsertRows, { onConflict: "gate_id,cost_category_id" });
+      .upsert(upsertRows, { onConflict: "gate_id,cost_category_id", ignoreDuplicates: false });
 
     if (error) throw new Error(error.message);
 
