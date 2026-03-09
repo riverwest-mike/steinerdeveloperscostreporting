@@ -90,12 +90,12 @@ export function GatesSection({ projectId, gates }: GatesSectionProps) {
         <div className="max-h-72 overflow-x-auto overflow-y-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/30 sticky top-0">
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Gate</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Status</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Start</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">End</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Total Budget</th>
+              <tr className="bg-slate-800 text-white sticky top-0">
+                <th className="px-4 py-2.5 text-left text-xs font-medium">Gate</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium">Status</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium hidden sm:table-cell">Start</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium hidden sm:table-cell">End</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium">Total Budget</th>
               </tr>
             </thead>
             <tbody>
@@ -122,8 +122,8 @@ export function GatesSection({ projectId, gates }: GatesSectionProps) {
                       {gate.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{fmtDate(gate.start_date)}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{fmtDate(gate.end_date)}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs hidden sm:table-cell">{fmtDate(gate.start_date)}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs hidden sm:table-cell">{fmtDate(gate.end_date)}</td>
                   <td className="px-4 py-3 text-right font-mono text-xs">
                     {gate.total_budget > 0 ? fmtCurrency(gate.total_budget) : "—"}
                   </td>

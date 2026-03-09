@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { X, ChevronLeft, ChevronRight, LayoutDashboard, FolderKanban, BarChart3, BookOpen, ShieldCheck } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, LayoutDashboard, FolderKanban, BarChart3, BookOpen, ShieldCheck, Users } from "lucide-react";
 
 function Screenshot({ src, alt, caption }: { src: string; alt: string; caption?: string }) {
   const [failed, setFailed] = useState(false);
@@ -80,7 +80,7 @@ const sections = [
     icon: <LayoutDashboard className="h-5 w-5" />,
     content: (
       <div className="space-y-4">
-        <p className="text-slate-700">The dark left sidebar is your main navigation and stays visible on every page.</p>
+        <p className="text-slate-700">The dark left sidebar is your main navigation and stays visible on every page. On mobile, tap the <strong>☰ menu icon</strong> in the top-left to open the navigation drawer.</p>
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -91,8 +91,9 @@ const sections = [
             </thead>
             <tbody className="divide-y">
               {[
-                { item: "Dashboard", desc: "Portfolio stats, project cards, recent bills, and pending change orders" },
+                { item: "Dashboard", desc: "Portfolio stats, project cards, recent bills, pending COs, and COI/budget alerts" },
                 { item: "Projects", desc: "All projects you have access to — filter by status, click any row to open" },
+                { item: "Vendors", desc: "Global vendor directory — browse all vendors, view compliance documents and transaction history" },
                 { item: "Reporting (click to expand)", desc: "Expand to access all financial reports" },
                 { item: "  › Project Cost Management", desc: "The main report: budget vs. committed vs. incurred by cost category" },
                 { item: "  › Cost Detail", desc: "Line-by-line AppFolio transactions" },
@@ -105,7 +106,6 @@ const sections = [
                 { item: "  › Reporting Package", desc: "Opens PCM Report and Balance Sheet side-by-side in two tabs for a selected project" },
                 { item: "Admin › (click to expand)", desc: "Users, cost categories, AppFolio settings, audit log — admins only" },
                 { item: "Quick Start Guide", desc: "Re-opens this guide at any time (bottom of sidebar)" },
-                { item: "AI Assistant (Dashboard)", desc: "Chat bar below the greeting — ask questions about projects, costs, and reports. Opens a centered panel. On other pages, use the chat bubble (bottom-right)." },
               ].map((row) => (
                 <tr key={row.item} className="hover:bg-slate-50">
                   <td className="px-4 py-2.5 font-medium text-slate-800 whitespace-nowrap text-xs">{row.item}</td>
@@ -140,27 +140,36 @@ const sections = [
           (<em>All / Active / On Hold / Completed / Archived</em>) to filter. Click any row to open the project.
         </p>
 
-        <h4 className="font-semibold text-slate-800 pt-1">Project Detail</h4>
-        <Screenshot src="/guide/screenshot-project.png" alt="Project page" caption="A project page shows gates (budget phases) and contracts." />
+        <h4 className="font-semibold text-slate-800 pt-1">Project Detail — Six Tabs</h4>
+        <Screenshot src="/guide/screenshot-project.png" alt="Project page" caption="A project page shows six tabs: Overview, Gates, Contracts, Vendors, Documents, and Map." />
+        <div className="rounded-lg border divide-y text-sm">
+          {[
+            { label: "Overview", desc: "Project metadata — name, code, type, status, address, and AppFolio property. Admins and PMs can edit inline." },
+            { label: "Gates", desc: "Budget phases with status, dates, and total budget. Click any gate to view or edit its cost-category budgets. Use '+ Add Gate' or 'Upload Excel' to bulk-import." },
+            { label: "Contracts", desc: "All contracts with original value, approved COs, revised value, and status. Click any row to open the contract detail." },
+            { label: "Vendors", desc: "Vendors linked to this project. Search and filter Active/Inactive/All. Click any vendor name to open their profile. Use 'Manage Vendors' to add or deactivate vendors." },
+            { label: "Documents", desc: "Project-level file attachments. Click 'Manage Documents' to upload, download, or remove files." },
+            { label: "Map", desc: "Google Maps embed for the project address. Use 'Open in Google Maps' to navigate or get directions." },
+          ].map((row) => (
+            <div key={row.label} className="flex gap-3 px-4 py-2.5">
+              <span className="font-semibold text-slate-800 whitespace-nowrap w-24 shrink-0 text-xs">{row.label}</span>
+              <span className="text-slate-600 text-xs">{row.desc}</span>
+            </div>
+          ))}
+        </div>
+
+        <h4 className="font-semibold text-slate-800 pt-2">Setting Gate Budgets</h4>
         <StepList steps={[
           "Click a project from the Dashboard or Projects list.",
-          "The Gates section shows each phase's total budget and status.",
-          "Click any gate row to open it and edit its cost-category budgets.",
-          "Use '+ Add Gate' to create a new phase with a name, status, and optional dates.",
-          "Use 'Upload Excel' to bulk-import gate budgets from a formatted spreadsheet.",
+          "Go to the Gates tab and click any gate row to open it.",
+          "Enter Original Budget amounts for each cost category, then click Save Budgets.",
+          "Use '+ Add Gate' to create a new phase, or 'Upload Excel' to bulk-import budgets.",
         ]} />
 
         <Hint>
           Gate statuses: <strong>Pending</strong> = planned, <strong>Active</strong> = in progress,
           <strong> Closed</strong> = complete. All gates contribute to the PCM report regardless of status.
         </Hint>
-
-        <h4 className="font-semibold text-slate-800 pt-2">Setting Gate Budgets</h4>
-        <p className="text-sm text-slate-600">
-          Open a gate and enter <strong>Original Budget</strong> amounts for each cost category,
-          then click <strong>Save Budgets</strong>. Approved change orders on the gate appear as
-          <em> Authorized Adjustments</em> in the PCM report (column B).
-        </p>
       </div>
     ),
   },
@@ -277,7 +286,52 @@ const sections = [
     ),
   },
 
-  /* 6 ── Admin ────────────────────────────────────────────────────────── */
+  /* 6 ── Vendors & Compliance ─────────────────────────────────────────── */
+  {
+    title: "Vendors & Compliance",
+    icon: <Users className="h-5 w-5" />,
+    content: (
+      <div className="space-y-4">
+        <p className="text-slate-700">
+          The <strong>Vendors</strong> section (accessible from the sidebar) is your global
+          directory of all subcontractors and suppliers across every project. Each vendor has
+          a profile page showing compliance documents, transaction history, and project assignments.
+        </p>
+
+        <h4 className="font-semibold text-slate-800">Vendor Profiles</h4>
+        <div className="rounded-lg border divide-y text-sm">
+          {[
+            { label: "COI Tracking", desc: "Upload Certificates of Insurance and set expiration dates. The dashboard will alert you when any COI expires within 60 days." },
+            { label: "Lien Waivers", desc: "Track lien waiver documents with expiration dates. Expiring lien waivers are surfaced on the dashboard alongside COI alerts." },
+            { label: "Other Documents", desc: "Upload any other compliance files (W-9, license, etc.) using the 'Other' document type." },
+            { label: "Transaction History", desc: "See the 10 most recent AppFolio transactions for this vendor. Click 'View Transactions →' to open the full Vendor Detail report." },
+            { label: "Project Assignments", desc: "Lists all projects where this vendor is active, with invoiced totals per project." },
+          ].map((row) => (
+            <div key={row.label} className="flex gap-3 px-4 py-2.5">
+              <span className="font-semibold text-slate-800 whitespace-nowrap w-36 shrink-0 text-xs">{row.label}</span>
+              <span className="text-slate-600 text-xs">{row.desc}</span>
+            </div>
+          ))}
+        </div>
+
+        <h4 className="font-semibold text-slate-800 pt-1">Project-Level Vendors Tab</h4>
+        <p className="text-sm text-slate-600">
+          The <strong>Vendors tab</strong> on each project shows vendors linked specifically to that project.
+          Use the search box to filter by name, and the Active/Inactive/All buttons to toggle status.
+          Click <strong>Manage Vendors</strong> to add, rename, or deactivate vendors for that project.
+          Vendors are also added automatically when AppFolio syncs transaction data or when contracts are entered.
+        </p>
+
+        <Hint>
+          Vendor profiles appear automatically once a vendor has at least one AppFolio transaction synced.
+          The <strong>COI Alerts</strong> card on the dashboard surfaces all expiring certificates so you
+          never miss a renewal.
+        </Hint>
+      </div>
+    ),
+  },
+
+  /* 7 ── Admin ────────────────────────────────────────────────────────── */
   {
     title: "Admin Panel",
     icon: <ShieldCheck className="h-5 w-5" />,
@@ -308,7 +362,7 @@ const sections = [
     ),
   },
 
-  /* 7 ── Quick Tips ───────────────────────────────────────────────────── */
+  /* 8 ── Quick Tips ───────────────────────────────────────────────────── */
   {
     title: "Quick Tips",
     icon: <BookOpen className="h-5 w-5" />,
@@ -317,6 +371,7 @@ const sections = [
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { icon: "❓", title: "Page Help Icons", desc: "Every page has a ? icon (top right of the header). Click it for a quick-reference panel explaining that page, what actions are available, and what to watch out for." },
+            { icon: "📱", title: "Mobile-Friendly", desc: "The app works on phones and tablets. On mobile, tap the ☰ menu icon in the top-left to open the navigation sidebar. Tables scroll horizontally and detail columns are shown on wider screens." },
             { icon: "📅", title: "As-of Date", desc: "All reports have an as-of date filter. Change it to see the project's state at any point in time — budgets, commitments, and costs are all date-filtered." },
             { icon: "🔄", title: "AppFolio Sync", desc: "Running any PCM, Cost Detail, or Vendor Detail report auto-syncs AppFolio for the selected project. Force a full sync anytime from Admin › AppFolio." },
             { icon: "📤", title: "Export to Excel", desc: "Every report has an Excel export button. Column widths and number formatting are pre-set." },
@@ -326,6 +381,7 @@ const sections = [
             { icon: "📋", title: "Budget Import History", desc: "Every Excel gate budget upload is logged in Admin › Audit Log. See who uploaded it, which gate it targeted, the filename, and the row count." },
             { icon: "🤖", title: "AI Assistant", desc: "Type a question in the chat bar on the Dashboard to get instant answers about your projects, costs, reports, and how the app works. On any other page, click the chat bubble in the bottom-right corner. Use the trash icon in the chat header to clear the conversation and start fresh." },
             { icon: "🗃️", title: "Column Picker", desc: "Every report has a Columns button to show or hide individual columns. Preferences are saved per report so your layout is restored on your next visit." },
+            { icon: "🗺️", title: "Project Map", desc: "Each project has a Map tab showing its Google Maps location. Use 'Open in Google Maps' to get directions or switch to Street View." },
           ].map((tip) => (
             <div key={tip.title} className="rounded-lg border p-4">
               <div className="flex items-start gap-3">
@@ -348,7 +404,7 @@ const sections = [
   },
 ];
 
-/* ─── Modal ────────────────────────────────────────────────── */
+/* ─── Modal ────────────────────────────────────────────── */
 
 interface QuickStartModalProps {
   isOpen: boolean;
@@ -380,12 +436,12 @@ export function QuickStartModal({ isOpen, onClose }: QuickStartModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/50 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b shrink-0">
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
             <span className="font-bold text-base">Quick Start Guide</span>
@@ -401,7 +457,7 @@ export function QuickStartModal({ isOpen, onClose }: QuickStartModalProps) {
         </div>
 
         {/* Step title */}
-        <div className="px-6 pt-5 pb-2 shrink-0">
+        <div className="px-4 sm:px-6 pt-5 pb-2 shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-primary">{current.icon}</span>
             <h2 className="text-lg font-bold text-slate-900">{current.title}</h2>
@@ -409,11 +465,11 @@ export function QuickStartModal({ isOpen, onClose }: QuickStartModalProps) {
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-6 pb-4">{current.content}</div>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-4">{current.content}</div>
 
         {/* Footer */}
-        <div className="border-t px-6 py-4 flex items-center justify-between shrink-0 bg-slate-50 rounded-b-xl">
-          <div className="flex items-center gap-1.5">
+        <div className="border-t px-4 sm:px-6 py-4 flex items-center justify-between shrink-0 bg-slate-50 rounded-b-xl">
+          <div className="flex items-center gap-1">
             {sections.map((_, i) => (
               <button
                 key={i}
@@ -427,18 +483,18 @@ export function QuickStartModal({ isOpen, onClose }: QuickStartModalProps) {
             {!isFirst && (
               <button
                 onClick={() => setStep((s) => s - 1)}
-                className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-4 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
+                className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-3 sm:px-4 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
               >
-                <ChevronLeft className="h-4 w-4" /> Previous
+                <ChevronLeft className="h-4 w-4" /> <span className="hidden sm:inline">Previous</span>
               </button>
             )}
             {isLast ? (
-              <button onClick={handleClose} className="inline-flex items-center gap-1 rounded-md bg-primary px-5 py-1.5 text-sm font-medium text-white hover:opacity-90 transition-opacity">
+              <button onClick={handleClose} className="inline-flex items-center gap-1 rounded-md bg-primary px-4 sm:px-5 py-1.5 text-sm font-medium text-white hover:opacity-90 transition-opacity">
                 Done
               </button>
             ) : (
-              <button onClick={() => setStep((s) => s + 1)} className="inline-flex items-center gap-1 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 transition-opacity">
-                Next <ChevronRight className="h-4 w-4" />
+              <button onClick={() => setStep((s) => s + 1)} className="inline-flex items-center gap-1 rounded-md bg-primary px-3 sm:px-4 py-1.5 text-sm font-medium text-white hover:opacity-90 transition-opacity">
+                <span className="hidden sm:inline">Next</span> <ChevronRight className="h-4 w-4" />
               </button>
             )}
           </div>
