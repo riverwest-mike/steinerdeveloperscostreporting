@@ -94,7 +94,7 @@ export default async function ProjectPage({ params }: Props) {
 
   const vendorList = (vendors ?? []) as { name: string; is_active: boolean }[];
   const activeVendors = vendorList.filter((v) => v.is_active);
-  const previewVendors = activeVendors.slice(0, 12).map((v) => v.name);
+  const activeVendorNames = activeVendors.map((v) => v.name);
 
   const STATUS_STYLES: Record<string, string> = {
     active: "bg-green-100 text-green-800",
@@ -149,7 +149,7 @@ export default async function ProjectPage({ params }: Props) {
               projectId={id}
               activeCount={activeVendors.length}
               totalCount={vendorList.length}
-              recentVendors={previewVendors}
+              vendors={activeVendorNames}
             />
           }
           documents={<DocumentsSection projectId={id} documentCount={documentCount ?? 0} />}
