@@ -14,5 +14,5 @@ ALTER TABLE transaction_notes ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "admins_all_transaction_notes" ON transaction_notes
   FOR ALL USING (
-    EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role IN ('admin','pm','read_only'))
+    EXISTS (SELECT 1 FROM users WHERE id = auth.uid()::TEXT AND role IN ('admin','pm','read_only'))
   );
