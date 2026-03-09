@@ -75,6 +75,7 @@ export function ReportControls({
         categoryCode,
         asOf,
         gateId,
+        savedDate: new Date().toISOString().slice(0, 10),
       }));
     } catch { /* ignore */ }
 

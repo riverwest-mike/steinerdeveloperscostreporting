@@ -128,7 +128,13 @@ export function RecentBills({ bills }: { bills: BillRow[] }) {
                       className="px-3 py-2 max-w-[160px] truncate font-medium"
                       title={bill.vendor_name}
                     >
-                      {bill.vendor_name}
+                      <Link
+                        href={`/vendors/${encodeURIComponent(bill.vendor_name)}`}
+                        className="hover:underline hover:text-primary transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {bill.vendor_name}
+                      </Link>
                     </td>
                     <td
                       className="px-3 py-2 max-w-[160px] truncate text-muted-foreground"

@@ -47,12 +47,11 @@ interface VendorDocumentsProps {
   isAdmin: boolean;
 }
 
-const DOC_TYPES = ["COI", "Lien Waiver", "W-9", "Other"] as const;
+const DOC_TYPES = ["COI", "Lien Waiver", "Other"] as const;
 
 const TYPE_STYLES: Record<string, string> = {
   COI: "bg-blue-100 text-blue-800",
   "Lien Waiver": "bg-purple-100 text-purple-800",
-  "W-9": "bg-amber-100 text-amber-800",
   Other: "bg-gray-100 text-gray-600",
 };
 
@@ -437,8 +436,8 @@ export function VendorDocuments({
             </div>
           )}
 
-          {/* W-9 / Other — just dates */}
-          {(docType === "W-9" || docType === "Other") && (
+          {/* Other — just dates */}
+          {docType === "Other" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <label className="text-xs font-medium">Effective Date</label>

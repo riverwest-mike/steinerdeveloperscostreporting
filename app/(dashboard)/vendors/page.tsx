@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
+import { HELP } from "@/lib/help";
 import { VendorSearch } from "./vendor-search";
 
 interface VendorRow {
@@ -89,7 +90,7 @@ export default async function VendorDirectoryPage({ searchParams }: Props) {
 
   return (
     <div>
-      <Header title="Vendor Directory" />
+      <Header title="Vendor Directory" helpContent={HELP.vendors} />
       <div className="p-4 sm:p-6">
         <div className="flex items-start justify-between mb-4 gap-4 flex-wrap">
           <div>

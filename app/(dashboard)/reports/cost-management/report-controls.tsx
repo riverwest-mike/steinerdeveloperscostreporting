@@ -78,6 +78,7 @@ export function ReportControls({
         projectIds: [...selectedIds],
         gateId: gateId || null,
         asOf,
+        savedDate: new Date().toISOString().slice(0, 10),
       }));
     } catch { /* ignore */ }
 

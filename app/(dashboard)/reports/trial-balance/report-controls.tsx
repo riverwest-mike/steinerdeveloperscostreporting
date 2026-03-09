@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ProjectMultiSelect } from "@/components/project-multi-select";
 
 interface Project {
   id: string;
@@ -12,29 +11,28 @@ interface Project {
 
 interface Props {
   projects: Project[];
-  currentProjectIds: string[];
+  currentProjectId: string | null;
   currentDateFrom: string | null;
   currentDateTo: string | null;
 }
 
 export function ReportControls({
   projects,
-  currentProjectIds,
+  currentProjectId,
   currentDateFrom,
   currentDateTo,
 }: Props) {
   const router = useRouter();
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(currentProjectIds));
+  const [projectId, setProjectId] = useState(currentProjectId ?? "");
   const [dateFrom, setDateFrom] = useState(currentDateFrom ?? "");
   const [dateTo, setDateTo] = useState(currentDateTo ?? "");
 
   function run() {
     const params = new URLSearchParams();
-    const ids = [...selectedIds].sort();
-    if (ids.length > 0) params.set("projectIds", ids.join(","));
+    if (projectId) params.set("projectId", projectId);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
-    if (ids.length === 0 && !dateFrom && !dateTo) params.set("run", "1");
+    if (!projectId && !dateFrom && !dateTo) params.set("run", "1");
     router.push(`/reports/trial-balance?${params.toString()}`);
   }
 
@@ -45,13 +43,20 @@ export function ReportControls({
       </div>
       <div className="px-5 py-4 flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Projects</label>
-          <ProjectMultiSelect
-            projects={projects}
-            selectedIds={selectedIds}
-            onChange={setSelectedIds}
-          />
-          <span className="text-[10px] text-muted-foreground">None selected = all projects</span>
+          <label htmlFor="tb-project" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Project</label>
+          <select
+            id="tb-project"
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="h-9 min-w-[280px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">— Select a Project —</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.code} — {p.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -78,12 +83,16 @@ export function ReportControls({
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide invisible select-none">Run</span>
           <button
             onClick={run}
-            className="h-9 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            disabled={!projectId}
+            className="h-9 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             Run Report
           </button>
         </div>
       </div>
+      {!projectId && (
+        <p className="px-5 pb-3 text-xs text-muted-foreground">Select a project to run the report.</p>
+      )}
     </div>
   );
 }

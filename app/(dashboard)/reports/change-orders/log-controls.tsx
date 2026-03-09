@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ProjectMultiSelect } from "@/components/project-multi-select";
 
 interface Project { id: string; name: string; code: string }
 interface Category { id: string; name: string; code: string }
@@ -10,7 +9,7 @@ interface Category { id: string; name: string; code: string }
 interface Props {
   projects: Project[];
   categories: Category[];
-  currentProjectIds: string[];
+  currentProjectId: string | null;
   currentStatus: string;
   currentCategoryId: string | null;
   currentDateFrom: string | null;
@@ -21,7 +20,7 @@ interface Props {
 export function COLogControls({
   projects,
   categories,
-  currentProjectIds,
+  currentProjectId,
   currentStatus,
   currentCategoryId,
   currentDateFrom,
@@ -29,9 +28,7 @@ export function COLogControls({
   currentType,
 }: Props) {
   const router = useRouter();
-  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(
-    new Set(currentProjectIds)
-  );
+  const [projectId, setProjectId] = useState(currentProjectId ?? "");
   const [status, setStatus] = useState(currentStatus);
   const [categoryId, setCategoryId] = useState(currentCategoryId ?? "");
   const [dateFrom, setDateFrom] = useState(currentDateFrom ?? "");
@@ -40,9 +37,7 @@ export function COLogControls({
 
   function handleRun() {
     const params = new URLSearchParams();
-    if (selectedProjects.size > 0) {
-      params.set("projectIds", [...selectedProjects].join(","));
-    }
+    if (projectId) params.set("projectId", projectId);
     if (status && status !== "all") params.set("status", status);
     else params.set("status", "all");
     if (categoryId) params.set("categoryId", categoryId);
@@ -56,15 +51,21 @@ export function COLogControls({
   return (
     <div className="rounded-lg border p-4 space-y-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Project multi-select */}
+        {/* Single project select */}
         <div className="space-y-1 sm:col-span-2 lg:col-span-2">
-          <label className="text-xs font-medium">Projects</label>
-          <ProjectMultiSelect
-            projects={projects}
-            selectedIds={selectedProjects}
-            onChange={setSelectedProjects}
-          />
-          <p className="text-[10px] text-muted-foreground">None selected = all projects</p>
+          <label className="text-xs font-medium">Project</label>
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          >
+            <option value="">— All Projects —</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.code} — {p.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="space-y-3">
@@ -146,7 +147,7 @@ export function COLogControls({
         </button>
         <button
           onClick={() => {
-            setSelectedProjects(new Set());
+            setProjectId("");
             setStatus("all");
             setCategoryId("");
             setDateFrom("");

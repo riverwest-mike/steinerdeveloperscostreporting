@@ -78,7 +78,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 interface Props {
   searchParams: Promise<{
-    projectIds?: string;
+    projectId?: string;
     status?: string;
     categoryId?: string;
     dateFrom?: string;
@@ -89,9 +89,7 @@ interface Props {
 
 export default async function ChangeOrderLogPage({ searchParams }: Props) {
   const sp = await searchParams;
-  const projectIds = sp.projectIds
-    ? sp.projectIds.split(",").map((s) => s.trim()).filter(Boolean)
-    : [];
+  const projectId = sp.projectId ?? null;
   const statusFilter = sp.status ?? "all";
   const categoryId = sp.categoryId ?? null;
   const dateFrom = sp.dateFrom ?? null;
@@ -113,7 +111,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
   const categories = (allCategories ?? []) as { id: string; name: string; code: string }[];
 
   const hasFilter =
-    sp.projectIds !== undefined ||
+    sp.projectId !== undefined ||
     sp.status !== undefined ||
     sp.categoryId !== undefined ||
     sp.dateFrom !== undefined ||
@@ -128,7 +126,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
           <COLogControls
             projects={projects}
             categories={categories}
-            currentProjectIds={[]}
+            currentProjectId={null}
             currentStatus="all"
             currentCategoryId={null}
             currentDateFrom={null}
@@ -202,9 +200,9 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
 
   // Filter by project after fetch (since project_id is on the gate)
   const filtered = allCOs.filter((co) => {
-    if (projectIds.length === 0) return true;
+    if (!projectId) return true;
     const projId = co.gate?.project_id;
-    return projId ? projectIds.includes(projId) : false;
+    return projId === projectId;
   });
 
   // Build display rows
@@ -240,16 +238,12 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
   const approvedTotal = rows.filter((r) => r.status === "approved").reduce((s, r) => s + r.amount, 0);
   const proposedTotal = rows.filter((r) => r.status === "proposed").reduce((s, r) => s + r.amount, 0);
 
-  const selectedProjects = projectIds.length > 0
-    ? projects.filter((p) => projectIds.includes(p.id))
-    : [];
-  const projectLabel = selectedProjects.length === 0
-    ? "All Projects"
-    : selectedProjects.length === 1
-    ? `${selectedProjects[0].code} — ${selectedProjects[0].name}`
-    : selectedProjects.map((p) => p.code).join(", ");
+  const selectedProject = projectId ? projects.find((p) => p.id === projectId) ?? null : null;
+  const projectLabel = selectedProject
+    ? `${selectedProject.code} — ${selectedProject.name}`
+    : "All Projects";
 
-  const showProjectCol = selectedProjects.length !== 1;
+  const showProjectCol = !selectedProject;
 
   return (
     <div>
@@ -259,7 +253,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
           <COLogControls
             projects={projects}
             categories={categories}
-            currentProjectIds={projectIds}
+            currentProjectId={projectId}
             currentStatus={statusFilter}
             currentCategoryId={categoryId}
             currentDateFrom={dateFrom}

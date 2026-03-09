@@ -5,6 +5,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
+import { HELP } from "@/lib/help";
 import { VendorDocuments, type VendorDoc } from "./vendor-documents";
 
 interface Props {
@@ -185,7 +186,7 @@ export default async function VendorProfilePage({ params }: Props) {
 
   return (
     <div>
-      <Header title={vendorName} />
+      <Header title={vendorName} helpContent={HELP.vendorProfile} />
       <div className="p-4 sm:p-6">
         {/* Breadcrumb */}
         <nav className="text-sm text-muted-foreground mb-6 flex items-center gap-1.5 flex-wrap">

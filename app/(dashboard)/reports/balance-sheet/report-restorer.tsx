@@ -26,6 +26,11 @@ export function ReportRestorer() {
     try {
       const raw = localStorage.getItem("bsr_last_filter");
       if (!raw) return;
+      const parsedForDate = JSON.parse(raw) as { savedDate?: string };
+      if (parsedForDate.savedDate !== new Date().toISOString().slice(0, 10)) {
+        localStorage.removeItem("bsr_last_filter");
+        return;
+      }
       const saved = JSON.parse(raw) as {
         projectIds?: string[];
         projectId?: string; // legacy single-project format

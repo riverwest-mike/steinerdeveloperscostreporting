@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ProjectAccessSection } from "../project-access";
+import { getPendingInvites } from "../actions";
 import { UsersSection } from "../users-section";
 import { HELP } from "@/lib/help";
 
@@ -26,10 +27,12 @@ export default async function AdminUsersPage() {
     { data: users },
     { data: projects },
     { data: projectUsers },
+    { invites: pendingInvites },
   ] = await Promise.all([
     supabase.from("users").select("id, email, full_name, role, is_active, created_at").order("full_name"),
     supabase.from("projects").select("id, name, code").order("name"),
     supabase.from("project_users").select("project_id, user_id"),
+    getPendingInvites(),
   ]);
 
   return (
@@ -46,6 +49,7 @@ export default async function AdminUsersPage() {
         <UsersSection
           users={(users ?? []) as { id: string; email: string; full_name: string; role: string; is_active: boolean; created_at: string }[]}
           currentUserId={userId!}
+          pendingInvites={(pendingInvites ?? []) as { id: string; emailAddress: string; role: string; createdAt: number; status: string }[]}
         />
 
         <ProjectAccessSection
