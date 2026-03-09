@@ -470,7 +470,14 @@ export default async function VendorDetailPage({ searchParams }: Props) {
                       <td data-col="bill_date" className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
                         {fmtDate(tx.bill_date)}
                       </td>
-                      <td data-col="vendor" className="px-3 py-2 font-medium">{tx.vendor_name}</td>
+                      <td data-col="vendor" className="px-3 py-2 font-medium">
+                        <Link
+                          href={`/vendors/${encodeURIComponent(tx.vendor_name)}`}
+                          className="text-blue-600 hover:underline"
+                        >
+                          {tx.vendor_name}
+                        </Link>
+                      </td>
                       <td data-col="description" className="px-3 py-2 text-muted-foreground max-w-[180px] truncate">
                         {tx.description ?? "—"}
                       </td>

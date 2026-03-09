@@ -15,6 +15,7 @@ import {
   RefreshCw,
   ScrollText,
   BookOpen,
+  Building2,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -102,6 +103,11 @@ export function Sidebar({ role, onClose }: SidebarProps) {
         <Link href="/projects" className={navItem(pathname.startsWith("/projects"))} onClick={onClose}>
           <FolderKanban className="h-4 w-4 shrink-0" />
           Projects
+        </Link>
+
+        <Link href="/vendors" className={navItem(pathname.startsWith("/vendors"))} onClick={onClose}>
+          <Building2 className="h-4 w-4 shrink-0" />
+          Vendors
         </Link>
 
         <div className="my-2" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }} />
