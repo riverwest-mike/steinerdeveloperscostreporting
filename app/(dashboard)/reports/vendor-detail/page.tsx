@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
@@ -135,11 +136,17 @@ export default async function VendorDetailPage({ searchParams }: Props) {
   const isAdmin = role === "admin";
   const canEditGate = role === "admin" || role === "project_manager";
 
+  const allowedProjectIds = await getAccessibleProjectIds(supabase, userId);
+
+  let projectsQuery = supabase
+    .from("projects")
+    .select("id, name, code, appfolio_property_id, status")
+    .order("name");
+  if (allowedProjectIds !== null) {
+    projectsQuery = projectsQuery.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
   const [{ data: allProjects }, { data: rawCategories }] = await Promise.all([
-    supabase
-      .from("projects")
-      .select("id, name, code, appfolio_property_id, status")
-      .order("name"),
+    projectsQuery,
     supabase
       .from("cost_categories")
       .select("id, name, code")
@@ -150,11 +157,14 @@ export default async function VendorDetailPage({ searchParams }: Props) {
   const projects = (allProjects ?? []) as ProjectInfo[];
   const categories = (rawCategories ?? []) as { id: string; name: string; code: string }[];
 
+  // Constrain URL projectIds to only accessible ones (projects is already filtered)
+  const authorizedProjectIds = projectIds.filter((id) => projects.some((p) => p.id === id));
+
   // Fetch vendor names for autocomplete in the filter.
   // When specific projects are selected, fetch only their vendors.
-  // When no project is selected (all), fetch vendors across all projects (deduplicated by name).
+  // When no project is selected (all), fetch vendors across all accessible projects.
   let vendorNames: string[] = [];
-  const selectedProjectIds = projectIds.length > 0 ? projectIds : projects.map((p) => p.id);
+  const selectedProjectIds = authorizedProjectIds.length > 0 ? authorizedProjectIds : projects.map((p) => p.id);
   if (selectedProjectIds.length > 0) {
     const { data: rawVendors } = await supabase
       .from("project_vendors")
@@ -216,8 +226,8 @@ export default async function VendorDetailPage({ searchParams }: Props) {
     .map((p) => p.appfolio_property_id)
     .filter((id): id is string => !!id);
 
-  const selectedProjects = projectIds.length > 0
-    ? projects.filter((p) => projectIds.includes(p.id))
+  const selectedProjects = authorizedProjectIds.length > 0
+    ? projects.filter((p) => authorizedProjectIds.includes(p.id))
     : projects;
   const queryPropertyIds = selectedProjects
     .map((p) => p.appfolio_property_id)

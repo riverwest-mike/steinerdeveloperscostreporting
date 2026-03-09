@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
@@ -105,9 +107,16 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
   const asOf = searchParams.asOf ?? today();
 
   const supabase = createAdminClient();
+  const userId = (await headers()).get("x-clerk-user-id");
+  const allowedProjectIds = await getAccessibleProjectIds(supabase, userId);
+
+  let projectsQuery = supabase.from("projects").select("id, name, code, status").order("name");
+  if (allowedProjectIds !== null) {
+    projectsQuery = projectsQuery.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
 
   const [{ data: allProjects }, { data: rawCategories }] = await Promise.all([
-    supabase.from("projects").select("id, name, code, status").order("name"),
+    projectsQuery,
     supabase
       .from("cost_categories")
       .select("id, name, code")
@@ -117,6 +126,9 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
 
   const projects = (allProjects ?? []) as ProjectInfo[];
   const categories = (rawCategories ?? []) as { id: string; name: string; code: string }[];
+
+  // Constrain URL projectIds to only accessible ones
+  const authorizedProjectIds = projectIds.filter((id) => projects.some((p) => p.id === id));
 
   const projectMap = new Map<string, ProjectInfo>(projects.map((p) => [p.id, p]));
   const categoryByCode = new Map<string, { id: string; name: string; code: string }>();
@@ -194,8 +206,11 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
     .or(`execution_date.is.null,execution_date.lte.${asOf}`)
     .neq("status", "terminated");
 
-  if (projectIds.length > 0) {
-    contractQuery = contractQuery.in("project_id", projectIds);
+  if (authorizedProjectIds.length > 0) {
+    contractQuery = contractQuery.in("project_id", authorizedProjectIds);
+  } else if (allowedProjectIds !== null) {
+    // Non-admin with no specific project selected: scope to all their accessible projects
+    contractQuery = contractQuery.in("project_id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
   }
 
   // Apply status filter

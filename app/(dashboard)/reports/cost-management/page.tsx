@@ -2,7 +2,9 @@ export const dynamic = "force-dynamic";
 
 import { Fragment } from "react";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
@@ -118,17 +120,26 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   const filterGateId = searchParams.gateId ?? null;
 
   const supabase = createAdminClient();
+  const userId = (await headers()).get("x-clerk-user-id");
+  const allowedProjectIds = await getAccessibleProjectIds(supabase, userId);
 
-  // Always load project list for the picker
-  const { data: allProjects } = await supabase
+  // Always load project list for the picker, scoped to the user's accessible projects
+  let projectsQuery = supabase
     .from("projects")
     .select("id, name, code, appfolio_property_id, status")
     .order("name");
+  if (allowedProjectIds !== null) {
+    projectsQuery = projectsQuery.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
+  const { data: allProjects } = await projectsQuery;
 
   const projects = (allProjects ?? []) as { id: string; name: string; code: string; appfolio_property_id: string | null; status: string }[];
 
+  // Constrain any projectIds from the URL to only those the user can access
+  const authorizedProjectIds = projectIds.filter((id) => projects.some((p) => p.id === id));
+
   // ── If no projects selected, render just the controls ──
-  if (projectIds.length === 0) {
+  if (authorizedProjectIds.length === 0 && projectIds.length === 0) {
     return (
       <div>
         <Header title="Project Cost Management Report" helpContent={HELP.pcmReport} />
@@ -150,7 +161,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   }
 
   // ── Resolve selected projects ─────────────────────────
-  const selectedProjects = projects.filter((p) => projectIds.includes(p.id));
+  const selectedProjects = projects.filter((p) => authorizedProjectIds.includes(p.id));
   // When only one project is selected, drill-down links to cost detail are available
   const singleProject = selectedProjects.length === 1 ? selectedProjects[0] : null;
   // All AppFolio property IDs linked to selected projects
@@ -176,7 +187,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   const { data: rawGates, error: gatesError } = await supabase
     .from("gates")
     .select("id, project_id, name, sequence_number, status")
-    .in("project_id", projectIds)
+    .in("project_id", authorizedProjectIds.length > 0 ? authorizedProjectIds : [""])
     .order("sequence_number");
 
   type GateRow = { id: string; project_id: string; name: string; sequence_number: number; status: string };
@@ -235,7 +246,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     if (filterGateId) {
       coQuery = coQuery.eq("gate_id", filterGateId);
     } else {
-      coQuery = coQuery.in("project_id", projectIds);
+      coQuery = coQuery.in("project_id", authorizedProjectIds.length > 0 ? authorizedProjectIds : [""]);
     }
 
     const { data: rawCOs } = await coQuery;
@@ -262,7 +273,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     if (filterGateId) {
       contractQuery = contractQuery.eq("gate_id", filterGateId);
     } else {
-      contractQuery = contractQuery.in("project_id", projectIds);
+      contractQuery = contractQuery.in("project_id", authorizedProjectIds.length > 0 ? authorizedProjectIds : [""]);
     }
 
     contractQuery = contractQuery.or(
