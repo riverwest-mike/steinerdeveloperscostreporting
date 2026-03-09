@@ -581,7 +581,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
             <div className="mb-4 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-2 text-sm text-yellow-800">
               No AppFolio transactions found as of{" "}
               {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}.{" "}
-              Run an AppFolio sync in Admin to pull data.
+              Run an AppFolio sync in{" "}
+              <Link href="/admin/appfolio" className="underline font-medium">Admin</Link>{" "}
+              to pull data.
             </div>
           )}
 

@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
@@ -353,7 +354,10 @@ export default async function CostDetailPage({ searchParams }: Props) {
                   day: "numeric",
                   year: "numeric",
                 })}
-                .
+                .{" "}
+                Run an AppFolio sync in{" "}
+                <Link href="/admin/appfolio" className="underline font-medium">Admin</Link>{" "}
+                to pull data.
               </p>
             </div>
           )}

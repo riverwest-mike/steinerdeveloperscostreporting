@@ -79,8 +79,8 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Change Order Log", desc: "All change orders across projects — filter by status, type, cost category, or date range." },
       { label: "Balance Sheet", desc: "AppFolio balance sheet data synced per project." },
       { label: "Trial Balance", desc: "All AppFolio transactions grouped by GL account for a selected project and date range." },
-      { label: "Gate Detail", desc: "Transactions filtered by gate (budget phase). Shows everything assigned to a specific gate with project, vendor, cost category, and amounts." },
-      { label: "Reporting Package", desc: "Open the PCM Report and Balance Sheet for a project side-by-side in two new tabs." },
+      { label: "Gate Detail", desc: "Transactions filtered by gate (budget phase). Shows everything assigned to a specific gate with project, vendor, cost category, and amounts. Gate assignments are set automatically during sync." },
+      { label: "Reporting Package", desc: "Open the PCM Report and Balance Sheet for a project side-by-side in two new tabs — useful for client deliverables." },
     ],
     tip: "Use the Columns button on any report to show or hide individual columns. Your column preferences are saved per report.",
   },
@@ -189,17 +189,17 @@ export const HELP: Record<string, PageHelpContent> = {
 
   trialBalance: {
     title: "Trial Balance",
-    description: "All AppFolio transactions for a project and date range, grouped by GL account. Shows invoice, paid, and unpaid totals per account.",
+    description: "All AppFolio GL accounts for a project and date range, with invoice (debit), paid (credit), and unpaid (balance) totals. Includes all known GL accounts — even those with no activity in the selected period.",
     actions: [
-      { label: "Project filter", desc: "Select one project to see its transactions, or leave blank to see all projects you have access to." },
+      { label: "Project filter", desc: "Select one or more projects, or leave blank for all projects you have access to." },
       { label: "Date range", desc: "Set From and To dates to filter transactions by bill date. Leave From blank to include all history through the To date." },
-      { label: "Run Report", desc: "Loads transactions matching your filters. Each GL account shows a header row with totals, followed by its individual transactions." },
-      { label: "Export Excel", desc: "Downloads all rows as a formatted spreadsheet, grouped by GL account with subtotals." },
+      { label: "Run Report", desc: "Loads all GL accounts for the selected projects. Accounts with no activity in the period show $0 across all columns." },
+      { label: "Export Excel", desc: "Downloads all rows as a formatted spreadsheet." },
     ],
     sections: [
-      { heading: "Reading the Report", body: "Each bold row is a GL account header showing the account total (invoice, paid, unpaid). The indented rows below it are the individual transactions that make up that total." },
+      { heading: "Reading the Report", body: "Each row is one GL account. Debit = total invoiced. Credit = total paid. Balance = unpaid amount still outstanding. The totals row includes a 'Balanced' check — a green badge confirms Debit = Credit + Balance across all accounts, verifying data integrity." },
     ],
-    tip: "Use the date range filters to produce a period-specific trial balance — for example, a full-year view or a single month.",
+    tip: "Use the date range filters to produce a period-specific trial balance — for example, a full-year view or a single month. GL accounts from the AppFolio chart of accounts appear even if there are no transactions in the period.",
   },
 
   adminIndex: {

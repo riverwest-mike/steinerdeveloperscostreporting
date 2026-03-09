@@ -100,7 +100,9 @@ const sections = [
                 { item: "  › Commitment Detail", desc: "Every contract that makes up committed totals" },
                 { item: "  › Change Order Log", desc: "All COs across projects — filter by status, type, category, or date" },
                 { item: "  › Balance Sheet", desc: "AppFolio balance sheet data per project" },
-                { item: "  › Trial Balance", desc: "GL account summary with invoice, paid, and unpaid totals" },
+                { item: "  › Trial Balance", desc: "All GL accounts with debit, credit, and balance totals — includes a balanced check" },
+                { item: "  › Gate Detail", desc: "Transactions filtered by gate (budget phase) — see every dollar assigned to a specific phase" },
+                { item: "  › Reporting Package", desc: "Opens PCM Report and Balance Sheet side-by-side in two tabs for a selected project" },
                 { item: "Admin › (click to expand)", desc: "Users, cost categories, AppFolio settings, audit log — admins only" },
                 { item: "Quick Start Guide", desc: "Re-opens this guide at any time (bottom of sidebar)" },
                 { item: "AI Assistant (Dashboard)", desc: "Chat bar below the greeting — ask questions about projects, costs, and reports. Opens a centered panel. On other pages, use the chat bubble (bottom-right)." },
@@ -250,7 +252,7 @@ const sections = [
       <div className="space-y-4">
         <p className="text-slate-700">
           The <strong>Reports</strong> nav item links to the Reports index — a card view of all
-          five available reports. Click any card to open that report. All reports support
+          available reports. Click any card to open that report. All reports support
           Excel export and Print/PDF.
         </p>
         <div className="space-y-3">
@@ -260,7 +262,8 @@ const sections = [
             { title: "Commitment Detail", body: "Every contract and its SOV allocation — one row per contract × cost category. Shows exactly what makes up PCM column G." },
             { title: "Change Order Log", body: "Every CO across all projects — both contract COs and budget-level COs. Filter by status, type, cost category, or date range. Includes rejection reasons and Excel export." },
             { title: "Balance Sheet", body: "AppFolio balance sheet data (assets, liabilities, equity) synced per project. Choose Accrual or Cash basis." },
-            { title: "Trial Balance", body: "All AppFolio transactions for a project and date range, grouped by GL account. Shows invoice, paid, and unpaid totals per account with Excel export." },
+            { title: "Trial Balance", body: "All GL accounts for a project and date range. Shows debit (invoiced), credit (paid), and balance (unpaid) totals. Includes all known GL accounts — even those with no activity in the period — plus a balanced check in the totals row." },
+            { title: "Gate Detail", body: "Every transaction assigned to a specific gate (budget phase). Filter by project, gate, cost category, and payment status. Gate assignments are set automatically during sync based on bill date, and can be manually overridden." },
             { title: "Reporting Package", body: "Opens the PCM Report and Balance Sheet side-by-side in two new tabs for a selected project — useful for client deliverables." },
           ].map((r) => (
             <div key={r.title} className="rounded-lg border p-4">
