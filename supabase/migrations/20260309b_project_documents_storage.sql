@@ -49,17 +49,20 @@ ON CONFLICT (id) DO NOTHING;
 -- access and follow the same role model as the DB tables.
 
 -- Authenticated users can upload to the bucket
-CREATE POLICY IF NOT EXISTS "Auth users can upload project documents"
+DROP POLICY IF EXISTS "Auth users can upload project documents" ON storage.objects;
+CREATE POLICY "Auth users can upload project documents"
   ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'project-documents');
 
 -- Authenticated users can read files (download via signed URL)
-CREATE POLICY IF NOT EXISTS "Auth users can read project documents"
+DROP POLICY IF EXISTS "Auth users can read project documents" ON storage.objects;
+CREATE POLICY "Auth users can read project documents"
   ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id = 'project-documents');
 
 -- Authenticated users can delete their own uploads
-CREATE POLICY IF NOT EXISTS "Auth users can delete project documents"
+DROP POLICY IF EXISTS "Auth users can delete project documents" ON storage.objects;
+CREATE POLICY "Auth users can delete project documents"
   ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'project-documents');
 
