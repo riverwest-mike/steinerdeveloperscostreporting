@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
@@ -131,19 +132,30 @@ export default async function GateDetailPage({ searchParams }: Props) {
   const isAdmin = role === "admin";
   const canEditGate = role === "admin" || role === "project_manager";
 
-  // Load all projects and categories for controls
+  const allowedProjectIds = await getAccessibleProjectIds(supabase, userId);
+
+  // Load projects (scoped to accessible ones) and categories for controls
+  let projectsQuery = supabase.from("projects").select("id, name, code, appfolio_property_id, status").order("name");
+  if (allowedProjectIds !== null) {
+    projectsQuery = projectsQuery.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
   const [{ data: allProjects }, { data: rawCategories }] = await Promise.all([
-    supabase.from("projects").select("id, name, code, appfolio_property_id, status").order("name"),
+    projectsQuery,
     supabase.from("cost_categories").select("id, name, code").eq("is_active", true).order("display_order"),
   ]);
 
   const projects = (allProjects ?? []) as ProjectInfo[];
   const categories = (rawCategories ?? []) as { id: string; name: string; code: string }[];
 
-  // Load all gates grouped by project (for filter dropdown)
+  // Constrain URL projectId to accessible ones
+  const authorizedProjectIds = projectIds.filter((id) => projects.some((p) => p.id === id));
+
+  // Load gates scoped to accessible projects for the filter dropdown
+  const accessibleProjectIds = projects.map((p) => p.id);
   const { data: allGatesRaw } = await supabase
     .from("gates")
     .select("id, project_id, name, sequence_number")
+    .in("project_id", accessibleProjectIds.length > 0 ? accessibleProjectIds : [""])
     .order("sequence_number", { ascending: true });
 
   const allGates = (allGatesRaw ?? []) as GateInfo[];
@@ -184,7 +196,7 @@ export default async function GateDetailPage({ searchParams }: Props) {
   }
 
   // ── Resolve projects ──────────────────────────────────
-  const selectedProjects = projects.filter((p) => projectIds.includes(p.id));
+  const selectedProjects = projects.filter((p) => authorizedProjectIds.includes(p.id));
   const linkedPropertyIds = selectedProjects
     .map((p) => p.appfolio_property_id)
     .filter((id): id is string => !!id);
@@ -198,7 +210,7 @@ export default async function GateDetailPage({ searchParams }: Props) {
   // If filterGateId is set, only fetch that gate's assignments.
   const relevantGateIds = filterGateId
     ? [filterGateId]
-    : allGates.filter((g) => projectIds.includes(g.project_id)).map((g) => g.id);
+    : allGates.filter((g) => authorizedProjectIds.includes(g.project_id)).map((g) => g.id);
 
   let transactions: Transaction[] = [];
 

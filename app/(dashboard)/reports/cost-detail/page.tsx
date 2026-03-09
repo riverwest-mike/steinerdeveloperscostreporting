@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
@@ -116,12 +117,18 @@ export default async function CostDetailPage({ searchParams }: Props) {
   const isAdmin = role === "admin";
   const canEditGate = role === "admin" || role === "project_manager";
 
-  // Load projects and cost categories for controls
+  const allowedProjectIds = await getAccessibleProjectIds(supabase, userId);
+
+  // Load projects (scoped to accessible projects) and cost categories for controls
+  let projectsQuery = supabase
+    .from("projects")
+    .select("id, name, code, appfolio_property_id, status")
+    .order("name");
+  if (allowedProjectIds !== null) {
+    projectsQuery = projectsQuery.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
   const [{ data: allProjects }, { data: rawCategories }] = await Promise.all([
-    supabase
-      .from("projects")
-      .select("id, name, code, appfolio_property_id, status")
-      .order("name"),
+    projectsQuery,
     supabase
       .from("cost_categories")
       .select("id, name, code")
@@ -133,6 +140,9 @@ export default async function CostDetailPage({ searchParams }: Props) {
     id: string; name: string; code: string; appfolio_property_id: string | null; status: string;
   }[];
   const categories = (rawCategories ?? []) as { id: string; name: string; code: string }[];
+
+  // Constrain any projectIds from the URL to only those the user can access
+  const authorizedProjectIds = projectIds.filter((id) => projects.some((p) => p.id === id));
 
   // ── No project selected ───────────────────────────────
   if (projectIds.length === 0) {
@@ -161,7 +171,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   }
 
   // ── Resolve selected projects ──────────────────────────
-  const selectedProjects = projects.filter((p) => projectIds.includes(p.id));
+  const selectedProjects = projects.filter((p) => authorizedProjectIds.includes(p.id));
   const linkedPropertyIds = selectedProjects
     .map((p) => p.appfolio_property_id)
     .filter((id): id is string => !!id);

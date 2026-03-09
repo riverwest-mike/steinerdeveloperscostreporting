@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { Fragment } from "react";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
@@ -66,13 +68,22 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
   const basis   = searchParams.basis === "Cash" ? "Cash" : "Accrual" as "Cash" | "Accrual";
 
   const supabase = createAdminClient();
+  const userId = (await headers()).get("x-clerk-user-id");
+  const allowedProjectIds = await getAccessibleProjectIds(supabase, userId);
 
-  const { data: allProjects } = await supabase
+  let projectsQuery = supabase
     .from("projects")
     .select("id, name, code, appfolio_property_id, status")
     .order("name");
+  if (allowedProjectIds !== null) {
+    projectsQuery = projectsQuery.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
+  const { data: allProjects } = await projectsQuery;
 
   const projects = (allProjects ?? []) as { id: string; name: string; code: string; appfolio_property_id: string | null; status: string }[];
+
+  // Constrain URL projectIds to accessible ones
+  const authorizedProjectIds = projectIds.filter((id) => projects.some((p) => p.id === id));
 
   if (projectIds.length === 0) {
     return (
@@ -89,7 +100,7 @@ export default async function BalanceSheetReportPage({ searchParams }: Props) {
     );
   }
 
-  const selectedProjects = projects.filter((p) => projectIds.includes(p.id));
+  const selectedProjects = projects.filter((p) => authorizedProjectIds.includes(p.id));
   const linkedPropertyIds = selectedProjects
     .map((p) => p.appfolio_property_id)
     .filter((id): id is string => !!id);

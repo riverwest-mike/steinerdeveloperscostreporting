@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { Header } from "@/components/layout/header";
 import { HELP } from "@/lib/help";
 import { COLogControls } from "./log-controls";
@@ -97,9 +99,16 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
   const typeFilter = sp.type ?? "all"; // "all" | "contract" | "budget"
 
   const supabase = createAdminClient();
+  const userId = (await headers()).get("x-clerk-user-id");
+  const allowedProjectIds = await getAccessibleProjectIds(supabase, userId);
+
+  let projectsQuery = supabase.from("projects").select("id, name, code, status").order("name");
+  if (allowedProjectIds !== null) {
+    projectsQuery = projectsQuery.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
 
   const [{ data: allProjects }, { data: allCategories }] = await Promise.all([
-    supabase.from("projects").select("id, name, code, status").order("name"),
+    projectsQuery,
     supabase
       .from("cost_categories")
       .select("id, name, code")
@@ -197,12 +206,15 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
 
   // Build project map for gate-based project lookup
   const projectMap = new Map(projects.map((p) => [p.id, p]));
+  const visibleProjectIds = new Set(projects.map((p) => p.id));
 
-  // Filter by project after fetch (since project_id is on the gate)
+  // Filter by project after fetch (since project_id is on the gate).
+  // Always restrict to accessible projects; additionally filter by selected project if specified.
   const filtered = allCOs.filter((co) => {
-    if (!projectId) return true;
     const projId = co.gate?.project_id;
-    return projId === projectId;
+    if (!projId || !visibleProjectIds.has(projId)) return false;
+    if (projectId && projId !== projectId) return false;
+    return true;
   });
 
   // Build display rows

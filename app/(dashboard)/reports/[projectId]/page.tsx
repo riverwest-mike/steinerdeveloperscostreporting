@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { Header } from "@/components/layout/header";
 import { ProjectPicker } from "./project-picker";
 
@@ -38,6 +40,21 @@ interface Props {
 export default async function CostCategoryReportPage({ params }: Props) {
   const { projectId } = await params;
   const supabase = createAdminClient();
+  const userId = (await headers()).get("x-clerk-user-id");
+  const allowedProjectIds = await getAccessibleProjectIds(supabase, userId);
+
+  // Non-admin users must have access to this specific project
+  if (allowedProjectIds !== null && !allowedProjectIds.includes(projectId)) {
+    redirect("/reports");
+  }
+
+  let allProjectsQuery = supabase
+    .from("projects")
+    .select("id, name, code, appfolio_property_id, status")
+    .order("name");
+  if (allowedProjectIds !== null) {
+    allProjectsQuery = allProjectsQuery.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
 
   const [{ data: project }, { data: gates }, { data: categories }, { data: allProjects }] =
     await Promise.all([
@@ -52,10 +69,7 @@ export default async function CostCategoryReportPage({ params }: Props) {
         .select("id, name, code, display_order")
         .eq("is_active", true)
         .order("display_order"),
-      supabase
-        .from("projects")
-        .select("id, name, code, appfolio_property_id, status")
-        .order("name"),
+      allProjectsQuery,
     ]);
 
   if (!project) notFound();

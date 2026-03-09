@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { getAccessibleProjectIds } from "@/lib/access";
 import { Header } from "@/components/layout/header";
 import { HELP } from "@/lib/help";
 import { ReportControls } from "./report-controls";
@@ -83,11 +85,17 @@ export default async function TrialBalancePage({ searchParams }: Props) {
   const dateTo = sp.dateTo ?? today();
 
   const supabase = createAdminClient();
+  const userId = (await headers()).get("x-clerk-user-id");
+  const allowedProjectIds = await getAccessibleProjectIds(supabase, userId);
 
-  const { data: allProjects } = await supabase
+  let projectsQuery = supabase
     .from("projects")
     .select("id, name, code, appfolio_property_id, status")
     .order("name");
+  if (allowedProjectIds !== null) {
+    projectsQuery = projectsQuery.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
+  const { data: allProjects } = await projectsQuery;
 
   const projects = (allProjects ?? []) as ProjectInfo[];
 
