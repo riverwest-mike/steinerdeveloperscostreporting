@@ -9,6 +9,7 @@ import { SyncButton } from "./sync-button";
 import { BalanceSheetSyncButton } from "./balance-sheet-sync-button";
 import { LinkProjects } from "./link-projects";
 import { AssignGatesButton } from "./assign-gates-button";
+import { ApplyMigrationsButton } from "./apply-migrations-button";
 import { HELP } from "@/lib/help";
 
 export default async function AppFolioSyncPage() {
@@ -286,6 +287,18 @@ export default async function AppFolioSyncPage() {
             </div>
           )}
         </div>
+        {/* Database migrations */}
+        <div>
+          <h3 className="text-lg font-semibold mb-1">Database Migrations</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Apply pending database schema migrations. Run this if you see errors like &ldquo;Could not find the table
+            in the schema cache&rdquo; after a deployment. Requires <span className="font-mono text-xs">DATABASE_URL</span>{" "}
+            to be set in your environment variables (find it in Supabase Dashboard &rarr; Project Settings &rarr;
+            Database &rarr; Connection string).
+          </p>
+          <ApplyMigrationsButton />
+        </div>
+
         {/* Balance sheet sync */}
         <div>
           <h3 className="text-lg font-semibold mb-3">Sync Balance Sheet</h3>
