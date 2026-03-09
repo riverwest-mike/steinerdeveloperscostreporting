@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { RoleSelect } from "./role-select";
 import { ActiveToggle } from "./active-toggle";
 import { InviteUserForm } from "./invite-user-form";
+import { revokeInvite } from "./actions";
 
 interface User {
   id: string;
@@ -14,13 +15,36 @@ interface User {
   created_at: string;
 }
 
+interface PendingInvite {
+  id: string;
+  emailAddress: string;
+  role: string;
+  createdAt: number;
+  status: string;
+}
+
 interface UsersSectionProps {
   users: User[];
   currentUserId: string;
+  pendingInvites?: PendingInvite[];
 }
 
-export function UsersSection({ users, currentUserId }: UsersSectionProps) {
+export function UsersSection({ users, currentUserId, pendingInvites = [] }: UsersSectionProps) {
   const [showForm, setShowForm] = useState(false);
+  const [revoking, setRevoking] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleRevoke(inviteId: string, email: string) {
+    if (!confirm(`Revoke invitation for ${email}? They will no longer be able to use this invite link.`)) return;
+    setRevokeError(null);
+    setRevoking(inviteId);
+    startTransition(async () => {
+      const result = await revokeInvite(inviteId);
+      if (result.error) setRevokeError(result.error);
+      setRevoking(null);
+    });
+  }
 
   return (
     <div>
@@ -84,6 +108,64 @@ export function UsersSection({ users, currentUserId }: UsersSectionProps) {
           </tbody>
         </table>
       </div>
+
+      {/* Pending Invitations */}
+      {pendingInvites.length > 0 && (
+        <div className="mt-6">
+          <h4 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
+            Pending Invitations ({pendingInvites.length})
+          </h4>
+          {revokeError && (
+            <p className="text-xs text-destructive mb-2">{revokeError}</p>
+          )}
+          <div className="rounded-lg border overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-4 py-3 text-left font-medium">Email</th>
+                  <th className="px-4 py-3 text-left font-medium">Role</th>
+                  <th className="px-4 py-3 text-left font-medium">Invited</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-left font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingInvites.map((inv) => (
+                  <tr key={inv.id} className="border-b last:border-0 bg-amber-50/30">
+                    <td className="px-4 py-3 text-muted-foreground">{inv.emailAddress}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 capitalize">
+                        {inv.role.replace("_", " ")}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {new Date(inv.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
+                        Pending
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleRevoke(inv.id, inv.emailAddress)}
+                        disabled={isPending || revoking === inv.id}
+                        className="text-xs text-destructive/70 hover:text-destructive transition-colors disabled:opacity-50"
+                      >
+                        {revoking === inv.id ? "Revoking…" : "Revoke"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            These users have been invited but have not yet completed sign-up. The invite email may take a few minutes to arrive. If the email went to junk mail, ask the user to check their spam folder or resend the invite.
+          </p>
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground mt-2">
         Users appear here after accepting an invitation and completing sign-up. Use the Actions column to change a user&apos;s role — you cannot change your own. Click the Status badge to activate or deactivate a user.
       </p>

@@ -65,7 +65,7 @@ export function ReportControls({
     if (selectedIds.size === 0) return;
 
     try {
-      localStorage.setItem("cost_detail_last_filter", JSON.stringify({ projectIds: [...selectedIds], categoryCode, asOf, gateId }));
+      localStorage.setItem("cost_detail_last_filter", JSON.stringify({ projectIds: [...selectedIds], categoryCode, asOf, gateId, savedDate: new Date().toISOString().slice(0, 10) }));
     } catch { /* ignore */ }
 
     const toSync = projects.filter((p) => selectedIds.has(p.id) && p.appfolio_property_id);

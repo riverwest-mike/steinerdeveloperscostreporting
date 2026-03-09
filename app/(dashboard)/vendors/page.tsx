@@ -1,9 +1,12 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
+import { HELP } from "@/lib/help";
+import { VendorSearch } from "./vendor-search";
 
 interface VendorRow {
   name: string;
@@ -17,18 +20,14 @@ interface ProjectRow {
   code: string;
 }
 
-function usd(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(n);
+interface Props {
+  searchParams: { q?: string };
 }
 
-export default async function VendorDirectoryPage() {
+export default async function VendorDirectoryPage({ searchParams }: Props) {
   const supabase = createAdminClient();
   const userId = (await headers()).get("x-clerk-user-id");
+  const searchQuery = (searchParams.q ?? "").trim();
 
   const { data: userRow } = userId
     ? await supabase.from("users").select("role").eq("id", userId).single()
@@ -48,7 +47,6 @@ export default async function VendorDirectoryPage() {
 
   const vendors = (rawVendors ?? []) as VendorRow[];
   const projects = (rawProjects ?? []) as ProjectRow[];
-  const projectById = new Map(projects.map((p) => [p.id, p]));
 
   // For read_only users, restrict to assigned projects
   let allowedProjectIds: Set<string> | null = null;
@@ -72,7 +70,7 @@ export default async function VendorDirectoryPage() {
     if (v.is_active) entry.hasActive = true;
   }
 
-  const vendorList = Array.from(vendorMap.entries())
+  const allVendors = Array.from(vendorMap.entries())
     .map(([name, data]) => ({
       name,
       projectCount: data.projectIds.size,
@@ -80,18 +78,25 @@ export default async function VendorDirectoryPage() {
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const activeCount = vendorList.filter((v) => v.hasActive).length;
-  const inactiveCount = vendorList.filter((v) => !v.hasActive).length;
+  // Apply search filter
+  const vendorList = searchQuery
+    ? allVendors.filter((v) =>
+        v.name.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : allVendors;
+
+  const activeCount = allVendors.filter((v) => v.hasActive).length;
+  const inactiveCount = allVendors.filter((v) => !v.hasActive).length;
 
   return (
     <div>
-      <Header title="Vendor Directory" />
+      <Header title="Vendor Directory" helpContent={HELP.vendors} />
       <div className="p-4 sm:p-6">
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex items-start justify-between mb-4 gap-4 flex-wrap">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">All Vendors</h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              {vendorList.length} vendor{vendorList.length !== 1 ? "s" : ""} across {projects.length} project{projects.length !== 1 ? "s" : ""}.
+              {allVendors.length} vendor{allVendors.length !== 1 ? "s" : ""} across {projects.length} project{projects.length !== 1 ? "s" : ""}.
               {" "}<span className="text-green-700 font-medium">{activeCount} active</span>
               {inactiveCount > 0 && <span className="text-muted-foreground">, {inactiveCount} inactive</span>}.
             </p>
@@ -104,9 +109,26 @@ export default async function VendorDirectoryPage() {
           </Link>
         </div>
 
+        {/* Search bar */}
+        <div className="mb-4">
+          <Suspense fallback={null}>
+            <VendorSearch initialValue={searchQuery} />
+          </Suspense>
+        </div>
+
+        {searchQuery && (
+          <p className="text-sm text-muted-foreground mb-3">
+            {vendorList.length === 0
+              ? `No vendors match "${searchQuery}"`
+              : `${vendorList.length} vendor${vendorList.length !== 1 ? "s" : ""} matching "${searchQuery}"`}
+          </p>
+        )}
+
         {vendorList.length === 0 ? (
           <div className="rounded-lg border border-dashed p-16 text-center">
-            <p className="text-muted-foreground text-sm">No vendors found.</p>
+            <p className="text-muted-foreground text-sm">
+              {searchQuery ? `No vendors match "${searchQuery}".` : "No vendors found."}
+            </p>
           </div>
         ) : (
           <div className="rounded-lg border overflow-hidden">

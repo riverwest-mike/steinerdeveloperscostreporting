@@ -10,6 +10,8 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Recent Bills", desc: "Last 90 days of AppFolio transactions. Use the dropdown to filter by time range. Click a project name to go to that project." },
       { label: "Pending COs", desc: "Change orders awaiting approval across all your projects. Age-coded dots: grey = recent, amber = 14+ days, red = 30+ days. Includes both contract COs and budget-level COs. Click a row to open the contract or gate where the CO lives." },
       { label: "AI chat bar", desc: "Type any question about your projects, costs, or reports directly into the chat bar below the greeting. Press Enter or click the arrow to send — the response opens in a centered panel. Suggestion chips offer quick starting points." },
+      { label: "COI Alerts card", desc: "Lists all Certificates of Insurance expiring within 60 days (or already expired) across all vendors. Click a vendor name to go directly to their compliance documents and upload a renewal." },
+      { label: "Budget Alerts card", desc: "Shows cost categories that have exceeded their gate budget, sorted by largest overage. Click a row to open the project gate for details." },
     ],
     tip: "The dashboard updates every time the page loads. AppFolio data reflects the most recent sync. On any page other than the dashboard, the AI assistant is available via the chat bubble in the bottom-right corner.",
   },
@@ -151,7 +153,7 @@ export const HELP: Record<string, PageHelpContent> = {
     title: "Change Order Log",
     description: "A complete, filterable record of every change order across all projects — both contract COs and budget-level COs. Use this to audit CO activity, track approvals, or review rejection reasons.",
     actions: [
-      { label: "Filter by project", desc: "Check one or more projects. Leave all unchecked to see COs across every project you have access to." },
+      { label: "Filter by project", desc: "Select a single project to see its change orders, or leave blank to see COs across all projects you have access to." },
       { label: "Filter by status", desc: "Show only Proposed, Approved, Rejected, or Voided COs — or all statuses at once." },
       { label: "Filter by type", desc: "Contract COs are tied to a specific contract. Budget COs adjust a gate budget with no contract attached." },
       { label: "Filter by cost category", desc: "Narrow to a specific cost code." },
@@ -191,7 +193,7 @@ export const HELP: Record<string, PageHelpContent> = {
     title: "Trial Balance",
     description: "All AppFolio GL accounts for a project and date range, with invoice (debit), paid (credit), and unpaid (balance) totals. Includes all known GL accounts — even those with no activity in the selected period.",
     actions: [
-      { label: "Project filter", desc: "Select one or more projects, or leave blank for all projects you have access to." },
+      { label: "Project filter", desc: "Select one project to run the trial balance for. The project must have an AppFolio property linked." },
       { label: "Date range", desc: "Set From and To dates to filter transactions by bill date. Leave From blank to include all history through the To date." },
       { label: "Run Report", desc: "Loads all GL accounts for the selected projects. Accounts with no activity in the period show $0 across all columns." },
       { label: "Export Excel", desc: "Downloads all rows as a formatted spreadsheet." },
@@ -219,7 +221,8 @@ export const HELP: Record<string, PageHelpContent> = {
     title: "Users & Access",
     description: "Manage all users and their project access. Invite new users, set roles, and control which projects each person can see.",
     actions: [
-      { label: "Add User", desc: "Click '+ Add User' to send an invitation email. Set the user's role (Read Only, Project Manager, or Admin) before sending." },
+      { label: "Add User", desc: "Click '+ Add User' to send an invitation email. Set the user's role (Read Only, Project Manager, or Admin) before sending. The invite email comes from Clerk — if it goes to spam, ask the recipient to check their junk folder." },
+      { label: "Pending Invitations", desc: "After sending an invite, it appears in the Pending Invitations table until the user completes sign-up. The table shows the email, role, and when it was sent. Use the Revoke button to cancel an invite." },
       { label: "Activate / Deactivate", desc: "Toggle a user's active status. Inactive users cannot log in but their data is preserved." },
       { label: "Project Access matrix", desc: "Check boxes in the Project Access section to grant a user access to specific projects. Admins always see all projects." },
     ],
@@ -240,6 +243,31 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Delete", desc: "Permanently removes a category — only possible if no gate budgets, contracts, change orders, or SOV lines reference it." },
     ],
     tip: "The cost code must match the account code in AppFolio for transaction matching to work. Check Admin › AppFolio if transactions are appearing as 'Unmatched'.",
+  },
+
+
+  vendors: {
+    title: "Vendors",
+    description: "Browse all vendors across your projects. Each vendor profile shows compliance documents (COI, Lien Waivers), transaction history, and project assignments.",
+    actions: [
+      { label: "Search vendors", desc: "Use the search box to filter vendors by name. Results update as you type." },
+      { label: "Click a vendor", desc: "Opens the vendor profile page showing compliance documents, transaction totals, and project assignments." },
+      { label: "Compliance status", desc: "Vendors with expired or expiring COIs are flagged with a warning icon. Keep COI documents current to avoid compliance gaps." },
+    ],
+    tip: "Vendor profiles are built automatically from AppFolio transaction data. A vendor appears once they have at least one transaction synced from AppFolio.",
+  },
+
+  vendorProfile: {
+    title: "Vendor Profile",
+    description: "All activity and compliance documents for a single vendor across your projects.",
+    actions: [
+      { label: "Compliance Documents", desc: "Upload and manage COI certificates, lien waivers, and other compliance documents. Expiring COIs show an amber warning; expired ones show in red." },
+      { label: "Upload Document", desc: "Click '+ Upload Document' to add a COI, Lien Waiver, or Other document. Fill in the document details (insurer, policy number, limits, dates) for COIs to enable expiry tracking." },
+      { label: "Download", desc: "Click Download on any document to get a temporary signed link (expires after 1 hour)." },
+      { label: "Transaction history", desc: "Shows the 10 most recent AppFolio transactions for this vendor. Click 'View Transactions →' to open the full Vendor Detail report." },
+      { label: "Projects", desc: "Shows all projects where this vendor is active, with invoiced totals per project." },
+    ],
+    tip: "The COI alerts dashboard card will automatically surface any COIs expiring within 60 days across all your vendors. Keep expiration dates up to date for accurate alerts.",
   },
 
   auditLog: {

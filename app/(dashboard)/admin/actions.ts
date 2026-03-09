@@ -126,3 +126,36 @@ export async function removeUserFromProject(
     return { error: err instanceof Error ? err.message : "Failed to remove user" };
   }
 }
+
+export async function getPendingInvites(): Promise<{
+  invites?: Array<{ id: string; emailAddress: string; role: string; createdAt: number; status: string }>;
+  error?: string;
+}> {
+  try {
+    await requireAdminCaller();
+    const clerk = await clerkClient();
+    const { data: invitations } = await clerk.invitations.getInvitationList({ status: "pending" });
+    const invites = invitations.map((inv) => ({
+      id: inv.id,
+      emailAddress: inv.emailAddress,
+      role: (inv.publicMetadata as Record<string, string>)?.role ?? "read_only",
+      createdAt: inv.createdAt,
+      status: inv.status,
+    }));
+    return { invites };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to fetch invitations" };
+  }
+}
+
+export async function revokeInvite(inviteId: string): Promise<{ error?: string }> {
+  try {
+    await requireAdminCaller();
+    const clerk = await clerkClient();
+    await clerk.invitations.revokeInvitation(inviteId);
+    revalidatePath("/admin");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to revoke invitation" };
+  }
+}

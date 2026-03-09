@@ -93,6 +93,7 @@ export function ReportControls({
         categoryCode,
         asOf,
         paymentFilter,
+        savedDate: new Date().toISOString().slice(0, 10),
       }));
     } catch { /* ignore */ }
 

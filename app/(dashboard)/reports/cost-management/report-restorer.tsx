@@ -30,6 +30,11 @@ export function ReportRestorer() {
     try {
       const raw = localStorage.getItem("pcmr_last_filter");
       if (!raw) return;
+      const parsedForDate = JSON.parse(raw) as { savedDate?: string };
+      if (parsedForDate.savedDate !== new Date().toISOString().slice(0, 10)) {
+        localStorage.removeItem("pcmr_last_filter");
+        return;
+      }
       const saved = JSON.parse(raw) as {
         projectIds?: string[];
         projectId?: string; // legacy single-project format

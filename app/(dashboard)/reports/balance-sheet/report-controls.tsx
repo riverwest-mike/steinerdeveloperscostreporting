@@ -40,7 +40,7 @@ export function ReportControls({ projects, currentProjectIds, currentAsOf, curre
     if (selectedIds.size === 0) return;
 
     try {
-      localStorage.setItem("bsr_last_filter", JSON.stringify({ projectIds: [...selectedIds], asOf, basis }));
+      localStorage.setItem("bsr_last_filter", JSON.stringify({ projectIds: [...selectedIds], asOf, basis, savedDate: new Date().toISOString().slice(0, 10) }));
     } catch { /* ignore */ }
 
     const toSync = projects.filter((p) => selectedIds.has(p.id) && p.appfolio_property_id);

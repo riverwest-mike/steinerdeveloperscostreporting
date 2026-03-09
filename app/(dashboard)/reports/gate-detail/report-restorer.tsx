@@ -26,6 +26,11 @@ export function ReportRestorer() {
     try {
       const raw = localStorage.getItem("gate_detail_last_filter");
       if (!raw) return;
+      const parsedForDate = JSON.parse(raw) as { savedDate?: string };
+      if (parsedForDate.savedDate !== new Date().toISOString().slice(0, 10)) {
+        localStorage.removeItem("gate_detail_last_filter");
+        return;
+      }
       const saved = JSON.parse(raw) as {
         projectId?: string;
         projectIds?: string[]; // legacy

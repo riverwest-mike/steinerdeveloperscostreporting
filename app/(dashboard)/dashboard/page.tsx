@@ -8,6 +8,7 @@ import { ProjectGrid, type ProjectCard } from "./project-grid";
 import { RecentBills, type BillRow } from "./recent-bills";
 import { PendingCOs, type PendingCO } from "./pending-cos";
 import { BudgetAlerts, type OverBudgetAlert } from "./budget-alerts";
+import { COIAlerts, type COIAlert } from "./coi-alerts";
 import { HELP } from "@/lib/help";
 import { DashboardChatInput } from "./dashboard-chat-input";
 
@@ -275,6 +276,43 @@ export default async function DashboardPage() {
     }
   }
 
+  // COI expiry alerts — fetch COI docs expiring within 60 days (or already expired)
+  const in60Days = new Date();
+  in60Days.setDate(in60Days.getDate() + 60);
+  const in60DaysStr = in60Days.toISOString().slice(0, 10);
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const { data: rawCOIDocs } = await adminSupabase
+    .from("vendor_documents")
+    .select("vendor_name, display_name, expiration_date, coverage_type, project_id")
+    .eq("document_type", "COI")
+    .not("expiration_date", "is", null)
+    .lte("expiration_date", in60DaysStr)
+    .order("expiration_date", { ascending: true });
+
+  const today = new Date(todayStr + "T00:00:00");
+  const coiAlerts: COIAlert[] = (rawCOIDocs ?? []).map((doc: {
+    vendor_name: string;
+    display_name: string;
+    expiration_date: string;
+    coverage_type: string | null;
+    project_id: string | null;
+  }) => {
+    const expDate = new Date(doc.expiration_date + "T00:00:00");
+    const diffMs = expDate.getTime() - today.getTime();
+    const daysUntilExpiry = Math.round(diffMs / (1000 * 60 * 60 * 24));
+    const proj = doc.project_id ? projectList.find((p) => p.id === doc.project_id) : null;
+    return {
+      vendor_name: doc.vendor_name,
+      display_name: doc.display_name,
+      expiration_date: doc.expiration_date,
+      days_until_expiry: daysUntilExpiry,
+      coverage_type: doc.coverage_type,
+      project_id: doc.project_id,
+      project_name: proj?.name ?? null,
+    };
+  });
+
   const bills: BillRow[] = (rawBills ?? []).map((b) => {
     const proj = propertyToProject.get(b.appfolio_property_id);
     return {
@@ -361,6 +399,10 @@ export default async function DashboardPage() {
 
         {overBudgetAlerts.length > 0 && (
           <BudgetAlerts alerts={overBudgetAlerts} />
+        )}
+
+        {coiAlerts.length > 0 && (
+          <COIAlerts alerts={coiAlerts} />
         )}
 
         <div className={`grid grid-cols-1 gap-6 ${role !== "read_only" ? "lg:grid-cols-5" : ""}`}>
