@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { headers } from "next/headers";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { TimeGreeting } from "@/components/time-greeting";
 import { ProjectGrid, type ProjectCard } from "./project-grid";
@@ -51,7 +51,6 @@ function usd(n: number): string {
 
 export default async function DashboardPage() {
   const userId = (await headers()).get("x-clerk-user-id");
-  const supabase = await createClient();
   const adminSupabase = createAdminClient();
 
   // Always use adminSupabase for the user lookup so role is reliably detected
@@ -65,15 +64,30 @@ export default async function DashboardPage() {
   const role = user?.role ?? "read_only";
   const isAdmin = role === "admin";
 
-  // Admins bypass RLS — they should see all projects regardless of
-  // project_users assignments and regardless of JWT template state.
-  // Non-admins go through the RLS-enforced client so access is properly scoped.
-  const dataClient = isAdmin ? adminSupabase : supabase;
+  // For non-admin users, look up which projects they're assigned to via
+  // project_users and filter explicitly — this avoids relying on Clerk → Supabase
+  // JWT template (RLS) which silently returns nothing when not configured.
+  let allowedProjectIds: string[] | null = null;
+  if (!isAdmin && userId) {
+    const { data: assignments } = await adminSupabase
+      .from("project_users")
+      .select("project_id")
+      .eq("user_id", userId);
+    allowedProjectIds = (assignments ?? []).map((a: { project_id: string }) => a.project_id);
+  }
 
-  const { data: rawProjects } = (await dataClient
+  const projectsQuery = adminSupabase
     .from("projects")
     .select("id, name, code, status, appfolio_property_id, image_url")
-    .order("name")) as { data: RawProject[] | null };
+    .order("name");
+
+  const { data: rawProjects } = (
+    allowedProjectIds !== null
+      ? allowedProjectIds.length > 0
+        ? await projectsQuery.in("id", allowedProjectIds)
+        : { data: [] as RawProject[] }
+      : await projectsQuery
+  ) as { data: RawProject[] | null };
 
   const projectList = rawProjects ?? [];
   const projectIds = projectList.map((p) => p.id);
@@ -106,7 +120,7 @@ export default async function DashboardPage() {
   }
 
   // Active gates
-  const { data: rawActiveGates } = (await dataClient
+  const { data: rawActiveGates } = (await adminSupabase
     .from("gates")
     .select("id, project_id, name")
     .in("project_id", projectIds)
@@ -117,7 +131,7 @@ export default async function DashboardPage() {
 
   // Gate budgets
   const { data: rawGateBudgets } = (activeGateIds.length > 0
-    ? await dataClient
+    ? await adminSupabase
         .from("gate_budgets")
         .select("gate_id, cost_category_id, revised_budget")
         .in("gate_id", activeGateIds)
@@ -135,7 +149,7 @@ export default async function DashboardPage() {
   // Change orders (admin / PM only)
   let pendingCOs: PendingCO[] = [];
   if (role !== "read_only") {
-    const { data: rawCOs } = (await dataClient
+    const { data: rawCOs } = (await adminSupabase
       .from("change_orders")
       .select("id, project_id, co_number, description, amount, proposed_date")
       .in("project_id", projectIds)
