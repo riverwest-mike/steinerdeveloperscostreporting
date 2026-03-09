@@ -162,6 +162,65 @@ export async function deleteVendorDocument(
   }
 }
 
+export async function updateVendorDocument(
+  documentId: string,
+  vendorName: string,
+  formData: FormData
+): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await requirePM();
+
+    const documentType = formData.get("documentType") as string;
+    const displayName = (formData.get("displayName") as string)?.trim() || null;
+    const notes = (formData.get("notes") as string)?.trim() || null;
+
+    // COI fields
+    const insurerName = (formData.get("insurerName") as string)?.trim() || null;
+    const policyNumber = (formData.get("policyNumber") as string)?.trim() || null;
+    const coverageType = (formData.get("coverageType") as string)?.trim() || null;
+    const perOccurrenceLimit = parseFloat(formData.get("perOccurrenceLimit") as string) || null;
+    const aggregateLimit = parseFloat(formData.get("aggregateLimit") as string) || null;
+    const additionalInsured = formData.get("additionalInsured") === "true";
+    const waiverOfSubrogation = formData.get("waiverOfSubrogation") === "true";
+
+    // Lien Waiver fields
+    const waiverType = (formData.get("waiverType") as string) || null;
+    const waiverAmount = parseFloat(formData.get("waiverAmount") as string) || null;
+    const throughDate = (formData.get("throughDate") as string) || null;
+
+    // Shared date fields
+    const effectiveDate = (formData.get("effectiveDate") as string) || null;
+    const expirationDate = (formData.get("expirationDate") as string) || null;
+
+    const { error } = await supabase
+      .from("vendor_documents")
+      .update({
+        display_name: displayName,
+        notes,
+        insurer_name: insurerName,
+        policy_number: policyNumber,
+        coverage_type: coverageType,
+        per_occurrence_limit: perOccurrenceLimit,
+        aggregate_limit: aggregateLimit,
+        additional_insured: documentType === "COI" ? additionalInsured : null,
+        waiver_of_subrogation: documentType === "COI" ? waiverOfSubrogation : null,
+        waiver_type: waiverType,
+        waiver_amount: waiverAmount,
+        through_date: throughDate || null,
+        effective_date: effectiveDate || null,
+        expiration_date: expirationDate || null,
+      })
+      .eq("id", documentId);
+
+    if (error) throw new Error(error.message);
+
+    revalidatePath(`/vendors/${encodeURIComponent(vendorName)}`);
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Update failed" };
+  }
+}
+
 export async function getVendorDocumentSignedUrl(
   storagePath: string
 ): Promise<{ url?: string; error?: string }> {
