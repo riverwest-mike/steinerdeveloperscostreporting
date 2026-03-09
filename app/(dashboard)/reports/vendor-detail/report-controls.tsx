@@ -27,6 +27,7 @@ interface ReportControlsProps {
   projects: Project[];
   categories: Category[];
   gates: Gate[];
+  vendorNames: string[];
   currentProjectIds: string[];
   currentVendorName: string | null;
   currentCategoryCode: string | null;
@@ -38,6 +39,7 @@ export function ReportControls({
   projects,
   categories,
   gates,
+  vendorNames,
   currentProjectIds,
   currentVendorName,
   currentCategoryCode,
@@ -137,8 +139,16 @@ export function ReportControls({
             value={vendorName}
             onChange={(e) => { setVendorName(e.target.value); setSyncStatus("idle"); }}
             placeholder="Search vendor…"
+            list={vendorNames.length > 0 ? "vd-vendor-list" : undefined}
             className="h-9 min-w-[200px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
           />
+          {vendorNames.length > 0 && (
+            <datalist id="vd-vendor-list">
+              {vendorNames.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          )}
         </div>
 
         <div className="flex flex-col gap-1">

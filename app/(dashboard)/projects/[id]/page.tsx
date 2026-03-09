@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { ProjectDetail } from "./project-detail";
 import { GatesSection } from "./gates-section";
 import { ContractsSection } from "./contracts-section";
+import { VendorsSection } from "./vendors-section";
 import { getMyRole } from "./gates/actions";
 import { HELP } from "@/lib/help";
 
@@ -22,6 +23,7 @@ export default async function ProjectPage({ params }: Props) {
     { data: project },
     { data: gates },
     { data: contracts },
+    { data: vendors },
     userRole,
   ] = await Promise.all([
     supabase.from("projects").select("*").eq("id", id).single(),
@@ -35,6 +37,11 @@ export default async function ProjectPage({ params }: Props) {
       .select("id, vendor_name, contract_number, description, original_value, approved_co_amount, revised_value, status, gate_id, cost_category_id, contract_gates(gate:gates(id,name,sequence_number)), cost_categories(name, code)")
       .eq("project_id", id)
       .order("created_at"),
+    supabase
+      .from("project_vendors")
+      .select("name, is_active")
+      .eq("project_id", id)
+      .order("name"),
     getMyRole(),
   ]);
 
@@ -78,6 +85,10 @@ export default async function ProjectPage({ params }: Props) {
     category_name: c.cost_categories ? `${c.cost_categories.code} — ${c.cost_categories.name}` : undefined,
   }));
 
+  const vendorList = (vendors ?? []) as { name: string; is_active: boolean }[];
+  const activeVendors = vendorList.filter((v) => v.is_active);
+  const previewVendors = activeVendors.slice(0, 12).map((v) => v.name);
+
   return (
     <div>
       <Header title={project.name} helpContent={HELP.projectDetail} />
@@ -97,6 +108,12 @@ export default async function ProjectPage({ params }: Props) {
         <ContractsSection
           projectId={id}
           contracts={contractsWithNames}
+        />
+        <VendorsSection
+          projectId={id}
+          activeCount={activeVendors.length}
+          totalCount={vendorList.length}
+          recentVendors={previewVendors}
         />
       </div>
     </div>
