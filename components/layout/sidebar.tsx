@@ -26,7 +26,6 @@ const reportItems = [
   { href: "/reports/commitment-detail", label: "Commitment Detail" },
   { href: "/reports/change-orders", label: "Change Order Log" },
   { href: "/reports/balance-sheet", label: "Balance Sheet" },
-  { href: "/reports/trial-balance", label: "Trial Balance" },
 ];
 
 const adminItems = [

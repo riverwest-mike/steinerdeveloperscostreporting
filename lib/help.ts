@@ -189,21 +189,6 @@ export const HELP: Record<string, PageHelpContent> = {
     tip: "Balance sheet data is only as current as the last AppFolio sync. Run from Admin › AppFolio to force an update.",
   },
 
-  trialBalance: {
-    title: "Trial Balance",
-    description: "All AppFolio GL accounts for a project and date range, with invoice (debit), paid (credit), and unpaid (balance) totals. Includes all known GL accounts — even those with no activity in the selected period.",
-    actions: [
-      { label: "Project filter", desc: "Select one project to run the trial balance for. The project must have an AppFolio property linked." },
-      { label: "Date range", desc: "Set From and To dates to filter transactions by bill date. Leave From blank to include all history through the To date." },
-      { label: "Run Report", desc: "Loads all GL accounts for the selected projects. Accounts with no activity in the period show $0 across all columns." },
-      { label: "Export Excel", desc: "Downloads all rows as a formatted spreadsheet." },
-    ],
-    sections: [
-      { heading: "Reading the Report", body: "Each row is one GL account. Debit = total invoiced. Credit = total paid. Balance = unpaid amount still outstanding. The totals row includes a 'Balanced' check — a green badge confirms Debit = Credit + Balance across all accounts, verifying data integrity." },
-    ],
-    tip: "Use the date range filters to produce a period-specific trial balance — for example, a full-year view or a single month. GL accounts from the AppFolio chart of accounts appear even if there are no transactions in the period.",
-  },
-
   adminIndex: {
     title: "Admin Panel",
     description: "System administration for the Cost Tracker. Each section manages a different part of the configuration.",

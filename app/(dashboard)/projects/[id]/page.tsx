@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ProjectDetail } from "./project-detail";
@@ -53,6 +54,19 @@ export default async function ProjectPage({ params }: Props) {
   ]);
 
   if (!project) notFound();
+
+  // read_only users must be explicitly assigned to this project
+  if (userRole === "read_only") {
+    const userId = (await headers()).get("x-clerk-user-id");
+    if (!userId) redirect("/projects");
+    const { data: access } = await supabase
+      .from("project_users")
+      .select("id")
+      .eq("project_id", id)
+      .eq("user_id", userId)
+      .single();
+    if (!access) redirect("/projects");
+  }
 
   const gatesWithTotals = (gates ?? []).map((g: {
     id: string; name: string; sequence_number: number; status: string;

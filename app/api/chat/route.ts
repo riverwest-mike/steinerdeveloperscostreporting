@@ -28,7 +28,6 @@ Available paths:
 - /reports/commitment-detail — Commitment Detail Report
 - /reports/change-orders — Change Order Log
 - /reports/balance-sheet — Balance Sheet Report
-- /reports/trial-balance — Trial Balance
 - /projects — Projects list
 - /dashboard — Dashboard
 
