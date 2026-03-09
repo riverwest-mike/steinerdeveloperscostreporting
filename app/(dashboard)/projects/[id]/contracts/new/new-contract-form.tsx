@@ -7,6 +7,7 @@ import { InfoTip } from "@/components/info-tip";
 
 interface Gate { id: string; name: string | null; sequence_number: number }
 interface Category { id: string; name: string; code: string }
+interface Vendor { name: string }
 
 interface SovLine {
   key: string;
@@ -23,10 +24,12 @@ export function NewContractForm({
   projectId,
   gates,
   categories,
+  vendors,
 }: {
   projectId: string;
   gates: Gate[];
   categories: Category[];
+  vendors: Vendor[];
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -105,8 +108,16 @@ export function NewContractForm({
             name="vendor_name"
             required
             placeholder="e.g. Acme Construction"
+            list={vendors.length > 0 ? "vendor-list" : undefined}
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
+          {vendors.length > 0 && (
+            <datalist id="vendor-list">
+              {vendors.map((v) => (
+                <option key={v.name} value={v.name} />
+              ))}
+            </datalist>
+          )}
         </div>
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="c-num">Contract #</label>

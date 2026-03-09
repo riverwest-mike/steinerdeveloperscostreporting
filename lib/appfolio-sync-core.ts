@@ -217,6 +217,12 @@ export async function runAppfolioSync(opts: SyncOptions): Promise<SyncResult> {
     // assign it to the gate whose start_date <= bill_date <= end_date.
     await autoAssignGates(supabase, projects as { id: string; appfolio_property_id: string | null }[]);
 
+    // ── Vendor directory auto-upsert ─────────────────────────────────────────
+    // Collect unique vendor names per project from the synced rows and upsert
+    // into project_vendors. This keeps the per-project vendor list in sync with
+    // AppFolio without requiring any manual entry.
+    await autoUpsertVendors(supabase, rows as VendorLedgerRow[], projects as { id: string; appfolio_property_id: string | null }[]);
+
     await supabase
       .from("appfolio_syncs")
       .update({
@@ -362,6 +368,55 @@ export async function autoAssignGates(
         onConflict: "appfolio_transaction_id",
         ignoreDuplicates: false,
       });
+  }
+}
+
+/* ─── Vendor directory auto-upsert ────────────────────── */
+
+/**
+ * After each sync, collect unique vendor names per project from the synced
+ * AppFolio rows and upsert them into project_vendors. Vendors are identified
+ * by name (not an opaque ID), so UNIQUE(project_id, name) prevents duplicates.
+ */
+async function autoUpsertVendors(
+  supabase: ReturnType<typeof import("@/lib/supabase/server").createAdminClient>,
+  rows: VendorLedgerRow[],
+  projects: { id: string; appfolio_property_id: string | null }[]
+): Promise<void> {
+  if (rows.length === 0 || projects.length === 0) return;
+
+  // Build map: appfolio_property_id → project_id
+  const propertyToProjectId = new Map<string, string>();
+  for (const p of projects) {
+    if (p.appfolio_property_id) propertyToProjectId.set(p.appfolio_property_id, p.id);
+  }
+
+  // Collect unique (project_id, vendor_name) pairs from this sync batch
+  const seen = new Set<string>();
+  const vendorRows: { project_id: string; name: string }[] = [];
+
+  for (const row of rows) {
+    const propertyId = String(row.property_id ?? "");
+    const vendorName = (row.payee_name ?? "").trim();
+    if (!propertyId || !vendorName) continue;
+
+    const projectId = propertyToProjectId.get(propertyId);
+    if (!projectId) continue;
+
+    const key = `${projectId}::${vendorName}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    vendorRows.push({ project_id: projectId, name: vendorName });
+  }
+
+  if (vendorRows.length === 0) return;
+
+  // Upsert in batches — on conflict do nothing (name is the natural key)
+  const BATCH = 200;
+  for (let i = 0; i < vendorRows.length; i += BATCH) {
+    await supabase
+      .from("project_vendors")
+      .upsert(vendorRows.slice(i, i + BATCH), { onConflict: "project_id,name", ignoreDuplicates: true });
   }
 }
 

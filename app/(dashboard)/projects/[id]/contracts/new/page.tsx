@@ -14,10 +14,11 @@ export default async function NewContractPage({ params }: Props) {
   const { id } = await params;
   const supabase = createAdminClient();
 
-  const [{ data: project }, { data: gates }, { data: categories }] = await Promise.all([
+  const [{ data: project }, { data: gates }, { data: categories }, { data: vendors }] = await Promise.all([
     supabase.from("projects").select("id, name, code").eq("id", id).single(),
     supabase.from("gates").select("id, name, sequence_number").eq("project_id", id).order("sequence_number"),
     supabase.from("cost_categories").select("id, name, code").eq("is_active", true).order("display_order"),
+    supabase.from("project_vendors").select("name").eq("project_id", id).eq("is_active", true).order("name"),
   ]);
 
   if (!project) notFound();
@@ -40,6 +41,7 @@ export default async function NewContractPage({ params }: Props) {
               projectId={id}
               gates={(gates ?? []) as { id: string; name: string; sequence_number: number }[]}
               categories={(categories ?? []) as { id: string; name: string; code: string }[]}
+              vendors={(vendors ?? []) as { name: string }[]}
             />
           </div>
         </div>
