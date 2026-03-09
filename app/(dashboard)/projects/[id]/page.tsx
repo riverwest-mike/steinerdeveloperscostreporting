@@ -8,6 +8,7 @@ import { ProjectDetail } from "./project-detail";
 import { GatesSection } from "./gates-section";
 import { ContractsSection } from "./contracts-section";
 import { VendorsSection } from "./vendors-section";
+import { DocumentsSection } from "./documents-section";
 import { getMyRole } from "./gates/actions";
 import { HELP } from "@/lib/help";
 
@@ -24,6 +25,7 @@ export default async function ProjectPage({ params }: Props) {
     { data: gates },
     { data: contracts },
     { data: vendors },
+    { count: documentCount },
     userRole,
   ] = await Promise.all([
     supabase.from("projects").select("*").eq("id", id).single(),
@@ -42,6 +44,10 @@ export default async function ProjectPage({ params }: Props) {
       .select("name, is_active")
       .eq("project_id", id)
       .order("name"),
+    supabase
+      .from("project_documents")
+      .select("id", { count: "exact", head: true })
+      .eq("project_id", id),
     getMyRole(),
   ]);
 
@@ -114,6 +120,10 @@ export default async function ProjectPage({ params }: Props) {
           activeCount={activeVendors.length}
           totalCount={vendorList.length}
           recentVendors={previewVendors}
+        />
+        <DocumentsSection
+          projectId={id}
+          documentCount={documentCount ?? 0}
         />
       </div>
     </div>
