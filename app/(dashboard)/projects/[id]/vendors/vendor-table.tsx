@@ -18,9 +18,6 @@ interface VendorTableProps {
   isAdmin: boolean;
 }
 
-function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-}
 
 export function VendorTable({ projectId, vendors, canEdit, isAdmin }: VendorTableProps) {
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("active");
@@ -89,7 +86,16 @@ export function VendorTable({ projectId, vendors, canEdit, isAdmin }: VendorTabl
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      {/* Summary stats */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <p className="text-sm text-muted-foreground">
+          {vendors.length} vendor{vendors.length !== 1 ? "s" : ""}.
+          {" "}<span className="text-green-700 font-medium">{activeCount} active</span>
+          {inactiveCount > 0 && <span className="text-muted-foreground">, {inactiveCount} inactive</span>}.
+        </p>
+      </div>
+
       {/* Add vendor form — PM/admin only */}
       {canEdit && (
         <form onSubmit={handleAdd} className="rounded-lg border p-4 bg-muted/20">
@@ -114,30 +120,32 @@ export function VendorTable({ projectId, vendors, canEdit, isAdmin }: VendorTabl
         </form>
       )}
 
-      {/* Filter + search bar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex rounded-md border overflow-hidden text-xs font-medium">
-          {(["active", "inactive", "all"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 transition-colors capitalize ${
-                filter === f
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-background text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {f === "active" ? `Active (${activeCount})` : f === "inactive" ? `Inactive (${inactiveCount})` : `All (${vendors.length})`}
-            </button>
-          ))}
-        </div>
+      {/* Search bar */}
+      <div className="mb-1">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search vendors…"
-          className="h-8 min-w-[200px] rounded border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          className="h-9 w-full max-w-sm rounded border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         />
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex rounded-md border overflow-hidden text-xs font-medium w-fit">
+        {(["active", "inactive", "all"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 transition-colors capitalize ${
+              filter === f
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {f === "active" ? `Active (${activeCount})` : f === "inactive" ? `Inactive (${inactiveCount})` : `All (${vendors.length})`}
+          </button>
+        ))}
       </div>
 
       {actionError && (
@@ -145,18 +153,20 @@ export function VendorTable({ projectId, vendors, canEdit, isAdmin }: VendorTabl
       )}
 
       {/* Vendor table */}
-      <div className="rounded-lg border overflow-hidden">
-        {displayed.length === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-            {search ? "No vendors match your search." : filter === "inactive" ? "No inactive vendors." : "No vendors yet — add one above."}
-          </div>
-        ) : (
+      {displayed.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-16 text-center">
+          <p className="text-muted-foreground text-sm">
+            {search ? `No vendors match "${search}".` : filter === "inactive" ? "No inactive vendors." : "No vendors yet — add one above."}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-slate-800 text-white text-xs">
                 <th className="px-4 py-2.5 text-left font-medium">Vendor Name</th>
                 <th className="px-4 py-2.5 text-left font-medium">Status</th>
-                <th className="px-4 py-2.5 text-left font-medium">Added</th>
+                <th className="px-4 py-2.5 text-right font-medium">Profile</th>
                 {canEdit && <th className="px-4 py-2.5 text-right font-medium">Actions</th>}
               </tr>
             </thead>
@@ -195,7 +205,7 @@ export function VendorTable({ projectId, vendors, canEdit, isAdmin }: VendorTabl
                     ) : (
                       <Link
                         href={`/vendors/${encodeURIComponent(v.name)}`}
-                        className="text-blue-600 hover:underline"
+                        className="font-medium text-blue-600 hover:underline"
                       >
                         {v.name}
                       </Link>
@@ -208,7 +218,14 @@ export function VendorTable({ projectId, vendors, canEdit, isAdmin }: VendorTabl
                       {v.is_active ? "Active" : "Inactive"}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5 text-muted-foreground text-xs">{fmtDate(v.created_at)}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <Link
+                      href={`/vendors/${encodeURIComponent(v.name)}`}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      View →
+                    </Link>
+                  </td>
                   {canEdit && (
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -246,11 +263,11 @@ export function VendorTable({ projectId, vendors, canEdit, isAdmin }: VendorTabl
               ))}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground">
-        Showing {displayed.length} of {vendors.length} vendor{vendors.length !== 1 ? "s" : ""}.
-        {" "}Inactive vendors are hidden from autocomplete in contract forms.
+        Inactive vendors are hidden from autocomplete in contract forms.
       </p>
     </div>
   );
