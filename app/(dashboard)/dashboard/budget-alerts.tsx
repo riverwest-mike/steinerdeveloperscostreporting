@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ExpandButton, ExpandedModal } from "@/components/expandable-card";
 
 export interface OverBudgetAlert {
   project_id: string;
@@ -23,16 +24,29 @@ function usd(n: number): string {
   }).format(n);
 }
 
-const CATEGORY_FILTERS = ["All", "5+ over", "10+ over"] as const;
+const OVERAGE_FILTERS = ["All", "5+ over", "10+ over"] as const;
 
-export function BudgetAlerts({ alerts }: { alerts: OverBudgetAlert[] }) {
-  const [filter, setFilter] = useState<(typeof CATEGORY_FILTERS)[number]>("All");
+function AlertsList({
+  alerts,
+  expanded = false,
+}: {
+  alerts: OverBudgetAlert[];
+  expanded?: boolean;
+}) {
+  const [overageFilter, setOverageFilter] =
+    useState<(typeof OVERAGE_FILTERS)[number]>("All");
+  const [projectFilter, setProjectFilter] = useState("All");
 
-  if (alerts.length === 0) return null;
+  const projects = [
+    "All",
+    ...Array.from(new Set(alerts.map((a) => a.project_name))).sort(),
+  ];
 
   const visible = alerts.filter((a) => {
-    if (filter === "5+ over") return a.overage >= 5_000;
-    if (filter === "10+ over") return a.overage >= 10_000;
+    if (overageFilter === "5+ over" && a.overage < 5_000) return false;
+    if (overageFilter === "10+ over" && a.overage < 10_000) return false;
+    if (projectFilter !== "All" && a.project_name !== projectFilter)
+      return false;
     return true;
   });
 
@@ -40,47 +54,76 @@ export function BudgetAlerts({ alerts }: { alerts: OverBudgetAlert[] }) {
 
   return (
     <div>
-      <div className="mb-3 flex items-start justify-between gap-2">
+      <div className="mb-3 flex items-start justify-between gap-2 flex-wrap">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500 flex-shrink-0" />
             Budget Alerts
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {alerts.length} cost {alerts.length === 1 ? "category" : "categories"} over budget
+            {alerts.length} cost{" "}
+            {alerts.length === 1 ? "category" : "categories"} over budget
             &nbsp;·&nbsp;
-            <span className="text-red-600 font-medium">{usd(totalOverage)}</span> total overage
+            <span className="text-red-600 font-medium">
+              {usd(totalOverage)}
+            </span>{" "}
+            total overage
           </p>
         </div>
 
-        {/* Quick filters */}
-        <div className="flex items-center gap-1 flex-shrink-0">
-          {CATEGORY_FILTERS.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                filter === f
-                  ? "bg-red-100 text-red-700"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
+        <div className="flex items-center gap-2 flex-wrap">
+          {expanded && projects.length > 2 && (
+            <select
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="text-xs rounded-md border border-input bg-background px-2 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              {f}
-            </button>
-          ))}
+              {projects.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          )}
+          <div className="flex items-center gap-1">
+            {OVERAGE_FILTERS.map((f) => (
+              <button
+                key={f}
+                onClick={() => setOverageFilter(f)}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                  overageFilter === f
+                    ? "bg-red-100 text-red-700"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {visible.length === 0 ? (
         <div className="rounded-lg border border-dashed p-6 text-center">
-          <p className="text-sm text-muted-foreground">No alerts match this filter.</p>
+          <p className="text-sm text-muted-foreground">
+            No alerts match this filter.
+          </p>
         </div>
       ) : (
-        <div className="rounded-lg border border-red-200 divide-y divide-red-100">
+        <div
+          className={`rounded-lg border border-red-200 divide-y divide-red-100 ${
+            expanded ? "" : ""
+          }`}
+        >
           {visible.map((alert, i) => {
-            const pctOver = alert.revised_budget > 0
-              ? Math.round(((alert.actual_amount - alert.revised_budget) / alert.revised_budget) * 100)
-              : null;
+            const pctOver =
+              alert.revised_budget > 0
+                ? Math.round(
+                    ((alert.actual_amount - alert.revised_budget) /
+                      alert.revised_budget) *
+                      100
+                  )
+                : null;
 
             return (
               <Link
@@ -93,22 +136,21 @@ export function BudgetAlerts({ alerts }: { alerts: OverBudgetAlert[] }) {
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium text-muted-foreground truncate">
                     {alert.project_name}
-                    {alert.gate_name && (
-                      <> &middot; {alert.gate_name}</>
-                    )}
+                    {alert.gate_name && <> &middot; {alert.gate_name}</>}
                   </p>
                   <p className="text-sm font-semibold leading-tight">
                     {alert.category_code} {alert.category_name}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Budget: {usd(alert.revised_budget)}
-                    &nbsp;·&nbsp;
-                    Actual: {usd(alert.actual_amount)}
+                    Budget: {usd(alert.revised_budget)}&nbsp;·&nbsp;Actual:{" "}
+                    {usd(alert.actual_amount)}
                   </p>
                 </div>
 
                 <div className="text-right flex-shrink-0">
-                  <p className="text-xs font-semibold text-red-600">+{usd(alert.overage)}</p>
+                  <p className="text-xs font-semibold text-red-600">
+                    +{usd(alert.overage)}
+                  </p>
                   {pctOver !== null && (
                     <p className="text-[10px] text-red-400">{pctOver}% over</p>
                   )}
@@ -119,5 +161,25 @@ export function BudgetAlerts({ alerts }: { alerts: OverBudgetAlert[] }) {
         </div>
       )}
     </div>
+  );
+}
+
+export function BudgetAlerts({ alerts }: { alerts: OverBudgetAlert[] }) {
+  const [open, setOpen] = useState(false);
+
+  if (alerts.length === 0) return null;
+
+  return (
+    <>
+      <div className="relative">
+        <div className="absolute top-0 right-0 z-10">
+          <ExpandButton onClick={() => setOpen(true)} />
+        </div>
+        <AlertsList alerts={alerts} />
+      </div>
+      <ExpandedModal open={open} onClose={() => setOpen(false)}>
+        <AlertsList alerts={alerts} expanded />
+      </ExpandedModal>
+    </>
   );
 }
