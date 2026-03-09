@@ -59,9 +59,9 @@ export default async function VendorProfilePage({ params }: Props) {
   const vendorRows = (rawVendors ?? []) as ProjectVendorRow[];
   if (vendorRows.length === 0) notFound();
 
-  // For read_only users, filter to assigned projects
+  // For non-admin users, filter to assigned projects
   let filteredRows = vendorRows;
-  if (role === "read_only" && userId) {
+  if ((role === "read_only" || role === "project_manager") && userId) {
     const { data: access } = await supabase
       .from("project_users")
       .select("project_id")

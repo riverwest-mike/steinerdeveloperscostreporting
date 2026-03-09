@@ -48,9 +48,9 @@ export default async function VendorDirectoryPage({ searchParams }: Props) {
   const vendors = (rawVendors ?? []) as VendorRow[];
   const projects = (rawProjects ?? []) as ProjectRow[];
 
-  // For read_only users, restrict to assigned projects
+  // For non-admin users, restrict to assigned projects
   let allowedProjectIds: Set<string> | null = null;
-  if (role === "read_only" && userId) {
+  if ((role === "read_only" || role === "project_manager") && userId) {
     const { data: access } = await supabase
       .from("project_users")
       .select("project_id")
