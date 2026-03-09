@@ -55,8 +55,8 @@ export default async function ProjectPage({ params }: Props) {
 
   if (!project) notFound();
 
-  // read_only users must be explicitly assigned to this project
-  if (userRole === "read_only") {
+  // Non-admin users must be explicitly assigned to this project
+  if (userRole === "read_only" || userRole === "project_manager") {
     const userId = (await headers()).get("x-clerk-user-id");
     if (!userId) redirect("/projects");
     const { data: access } = await supabase

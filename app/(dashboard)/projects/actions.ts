@@ -124,6 +124,22 @@ export async function updateProject(
   try {
     const { userId, supabase } = await requirePM();
 
+    // Project managers can only edit projects they are assigned to
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", userId)
+      .single();
+    if (userRow?.role === "project_manager") {
+      const { data: access } = await supabase
+        .from("project_users")
+        .select("id")
+        .eq("project_id", id)
+        .eq("user_id", userId)
+        .single();
+      if (!access) throw new Error("You do not have permission to edit this project");
+    }
+
     const payload: Record<string, unknown> = {
       name: (formData.get("name") as string).trim(),
       code: (formData.get("code") as string).trim().toUpperCase(),

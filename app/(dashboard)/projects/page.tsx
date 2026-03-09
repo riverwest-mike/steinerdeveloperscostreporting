@@ -55,10 +55,11 @@ export default async function ProjectsPage({ searchParams }: Props) {
     : { data: null };
   const role = (userRow as { role?: string } | null)?.role ?? "read_only";
   const isReadOnly = role === "read_only";
+  const isPM = role === "project_manager";
 
-  // For read_only users, scope to assigned projects only
+  // For non-admin users, scope to assigned projects only
   let allowedProjectIds: string[] | null = null;
-  if (isReadOnly && userId) {
+  if ((isReadOnly || isPM) && userId) {
     const { data: access } = await supabase
       .from("project_users")
       .select("project_id")
