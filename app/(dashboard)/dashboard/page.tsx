@@ -9,6 +9,8 @@ import { RecentBills, type BillRow } from "./recent-bills";
 import { PendingCOs, type PendingCO } from "./pending-cos";
 import { BudgetAlerts, type OverBudgetAlert } from "./budget-alerts";
 import { COIAlerts, type COIAlert } from "./coi-alerts";
+import { LienWaiverAlerts, type LienWaiverAlert } from "./lien-waiver-alerts";
+import { SyncStatusBanner, type SyncStatus } from "./sync-status-banner";
 import { HELP } from "@/lib/help";
 import { DashboardChatInput } from "./dashboard-chat-input";
 
@@ -281,6 +283,7 @@ export default async function DashboardPage() {
   in60Days.setDate(in60Days.getDate() + 60);
   const in60DaysStr = in60Days.toISOString().slice(0, 10);
   const todayStr = new Date().toISOString().slice(0, 10);
+  const today = new Date(todayStr + "T00:00:00");
 
   const { data: rawCOIDocs } = await adminSupabase
     .from("vendor_documents")
@@ -290,7 +293,6 @@ export default async function DashboardPage() {
     .lte("expiration_date", in60DaysStr)
     .order("expiration_date", { ascending: true });
 
-  const today = new Date(todayStr + "T00:00:00");
   const coiAlerts: COIAlert[] = (rawCOIDocs ?? []).map((doc: {
     vendor_name: string;
     display_name: string;
@@ -312,6 +314,51 @@ export default async function DashboardPage() {
       project_name: proj?.name ?? null,
     };
   });
+
+  // Lien Waiver alerts — expiring within 60 days or already expired
+  const { data: rawLienDocs } = await adminSupabase
+    .from("vendor_documents")
+    .select("vendor_name, display_name, expiration_date, coverage_type, project_id")
+    .eq("document_type", "Lien Waiver")
+    .not("expiration_date", "is", null)
+    .lte("expiration_date", in60DaysStr)
+    .order("expiration_date", { ascending: true });
+
+  const lienWaiverAlerts: LienWaiverAlert[] = (rawLienDocs ?? []).map((doc: {
+    vendor_name: string;
+    display_name: string;
+    expiration_date: string | null;
+    coverage_type: string | null;
+    project_id: string | null;
+  }) => {
+    let days_until_expiry: number | null = null;
+    if (doc.expiration_date) {
+      const expDate = new Date(doc.expiration_date + "T00:00:00");
+      days_until_expiry = Math.round((expDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    }
+    const proj = doc.project_id ? projectList.find((p) => p.id === doc.project_id) : null;
+    return {
+      vendor_name: doc.vendor_name,
+      display_name: doc.display_name,
+      expiration_date: doc.expiration_date,
+      days_until_expiry,
+      coverage_type: doc.coverage_type,
+      project_id: doc.project_id,
+      project_name: proj?.name ?? null,
+    };
+  });
+
+  // Last AppFolio sync status (admin only)
+  let lastSync: SyncStatus | null = null;
+  if (isAdmin) {
+    const { data: syncData } = await adminSupabase
+      .from("appfolio_syncs")
+      .select("status, completed_at, records_upserted, error_message, sync_type")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .single();
+    lastSync = syncData as SyncStatus | null;
+  }
 
   const bills: BillRow[] = (rawBills ?? []).map((b) => {
     const proj = propertyToProject.get(b.appfolio_property_id);
@@ -366,6 +413,9 @@ export default async function DashboardPage() {
           Here&apos;s an overview of your construction projects.
         </p>
 
+        {/* AppFolio sync status — admin only */}
+        {isAdmin && <SyncStatusBanner sync={lastSync} />}
+
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <div className="rounded-lg border bg-card px-5 py-4">
             <p className="text-xs font-medium text-muted-foreground">Active Projects</p>
@@ -403,6 +453,10 @@ export default async function DashboardPage() {
 
         {coiAlerts.length > 0 && (
           <COIAlerts alerts={coiAlerts} />
+        )}
+
+        {lienWaiverAlerts.length > 0 && (
+          <LienWaiverAlerts alerts={lienWaiverAlerts} />
         )}
 
         <div className={`grid grid-cols-1 gap-6 ${role !== "read_only" ? "lg:grid-cols-5" : ""}`}>

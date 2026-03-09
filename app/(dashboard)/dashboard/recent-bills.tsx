@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useMemo } from "react";
+import { ExpandButton, ExpandedModal } from "@/components/expandable-card";
 
 export interface BillRow {
   id: string;
@@ -25,6 +26,8 @@ const DAY_OPTIONS = [
   { label: "Last 90 days", days: 90 },
 ] as const;
 
+const STATUS_OPTIONS = ["All", "Paid", "Unpaid", "Partial"] as const;
+
 function usd(n: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -34,8 +37,30 @@ function usd(n: number): string {
   }).format(n);
 }
 
-export function RecentBills({ bills }: { bills: BillRow[] }) {
+function BillsTable({
+  bills,
+  expanded = false,
+}: {
+  bills: BillRow[];
+  expanded?: boolean;
+}) {
   const [days, setDays] = useState<number>(7);
+  const [projectFilter, setProjectFilter] = useState("All");
+  const [statusFilter, setStatusFilter] =
+    useState<(typeof STATUS_OPTIONS)[number]>("All");
+  const [vendorSearch, setVendorSearch] = useState("");
+
+  const projects = useMemo(
+    () => [
+      "All",
+      ...Array.from(
+        new Set(
+          bills.map((b) => b.project_name).filter(Boolean) as string[]
+        )
+      ).sort(),
+    ],
+    [bills]
+  );
 
   const cutoff = useMemo(() => {
     const d = new Date();
@@ -43,13 +68,23 @@ export function RecentBills({ bills }: { bills: BillRow[] }) {
     return d.toISOString().slice(0, 10);
   }, [days]);
 
-  const filtered = useMemo(
-    () =>
-      bills
-        .filter((b) => b.bill_date >= cutoff)
-        .sort((a, b) => b.bill_date.localeCompare(a.bill_date)),
-    [bills, cutoff]
-  );
+  const filtered = useMemo(() => {
+    return bills
+      .filter((b) => {
+        if (b.bill_date < cutoff) return false;
+        if (projectFilter !== "All" && b.project_name !== projectFilter)
+          return false;
+        if (statusFilter !== "All" && b.payment_status !== statusFilter)
+          return false;
+        if (
+          vendorSearch &&
+          !b.vendor_name.toLowerCase().includes(vendorSearch.toLowerCase())
+        )
+          return false;
+        return true;
+      })
+      .sort((a, b) => b.bill_date.localeCompare(a.bill_date));
+  }, [bills, cutoff, projectFilter, statusFilter, vendorSearch]);
 
   const totalAmount = filtered.reduce(
     (sum, b) => sum + b.paid_amount + b.unpaid_amount,
@@ -58,27 +93,68 @@ export function RecentBills({ bills }: { bills: BillRow[] }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3 gap-4">
+      <div className="flex items-center justify-between mb-3 gap-4 flex-wrap">
         <div>
           <h3 className="text-lg font-semibold">Recent Bills</h3>
           {filtered.length > 0 && (
             <p className="text-xs text-muted-foreground mt-0.5">
-              {filtered.length} bill{filtered.length !== 1 ? "s" : ""} &nbsp;·&nbsp;{" "}
-              {usd(totalAmount)} total
+              {filtered.length} bill{filtered.length !== 1 ? "s" : ""}
+              &nbsp;·&nbsp;{usd(totalAmount)} total
             </p>
           )}
         </div>
-        <select
-          value={days}
-          onChange={(e) => setDays(Number(e.target.value))}
-          className="text-sm rounded-md border border-input bg-background px-3 py-1.5 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
-        >
-          {DAY_OPTIONS.map((o) => (
-            <option key={o.days} value={o.days}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2 flex-wrap">
+          {expanded && (
+            <>
+              <input
+                type="text"
+                placeholder="Search vendor…"
+                value={vendorSearch}
+                onChange={(e) => setVendorSearch(e.target.value)}
+                className="text-xs rounded-md border border-input bg-background px-2 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring w-36"
+              />
+              {projects.length > 2 && (
+                <select
+                  value={projectFilter}
+                  onChange={(e) => setProjectFilter(e.target.value)}
+                  className="text-xs rounded-md border border-input bg-background px-2 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                >
+                  {projects.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <div className="flex items-center gap-1">
+                {STATUS_OPTIONS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setStatusFilter(s)}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                      statusFilter === s
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <select
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            className="text-sm rounded-md border border-input bg-background px-3 py-1.5 shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            {DAY_OPTIONS.map((o) => (
+              <option key={o.days} value={o.days}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -89,23 +165,34 @@ export function RecentBills({ bills }: { bills: BillRow[] }) {
         </div>
       ) : (
         <div className="rounded-lg border overflow-hidden">
-          <div className="overflow-auto max-h-72">
+          <div className={expanded ? "" : "overflow-auto max-h-72"}>
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-muted/90 backdrop-blur-sm">
                 <tr className="border-b">
-                  <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Date</th>
+                  <th className="px-3 py-2 text-left font-medium whitespace-nowrap">
+                    Date
+                  </th>
                   <th className="px-3 py-2 text-left font-medium">Project</th>
                   <th className="px-3 py-2 text-left font-medium">Vendor</th>
-                  <th className="px-3 py-2 text-left font-medium">Cost Category</th>
-                  <th className="px-3 py-2 text-right font-medium whitespace-nowrap">Amount</th>
+                  <th className="px-3 py-2 text-left font-medium">
+                    Cost Category
+                  </th>
+                  <th className="px-3 py-2 text-right font-medium whitespace-nowrap">
+                    Amount
+                  </th>
                   <th className="px-3 py-2 text-left font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((bill) => (
-                  <tr key={bill.id} className="border-b last:border-0 hover:bg-muted/30">
+                  <tr
+                    key={bill.id}
+                    className="border-b last:border-0 hover:bg-muted/30"
+                  >
                     <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                      {new Date(bill.bill_date + "T00:00:00").toLocaleDateString("en-US", {
+                      {new Date(
+                        bill.bill_date + "T00:00:00"
+                      ).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
                       })}
@@ -138,10 +225,18 @@ export function RecentBills({ bills }: { bills: BillRow[] }) {
                     </td>
                     <td
                       className="px-3 py-2 max-w-[160px] truncate text-muted-foreground"
-                      title={bill.cost_category_name ?? bill.cost_category_code ?? undefined}
+                      title={
+                        bill.cost_category_name ??
+                        bill.cost_category_code ??
+                        undefined
+                      }
                     >
                       {bill.cost_category_code ? (
-                        `${bill.cost_category_code}${bill.cost_category_name ? ` ${bill.cost_category_name}` : ""}`
+                        `${bill.cost_category_code}${
+                          bill.cost_category_name
+                            ? ` ${bill.cost_category_name}`
+                            : ""
+                        }`
                       ) : (
                         <span className="italic">Unmatched</span>
                       )}
@@ -170,5 +265,23 @@ export function RecentBills({ bills }: { bills: BillRow[] }) {
         </div>
       )}
     </div>
+  );
+}
+
+export function RecentBills({ bills }: { bills: BillRow[] }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <div className="relative">
+        <div className="absolute top-0 right-0 z-10">
+          <ExpandButton onClick={() => setOpen(true)} />
+        </div>
+        <BillsTable bills={bills} />
+      </div>
+      <ExpandedModal open={open} onClose={() => setOpen(false)}>
+        <BillsTable bills={bills} expanded />
+      </ExpandedModal>
+    </>
   );
 }
