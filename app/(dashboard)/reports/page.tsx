@@ -9,11 +9,9 @@ import {
   FileText,
   ClipboardCheck,
   Scale,
-  BookOpen,
 } from "lucide-react";
 import { HELP } from "@/lib/help";
 
-// Order matches the sidebar navigation exactly, with Trial Balance appended at end
 const AVAILABLE_REPORTS = [
   {
     href: "/reports/cost-management",
@@ -68,15 +66,6 @@ const AVAILABLE_REPORTS = [
     Icon: Scale,
     iconColor: "text-teal-600",
     iconBg: "bg-teal-50 group-hover:bg-teal-100",
-  },
-  {
-    href: "/reports/trial-balance",
-    title: "Trial Balance",
-    description:
-      "All AppFolio transactions grouped by GL account for a selected project and date range — with invoice, paid, and unpaid totals.",
-    Icon: BookOpen,
-    iconColor: "text-indigo-600",
-    iconBg: "bg-indigo-50 group-hover:bg-indigo-100",
   },
 ];
 

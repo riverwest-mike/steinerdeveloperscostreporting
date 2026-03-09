@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ProjectDetail } from "./project-detail";
@@ -54,6 +55,19 @@ export default async function ProjectPage({ params }: Props) {
 
   if (!project) notFound();
 
+  // read_only users must be explicitly assigned to this project
+  if (userRole === "read_only") {
+    const userId = (await headers()).get("x-clerk-user-id");
+    if (!userId) redirect("/projects");
+    const { data: access } = await supabase
+      .from("project_users")
+      .select("id")
+      .eq("project_id", id)
+      .eq("user_id", userId)
+      .single();
+    if (!access) redirect("/projects");
+  }
+
   const gatesWithTotals = (gates ?? []).map((g: {
     id: string; name: string; sequence_number: number; status: string;
     is_locked: boolean; start_date: string | null; end_date: string | null;
@@ -94,7 +108,7 @@ export default async function ProjectPage({ params }: Props) {
 
   const vendorList = (vendors ?? []) as { name: string; is_active: boolean }[];
   const activeVendors = vendorList.filter((v) => v.is_active);
-  const previewVendors = activeVendors.slice(0, 12).map((v) => v.name);
+  const activeVendorNames = activeVendors.map((v) => v.name);
 
   const STATUS_STYLES: Record<string, string> = {
     active: "bg-green-100 text-green-800",
@@ -149,7 +163,7 @@ export default async function ProjectPage({ params }: Props) {
               projectId={id}
               activeCount={activeVendors.length}
               totalCount={vendorList.length}
-              recentVendors={previewVendors}
+              vendors={activeVendorNames}
             />
           }
           documents={<DocumentsSection projectId={id} documentCount={documentCount ?? 0} />}

@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { MapPin, CalendarDays, Building2 } from "lucide-react";
@@ -47,6 +48,23 @@ interface Props {
 export default async function ProjectsPage({ searchParams }: Props) {
   const supabase = createAdminClient();
   const statusFilter = searchParams.status ?? "";
+  const userId = (await headers()).get("x-clerk-user-id");
+
+  const { data: userRow } = userId
+    ? await supabase.from("users").select("role").eq("id", userId).single()
+    : { data: null };
+  const role = (userRow as { role?: string } | null)?.role ?? "read_only";
+  const isReadOnly = role === "read_only";
+
+  // For read_only users, scope to assigned projects only
+  let allowedProjectIds: string[] | null = null;
+  if (isReadOnly && userId) {
+    const { data: access } = await supabase
+      .from("project_users")
+      .select("project_id")
+      .eq("user_id", userId);
+    allowedProjectIds = (access ?? []).map((a: { project_id: string }) => a.project_id);
+  }
 
   let query = supabase
     .from("projects")
@@ -56,12 +74,19 @@ export default async function ProjectsPage({ searchParams }: Props) {
   if (statusFilter) {
     query = query.eq("status", statusFilter);
   }
+  if (allowedProjectIds !== null) {
+    query = query.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
 
   const { data: rawProjects } = await query;
   const projects = (rawProjects ?? []) as Project[];
 
-  // Count per status for tab badges
-  const { data: rawCounts } = await supabase.from("projects").select("status");
+  // Count per status for tab badges (scoped to same access)
+  let countsQuery = supabase.from("projects").select("status");
+  if (allowedProjectIds !== null) {
+    countsQuery = countsQuery.in("id", allowedProjectIds.length > 0 ? allowedProjectIds : [""]);
+  }
+  const { data: rawCounts } = await countsQuery;
   const counts = (rawCounts ?? []) as { status: string }[];
   const countByStatus = new Map<string, number>();
   for (const p of counts) {
@@ -75,12 +100,14 @@ export default async function ProjectsPage({ searchParams }: Props) {
       <div className="p-4 sm:p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-2xl font-bold tracking-tight">Projects</h2>
-          <Link
-            href="/projects/new"
-            className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            + New Project
-          </Link>
+          {!isReadOnly && (
+            <Link
+              href="/projects/new"
+              className="rounded bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              + New Project
+            </Link>
+          )}
         </div>
 
         {/* Status filter tabs */}
@@ -202,7 +229,7 @@ export default async function ProjectsPage({ searchParams }: Props) {
                 ? `No ${STATUS_OPTIONS.find((o) => o.value === statusFilter)?.label.toLowerCase()} projects.`
                 : "No projects have been created yet."}
             </p>
-            {!statusFilter && (
+            {!statusFilter && !isReadOnly && (
               <Link
                 href="/projects/new"
                 className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"

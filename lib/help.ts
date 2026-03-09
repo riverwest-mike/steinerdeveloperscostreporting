@@ -28,16 +28,16 @@ export const HELP: Record<string, PageHelpContent> = {
   },
 
   projectDetail: {
-    title: "Project Detail",
-    description: "The full project view: metadata, gates (budget phases), and contracts. Everything for one project lives here.",
+    title: "Project Profile",
+    description: "The full profile for a single project. Five tabs organize everything: Overview, Gates, Contracts, Vendors, and Documents.",
     actions: [
-      { label: "Gates section", desc: "Each gate is a budget phase (e.g. Pre-Development, Construction). Click a gate row to open and edit its cost-category budget. The bar shows committed vs. budgeted." },
-      { label: "Add Gate", desc: "Create a new phase. Give it a name, status (Pending/Active/Closed), and optional start/end dates." },
-      { label: "Upload Excel", desc: "Bulk-import a gate budget from a formatted Excel file. The upload log appears in Admin › Users & Access › Budget Import History." },
-      { label: "Contracts section", desc: "All contracts for this project. Click any row to open the contract and view its Schedule of Values and change orders." },
-      { label: "Add Contract", desc: "Create a new contract: vendor, value, gate assignment, and cost category." },
+      { label: "Overview tab", desc: "Shows project metadata — name, code, type, address, AppFolio property, and status. Admins and Project Managers can edit these details inline." },
+      { label: "Gates tab", desc: "Lists every budget phase (e.g. Pre-Development, Construction). Click a gate row to open its cost-category budget detail. The progress bar shows committed vs. budgeted. Use 'Add Gate' to create a new phase, or 'Upload Excel' to bulk-import a gate budget from a formatted spreadsheet." },
+      { label: "Contracts tab", desc: "All contracts for this project. Click any row to open the contract and view its Schedule of Values and change orders. Use 'Add Contract' to create a new contract with vendor, value, gate, and cost category." },
+      { label: "Vendors tab", desc: "Active vendors linked to this project. Use the search box to filter by name — results update as you type. Click any vendor tag to open that vendor's full profile page showing compliance documents, transaction history, and all project assignments. Use 'Manage Vendors' to add, rename, or deactivate vendors." },
+      { label: "Documents tab", desc: "Project-level file attachments. Click 'Manage Documents' to upload or remove files." },
     ],
-    tip: "Run the PCM Report (Reporting › Project Cost Management) to see this project's complete budget-vs.-actual breakdown.",
+    tip: "Run the PCM Report (Reporting › Project Cost Management) to see this project's complete budget-vs.-actual breakdown across all gates and cost categories.",
   },
 
   contractDetail: {
@@ -187,21 +187,6 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Run Report", desc: "Syncs AppFolio balance sheet data for the selected projects before displaying." },
     ],
     tip: "Balance sheet data is only as current as the last AppFolio sync. Run from Admin › AppFolio to force an update.",
-  },
-
-  trialBalance: {
-    title: "Trial Balance",
-    description: "All AppFolio GL accounts for a project and date range, with invoice (debit), paid (credit), and unpaid (balance) totals. Includes all known GL accounts — even those with no activity in the selected period.",
-    actions: [
-      { label: "Project filter", desc: "Select one project to run the trial balance for. The project must have an AppFolio property linked." },
-      { label: "Date range", desc: "Set From and To dates to filter transactions by bill date. Leave From blank to include all history through the To date." },
-      { label: "Run Report", desc: "Loads all GL accounts for the selected projects. Accounts with no activity in the period show $0 across all columns." },
-      { label: "Export Excel", desc: "Downloads all rows as a formatted spreadsheet." },
-    ],
-    sections: [
-      { heading: "Reading the Report", body: "Each row is one GL account. Debit = total invoiced. Credit = total paid. Balance = unpaid amount still outstanding. The totals row includes a 'Balanced' check — a green badge confirms Debit = Credit + Balance across all accounts, verifying data integrity." },
-    ],
-    tip: "Use the date range filters to produce a period-specific trial balance — for example, a full-year view or a single month. GL accounts from the AppFolio chart of accounts appear even if there are no transactions in the period.",
   },
 
   adminIndex: {
