@@ -4,10 +4,18 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronDown, X, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const STATUS_DOT: Record<string, string> = {
+  active: "bg-green-500",
+  on_hold: "bg-yellow-400",
+  completed: "bg-blue-500",
+  archived: "bg-gray-400",
+};
+
 interface Project {
   id: string;
   name: string;
   code: string;
+  status?: string;
 }
 
 interface ProjectMultiSelectProps {
@@ -155,7 +163,10 @@ export function ProjectMultiSelect({ projects, selectedIds, onChange }: ProjectM
                       className="h-3.5 w-3.5 rounded accent-primary"
                     />
                     <span className="w-12 shrink-0 font-mono text-[11px] text-muted-foreground">{p.code}</span>
-                    <span className="truncate">{p.name}</span>
+                    <span className="truncate flex-1">{p.name}</span>
+                    {p.status && p.status !== "active" && (
+                      <span className={`shrink-0 h-2 w-2 rounded-full ${STATUS_DOT[p.status] ?? "bg-gray-400"}`} title={p.status.replace("_", " ")} />
+                    )}
                   </label>
                 );
               })

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ProjectDetail } from "./project-detail";
+import { ProjectTabs } from "./project-tabs";
 import { GatesSection } from "./gates-section";
 import { ContractsSection } from "./contracts-section";
 import { VendorsSection } from "./vendors-section";
@@ -95,6 +96,13 @@ export default async function ProjectPage({ params }: Props) {
   const activeVendors = vendorList.filter((v) => v.is_active);
   const previewVendors = activeVendors.slice(0, 12).map((v) => v.name);
 
+  const STATUS_STYLES: Record<string, string> = {
+    active: "bg-green-100 text-green-800",
+    on_hold: "bg-yellow-100 text-yellow-800",
+    completed: "bg-blue-100 text-blue-800",
+    archived: "bg-gray-100 text-gray-500",
+  };
+
   return (
     <div>
       <Header title={project.name} helpContent={HELP.projectDetail} />
@@ -105,25 +113,46 @@ export default async function ProjectPage({ params }: Props) {
           <span className="text-foreground font-medium">{project.name}</span>
         </nav>
 
-        <ProjectDetail
-          project={project}
-          isAdmin={userRole === "admin"}
-          appfolioBaseUrl={process.env.APPFOLIO_DATABASE_URL}
-        />
-        <GatesSection projectId={id} gates={gatesWithTotals} />
-        <ContractsSection
-          projectId={id}
-          contracts={contractsWithNames}
-        />
-        <VendorsSection
-          projectId={id}
-          activeCount={activeVendors.length}
-          totalCount={vendorList.length}
-          recentVendors={previewVendors}
-        />
-        <DocumentsSection
-          projectId={id}
+        {/* Project identity header — always visible above tabs */}
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  STATUS_STYLES[project.status] ?? "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {project.status.replace("_", " ")}
+              </span>
+            </div>
+            <p className="text-muted-foreground mt-0.5 font-mono text-sm">{project.code}</p>
+          </div>
+        </div>
+
+        <ProjectTabs
+          gateCount={gatesWithTotals.length}
+          contractCount={contractsWithNames.length}
+          vendorCount={activeVendors.length}
           documentCount={documentCount ?? 0}
+          overview={
+            <ProjectDetail
+              project={project}
+              isAdmin={userRole === "admin"}
+              appfolioBaseUrl={process.env.APPFOLIO_DATABASE_URL}
+            />
+          }
+          gates={<GatesSection projectId={id} gates={gatesWithTotals} />}
+          contracts={<ContractsSection projectId={id} contracts={contractsWithNames} />}
+          vendors={
+            <VendorsSection
+              projectId={id}
+              activeCount={activeVendors.length}
+              totalCount={vendorList.length}
+              recentVendors={previewVendors}
+            />
+          }
+          documents={<DocumentsSection projectId={id} documentCount={documentCount ?? 0} />}
         />
       </div>
     </div>

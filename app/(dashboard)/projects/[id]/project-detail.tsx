@@ -59,70 +59,31 @@ export function ProjectDetail({ project, isAdmin, appfolioBaseUrl }: { project: 
 
   if (editing) {
     return (
-      <div>
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold tracking-tight">Edit Project</h2>
+      <div className="rounded-lg border p-6 bg-card max-w-3xl">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-semibold">Edit Project</h3>
         </div>
-        <div className="rounded-lg border p-6 bg-card max-w-3xl">
-          <ProjectForm editing={project} onCancel={() => setEditing(false)} appfolioBaseUrl={appfolioBaseUrl} />
-        </div>
+        <ProjectForm editing={project} onCancel={() => setEditing(false)} appfolioBaseUrl={appfolioBaseUrl} />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Cover image */}
       {project.image_url && (
-        <div className="rounded-lg overflow-hidden border" style={{ maxHeight: 240 }}>
+        <div className="rounded-lg overflow-hidden border" style={{ maxHeight: 200 }}>
           <img
             src={project.image_url}
             alt={project.name}
             className="w-full object-cover"
-            style={{ maxHeight: 240 }}
+            style={{ maxHeight: 200 }}
           />
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold tracking-tight">{project.name}</h2>
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                STATUS_STYLES[project.status] ?? "bg-gray-100 text-gray-800"
-              }`}
-            >
-              {project.status.replace("_", " ")}
-            </span>
-          </div>
-          <p className="text-muted-foreground mt-1 font-mono text-sm">{project.code}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setEditing(true)}
-            className="rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
-          >
-            Edit Project
-          </button>
-          {isAdmin && (
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="rounded border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-50"
-            >
-              {isDeleting ? "Deleting…" : "Delete Project"}
-            </button>
-          )}
-        </div>
-      </div>
-      {deleteError && (
-        <p className="text-sm text-destructive">{deleteError}</p>
-      )}
-
       {/* Info grid */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <InfoCard label="Property Type" value={project.property_type ?? "—"} />
         <InfoCard
           label="Location"
@@ -152,6 +113,29 @@ export function ProjectDetail({ project, isAdmin, appfolioBaseUrl }: { project: 
           <p className="text-sm">{project.description}</p>
         </div>
       )}
+
+      {deleteError && (
+        <p className="text-sm text-destructive">{deleteError}</p>
+      )}
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          onClick={() => setEditing(true)}
+          className="rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
+        >
+          Edit Project
+        </button>
+        {isAdmin && (
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="rounded border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors disabled:opacity-50"
+          >
+            {isDeleting ? "Deleting…" : "Delete Project"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

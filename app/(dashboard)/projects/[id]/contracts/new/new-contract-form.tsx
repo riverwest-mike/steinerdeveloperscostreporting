@@ -4,6 +4,7 @@ import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createContract } from "../actions";
 import { InfoTip } from "@/components/info-tip";
+import { FileUp, Loader2, Sparkles } from "lucide-react";
 
 interface Gate { id: string; name: string | null; sequence_number: number }
 interface Category { id: string; name: string; code: string }
@@ -33,12 +34,53 @@ export function NewContractForm({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Controlled fields (populated by AI extraction or typed manually)
+  const [vendorName, setVendorName] = useState("");
+  const [contractNumber, setContractNumber] = useState("");
+  const [description, setDescription] = useState("");
   const [originalValue, setOriginalValue] = useState("");
+  const [retainagePct, setRetainagePct] = useState("0");
+  const [executionDate, setExecutionDate] = useState("");
+  const [completionDate, setCompletionDate] = useState("");
+
+  // AI extraction state
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractSuccess, setExtractSuccess] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const keyRef = useRef(1);
   const [sovLines, setSovLines] = useState<SovLine[]>([
     { key: "0", cost_category_id: "", description: "", amount: "" },
   ]);
   const router = useRouter();
+
+  async function handleExtract(file: File) {
+    setExtracting(true);
+    setExtractError(null);
+    setExtractSuccess(false);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/extract-contract", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Extraction failed");
+      const d = json.data ?? {};
+      if (d.vendor_name) setVendorName(d.vendor_name);
+      if (d.contract_number) setContractNumber(d.contract_number);
+      if (d.description) setDescription(d.description);
+      if (d.original_value != null && !isNaN(Number(d.original_value))) setOriginalValue(String(d.original_value));
+      if (d.retainage_pct != null && !isNaN(Number(d.retainage_pct))) setRetainagePct(String(d.retainage_pct));
+      if (d.execution_date) setExecutionDate(d.execution_date);
+      if (d.substantial_completion_date) setCompletionDate(d.substantial_completion_date);
+      setExtractSuccess(true);
+    } catch (err) {
+      setExtractError(err instanceof Error ? err.message : "Extraction failed");
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   function addSovLine() {
     setSovLines((prev) => [
@@ -97,6 +139,51 @@ export function NewContractForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Contract upload + AI extraction */}
+      <div className="rounded-lg border bg-muted/30 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              Extract from Contract
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Upload the signed contract (PDF or image) to auto-fill fields below.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleExtract(file);
+              }}
+            />
+            <button
+              type="button"
+              disabled={extracting}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50"
+            >
+              {extracting ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Extracting…</>
+              ) : (
+                <><FileUp className="h-3.5 w-3.5" /> Upload Contract</>
+              )}
+            </button>
+          </div>
+        </div>
+        {extractError && (
+          <p className="mt-2 text-xs text-destructive">{extractError}</p>
+        )}
+        {extractSuccess && !extractError && (
+          <p className="mt-2 text-xs text-green-700">Fields populated from contract. Review and adjust as needed.</p>
+        )}
+      </div>
+
       {/* Row 1: Vendor / Contract # / Status */}
       <div className="grid grid-cols-4 gap-3">
         <div className="col-span-2 space-y-1">
@@ -108,6 +195,8 @@ export function NewContractForm({
             name="vendor_name"
             required
             placeholder="e.g. Acme Construction"
+            value={vendorName}
+            onChange={(e) => setVendorName(e.target.value)}
             list={vendors.length > 0 ? "vendor-list" : undefined}
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
@@ -125,6 +214,8 @@ export function NewContractForm({
             id="c-num"
             name="contract_number"
             placeholder="e.g. C-001"
+            value={contractNumber}
+            onChange={(e) => setContractNumber(e.target.value)}
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
         </div>
@@ -153,6 +244,8 @@ export function NewContractForm({
           name="description"
           required
           placeholder="Scope of work"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
         />
       </div>
@@ -200,7 +293,8 @@ export function NewContractForm({
             min={0}
             max={100}
             step="0.01"
-            defaultValue="0"
+            value={retainagePct}
+            onChange={(e) => setRetainagePct(e.target.value)}
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
         </div>
@@ -292,14 +386,16 @@ export function NewContractForm({
         </div>
       </div>
 
-      {/* Row 4: Dates / Teams URL */}
-      <div className="grid grid-cols-4 gap-3">
+      {/* Row 4: Dates */}
+      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <label className="text-xs font-medium" htmlFor="c-exec">Execution Date</label>
           <input
             id="c-exec"
             name="execution_date"
             type="date"
+            value={executionDate}
+            onChange={(e) => setExecutionDate(e.target.value)}
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
         </div>
@@ -309,16 +405,8 @@ export function NewContractForm({
             id="c-comp"
             name="substantial_completion_date"
             type="date"
-            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
-          />
-        </div>
-        <div className="col-span-2 space-y-1">
-          <label className="text-xs font-medium" htmlFor="c-teams">Teams URL</label>
-          <input
-            id="c-teams"
-            name="teams_url"
-            type="url"
-            placeholder="https://teams.microsoft.com/…"
+            value={completionDate}
+            onChange={(e) => setCompletionDate(e.target.value)}
             className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
           />
         </div>

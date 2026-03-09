@@ -92,6 +92,7 @@ interface ProjectInfo {
   name: string;
   code: string;
   appfolio_property_id: string | null;
+  status: string;
 }
 
 interface GateInfo {
@@ -137,7 +138,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
   const [{ data: allProjects }, { data: rawCategories }] = await Promise.all([
     supabase
       .from("projects")
-      .select("id, name, code, appfolio_property_id")
+      .select("id, name, code, appfolio_property_id, status")
       .order("name"),
     supabase
       .from("cost_categories")

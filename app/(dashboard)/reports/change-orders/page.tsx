@@ -99,7 +99,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
   const supabase = createAdminClient();
 
   const [{ data: allProjects }, { data: allCategories }] = await Promise.all([
-    supabase.from("projects").select("id, name, code").order("name"),
+    supabase.from("projects").select("id, name, code, status").order("name"),
     supabase
       .from("cost_categories")
       .select("id, name, code")
@@ -107,7 +107,7 @@ export default async function ChangeOrderLogPage({ searchParams }: Props) {
       .order("display_order"),
   ]);
 
-  const projects = (allProjects ?? []) as { id: string; name: string; code: string }[];
+  const projects = (allProjects ?? []) as { id: string; name: string; code: string; status: string }[];
   const categories = (allCategories ?? []) as { id: string; name: string; code: string }[];
 
   const hasFilter =

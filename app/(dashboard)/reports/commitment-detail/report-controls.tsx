@@ -8,6 +8,7 @@ interface Project {
   id: string;
   name: string;
   code: string;
+  status?: string;
 }
 
 interface Category {

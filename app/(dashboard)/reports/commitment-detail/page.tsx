@@ -82,6 +82,7 @@ interface ProjectInfo {
   id: string;
   name: string;
   code: string;
+  status: string;
 }
 
 /* ─── Page ────────────────────────────────────────────── */
@@ -106,7 +107,7 @@ export default async function CommitmentDetailPage({ searchParams }: Props) {
   const supabase = createAdminClient();
 
   const [{ data: allProjects }, { data: rawCategories }] = await Promise.all([
-    supabase.from("projects").select("id, name, code").order("name"),
+    supabase.from("projects").select("id, name, code, status").order("name"),
     supabase
       .from("cost_categories")
       .select("id, name, code")

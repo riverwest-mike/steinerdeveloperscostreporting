@@ -3,11 +3,18 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+const STATUS_LABEL: Record<string, string> = {
+  on_hold: " (on hold)",
+  completed: " (completed)",
+  archived: " (archived)",
+};
+
 interface Project {
   id: string;
   name: string;
   code: string;
   appfolio_property_id: string | null;
+  status?: string;
 }
 
 export function ProjectPicker({
@@ -78,7 +85,7 @@ export function ProjectPicker({
           >
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.code} — {p.name}
+                {p.code} — {p.name}{p.status ? (STATUS_LABEL[p.status] ?? "") : ""}
               </option>
             ))}
           </select>

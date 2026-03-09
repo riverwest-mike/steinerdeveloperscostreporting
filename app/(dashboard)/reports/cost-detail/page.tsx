@@ -120,7 +120,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   const [{ data: allProjects }, { data: rawCategories }] = await Promise.all([
     supabase
       .from("projects")
-      .select("id, name, code, appfolio_property_id")
+      .select("id, name, code, appfolio_property_id, status")
       .order("name"),
     supabase
       .from("cost_categories")
@@ -130,7 +130,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   ]);
 
   const projects = (allProjects ?? []) as {
-    id: string; name: string; code: string; appfolio_property_id: string | null;
+    id: string; name: string; code: string; appfolio_property_id: string | null; status: string;
   }[];
   const categories = (rawCategories ?? []) as { id: string; name: string; code: string }[];
 
