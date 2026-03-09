@@ -149,6 +149,24 @@ export default async function VendorDetailPage({ searchParams }: Props) {
   const projects = (allProjects ?? []) as ProjectInfo[];
   const categories = (rawCategories ?? []) as { id: string; name: string; code: string }[];
 
+  // Fetch vendor names for autocomplete in the filter.
+  // When specific projects are selected, fetch only their vendors.
+  // When no project is selected (all), fetch vendors across all projects (deduplicated by name).
+  let vendorNames: string[] = [];
+  const selectedProjectIds = projectIds.length > 0 ? projectIds : projects.map((p) => p.id);
+  if (selectedProjectIds.length > 0) {
+    const { data: rawVendors } = await supabase
+      .from("project_vendors")
+      .select("name")
+      .in("project_id", selectedProjectIds)
+      .eq("is_active", true)
+      .order("name");
+    const seen = new Set<string>();
+    for (const v of (rawVendors ?? []) as { name: string }[]) {
+      if (!seen.has(v.name)) { seen.add(v.name); vendorNames.push(v.name); }
+    }
+  }
+
   // Build lookup maps
   const propertyToProject = new Map<string, ProjectInfo>();
   for (const p of projects) {
@@ -172,6 +190,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
             projects={projects}
             categories={categories}
             gates={[]}
+            vendorNames={vendorNames}
             currentProjectIds={[]}
             currentVendorName={null}
             currentCategoryCode={null}
@@ -332,6 +351,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
             projects={projects}
             categories={categories}
             gates={allGatesFlat}
+            vendorNames={vendorNames}
             currentProjectIds={projectIds}
             currentVendorName={vendorName}
             currentCategoryCode={categoryCode}
