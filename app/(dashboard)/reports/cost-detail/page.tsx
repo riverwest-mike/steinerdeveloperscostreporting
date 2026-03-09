@@ -95,7 +95,7 @@ interface GateInfo {
 /* ─── Page ────────────────────────────────────────────── */
 
 interface Props {
-  searchParams: { projectIds?: string; projectId?: string; asOf?: string; categoryCode?: string; paymentFilter?: string };
+  searchParams: { projectIds?: string; projectId?: string; asOf?: string; categoryCode?: string; paymentFilter?: string; gateId?: string };
 }
 
 export default async function CostDetailPage({ searchParams }: Props) {
@@ -105,6 +105,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   const asOf = searchParams.asOf ?? today();
   const categoryCode = searchParams.categoryCode ?? null;
   const paymentFilter = searchParams.paymentFilter ?? null;
+  const gateIdFilter = searchParams.gateId ?? null;
 
   const supabase = createAdminClient();
   const userId = (await headers()).get("x-clerk-user-id");
@@ -142,9 +143,11 @@ export default async function CostDetailPage({ searchParams }: Props) {
           <ReportControls
             projects={projects}
             categories={categories}
+            gates={[]}
             currentProjectIds={[]}
             currentAsOf={asOf}
             currentCategoryCode={null}
+            currentGateId={null}
           />
           <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
@@ -226,6 +229,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   // Fetch gates for selected projects (for display + dropdown)
   const gatesByProjectId = new Map<string, GateInfo[]>();
   const gateNameById = new Map<string, { name: string; sequence_number: number }>();
+  const allGatesFlat: GateInfo[] = [];
   if (selectedProjects.length > 0) {
     const { data: rawGates } = await supabase
       .from("gates")
@@ -236,7 +240,16 @@ export default async function CostDetailPage({ searchParams }: Props) {
       if (!gatesByProjectId.has(g.project_id)) gatesByProjectId.set(g.project_id, []);
       gatesByProjectId.get(g.project_id)!.push({ id: g.id, name: g.name, sequence_number: g.sequence_number });
       gateNameById.set(g.id, { name: g.name, sequence_number: g.sequence_number });
+      if (!allGatesFlat.find((x) => x.id === g.id)) allGatesFlat.push({ id: g.id, name: g.name, sequence_number: g.sequence_number });
     }
+  }
+
+  // ── Apply gate filter (in-memory, after assignments are loaded) ───
+  if (gateIdFilter) {
+    transactions = transactions.filter((tx) => {
+      const ga = gateAssignmentByTxId.get(tx.id);
+      return ga?.gate_id === gateIdFilter;
+    });
   }
 
   // AppFolio base URL for bill deep-links (server-side only — env var never reaches client)
@@ -284,9 +297,11 @@ export default async function CostDetailPage({ searchParams }: Props) {
           <ReportControls
             projects={projects}
             categories={categories}
+            gates={allGatesFlat}
             currentProjectIds={projectIds}
             currentAsOf={asOf}
             currentCategoryCode={categoryCode}
+            currentGateId={gateIdFilter}
           />
         </div>
 
@@ -298,6 +313,11 @@ export default async function CostDetailPage({ searchParams }: Props) {
               {projectLabel}
               &nbsp;·&nbsp;
               {categoryLabel}
+              {gateIdFilter && gateNameById.has(gateIdFilter) && (
+                <span className="ml-2 inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
+                  G{gateNameById.get(gateIdFilter)!.sequence_number} — {gateNameById.get(gateIdFilter)!.name}
+                </span>
+              )}
               {paymentFilter === "paid" && (
                 <span className="ml-2 inline-flex rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-800">
                   Paid Only
@@ -348,6 +368,9 @@ export default async function CostDetailPage({ searchParams }: Props) {
               <p className="text-muted-foreground text-sm">
                 No AppFolio transactions found
                 {categoryCode ? ` for cost category "${categoryCode}"` : ""}
+                {gateIdFilter && gateNameById.has(gateIdFilter)
+                  ? ` in gate G${gateNameById.get(gateIdFilter)!.sequence_number} — ${gateNameById.get(gateIdFilter)!.name}`
+                  : ""}
                 {" "}as of{" "}
                 {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
                   month: "short",
@@ -355,9 +378,11 @@ export default async function CostDetailPage({ searchParams }: Props) {
                   year: "numeric",
                 })}
                 .{" "}
-                Run an AppFolio sync in{" "}
-                <Link href="/admin/appfolio" className="underline font-medium">Admin</Link>{" "}
-                to pull data.
+                {!gateIdFilter && (
+                  <>Run an AppFolio sync in{" "}
+                  <Link href="/admin/appfolio" className="underline font-medium">Admin</Link>{" "}
+                  to pull data.</>
+                )}
               </p>
             </div>
           )}

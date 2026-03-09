@@ -109,6 +109,7 @@ interface Props {
     vendorName?: string;
     categoryCode?: string;
     asOf?: string;
+    gateId?: string;
   };
 }
 
@@ -122,6 +123,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
   const vendorName = searchParams.vendorName?.trim() ?? null;
   const categoryCode = searchParams.categoryCode ?? null;
   const asOf = searchParams.asOf ?? today();
+  const gateIdFilter = searchParams.gateId ?? null;
 
   const supabase = createAdminClient();
   const userId = (await headers()).get("x-clerk-user-id");
@@ -169,10 +171,12 @@ export default async function VendorDetailPage({ searchParams }: Props) {
           <ReportControls
             projects={projects}
             categories={categories}
+            gates={[]}
             currentProjectIds={[]}
             currentVendorName={null}
             currentCategoryCode={null}
             currentAsOf={asOf}
+            currentGateId={null}
           />
           <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
@@ -256,6 +260,7 @@ export default async function VendorDetailPage({ searchParams }: Props) {
   const relevantProjectIds = selectedProjects.map((p) => p.id);
   const gatesByProjectId = new Map<string, GateInfo[]>();
   const gateNameById = new Map<string, { name: string; sequence_number: number }>();
+  const allGatesFlat: GateInfo[] = [];
   if (relevantProjectIds.length > 0) {
     const { data: rawGates } = await supabase
       .from("gates")
@@ -266,7 +271,16 @@ export default async function VendorDetailPage({ searchParams }: Props) {
       if (!gatesByProjectId.has(g.project_id)) gatesByProjectId.set(g.project_id, []);
       gatesByProjectId.get(g.project_id)!.push({ id: g.id, name: g.name, sequence_number: g.sequence_number });
       gateNameById.set(g.id, { name: g.name, sequence_number: g.sequence_number });
+      if (!allGatesFlat.find((x) => x.id === g.id)) allGatesFlat.push({ id: g.id, name: g.name, sequence_number: g.sequence_number });
     }
+  }
+
+  // ── Apply gate filter (in-memory, after assignments are loaded) ───
+  if (gateIdFilter) {
+    transactions = transactions.filter((tx) => {
+      const ga = gateAssignmentByTxId.get(tx.id);
+      return ga?.gate_id === gateIdFilter;
+    });
   }
 
   // AppFolio base URL for bill deep-links
@@ -317,10 +331,12 @@ export default async function VendorDetailPage({ searchParams }: Props) {
           <ReportControls
             projects={projects}
             categories={categories}
+            gates={allGatesFlat}
             currentProjectIds={projectIds}
             currentVendorName={vendorName}
             currentCategoryCode={categoryCode}
             currentAsOf={asOf}
+            currentGateId={gateIdFilter}
           />
         </div>
 
@@ -334,6 +350,11 @@ export default async function VendorDetailPage({ searchParams }: Props) {
               <span className="font-medium text-foreground">{vendorLabel}</span>
               &nbsp;·&nbsp;
               {categoryLabel}
+              {gateIdFilter && gateNameById.has(gateIdFilter) && (
+                <span className="ml-2 inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
+                  G{gateNameById.get(gateIdFilter)!.sequence_number} — {gateNameById.get(gateIdFilter)!.name}
+                </span>
+              )}
               &nbsp;·&nbsp; As of{" "}
               {new Date(asOf + "T00:00:00").toLocaleDateString("en-US", {
                 month: "long",
