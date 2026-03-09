@@ -10,7 +10,6 @@ import { PendingCOs, type PendingCO } from "./pending-cos";
 import { BudgetAlerts, type OverBudgetAlert } from "./budget-alerts";
 import { COIAlerts, type COIAlert } from "./coi-alerts";
 import { LienWaiverAlerts, type LienWaiverAlert } from "./lien-waiver-alerts";
-import { SyncStatusBanner, type SyncStatus } from "./sync-status-banner";
 import { HELP } from "@/lib/help";
 import { DashboardChatInput } from "./dashboard-chat-input";
 
@@ -348,18 +347,6 @@ export default async function DashboardPage() {
     };
   });
 
-  // Last AppFolio sync status (admin only)
-  let lastSync: SyncStatus | null = null;
-  if (isAdmin) {
-    const { data: syncData } = await adminSupabase
-      .from("appfolio_syncs")
-      .select("status, completed_at, records_upserted, error_message, sync_type")
-      .order("started_at", { ascending: false })
-      .limit(1)
-      .single();
-    lastSync = syncData as SyncStatus | null;
-  }
-
   const bills: BillRow[] = (rawBills ?? []).map((b) => {
     const proj = propertyToProject.get(b.appfolio_property_id);
     return {
@@ -412,9 +399,6 @@ export default async function DashboardPage() {
         <p className="text-sm font-medium text-foreground -mt-2">
           Here&apos;s an overview of your construction projects.
         </p>
-
-        {/* AppFolio sync status — admin only */}
-        {isAdmin && <SyncStatusBanner sync={lastSync} />}
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <div className="rounded-lg border bg-card px-5 py-4">
