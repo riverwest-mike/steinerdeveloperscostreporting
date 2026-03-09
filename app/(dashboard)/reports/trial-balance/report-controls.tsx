@@ -3,10 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+const STATUS_LABEL: Record<string, string> = {
+  on_hold: " (on hold)",
+  completed: " (completed)",
+  archived: " (archived)",
+};
+
 interface Project {
   id: string;
   name: string;
   code: string;
+  status?: string;
 }
 
 interface Props {
@@ -53,7 +60,7 @@ export function ReportControls({
             <option value="">— All Projects —</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.code} — {p.name}
+                {p.code} — {p.name}{p.status ? (STATUS_LABEL[p.status] ?? "") : ""}
               </option>
             ))}
           </select>

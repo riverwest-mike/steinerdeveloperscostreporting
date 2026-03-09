@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-interface Project { id: string; name: string; code: string }
+interface Project { id: string; name: string; code: string; status?: string }
 interface Category { id: string; name: string; code: string }
 
 interface Props {

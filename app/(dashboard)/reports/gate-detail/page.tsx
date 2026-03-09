@@ -95,6 +95,7 @@ interface ProjectInfo {
   name: string;
   code: string;
   appfolio_property_id: string | null;
+  status: string;
 }
 
 /* ─── Page ────────────────────────────────────────────── */
@@ -132,7 +133,7 @@ export default async function GateDetailPage({ searchParams }: Props) {
 
   // Load all projects and categories for controls
   const [{ data: allProjects }, { data: rawCategories }] = await Promise.all([
-    supabase.from("projects").select("id, name, code, appfolio_property_id").order("name"),
+    supabase.from("projects").select("id, name, code, appfolio_property_id, status").order("name"),
     supabase.from("cost_categories").select("id, name, code").eq("is_active", true).order("display_order"),
   ]);
 

@@ -54,7 +54,7 @@ export default async function CostCategoryReportPage({ params }: Props) {
         .order("display_order"),
       supabase
         .from("projects")
-        .select("id, name, code, appfolio_property_id")
+        .select("id, name, code, appfolio_property_id, status")
         .order("name"),
     ]);
 
@@ -164,7 +164,7 @@ export default async function CostCategoryReportPage({ params }: Props) {
         {/* Project picker */}
         <div className="mb-6">
           <ProjectPicker
-            projects={(allProjects ?? []) as { id: string; name: string; code: string; appfolio_property_id: string | null }[]}
+            projects={(allProjects ?? []) as { id: string; name: string; code: string; appfolio_property_id: string | null; status: string }[]}
             currentId={projectId}
           />
         </div>

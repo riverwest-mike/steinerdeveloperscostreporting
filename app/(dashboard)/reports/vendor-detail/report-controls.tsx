@@ -9,6 +9,7 @@ interface Project {
   name: string;
   code: string;
   appfolio_property_id: string | null;
+  status?: string;
 }
 
 interface Category {
