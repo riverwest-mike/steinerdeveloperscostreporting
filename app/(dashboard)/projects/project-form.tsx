@@ -29,7 +29,7 @@ interface ProjectFormProps {
   appfolioBaseUrl?: string;
 }
 
-const PROPERTY_TYPES = ["Multifamily", "Commercial", "Mixed-Use", "Land", "Other"];
+const PROPERTY_TYPES = ["Multifamily", "MHP", "Commercial", "Mixed-Use", "Land", "Other"];
 const STATUSES = [
   { value: "active", label: "Active" },
   { value: "on_hold", label: "On Hold" },
