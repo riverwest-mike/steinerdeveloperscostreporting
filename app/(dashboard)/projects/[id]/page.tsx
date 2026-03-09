@@ -11,6 +11,7 @@ import { GatesSection } from "./gates-section";
 import { ContractsSection } from "./contracts-section";
 import { VendorsSection } from "./vendors-section";
 import { DocumentsSection } from "./documents-section";
+import { MapTab } from "./map-tab";
 import { getMyRole } from "./gates/actions";
 import { HELP } from "@/lib/help";
 
@@ -164,6 +165,14 @@ export default async function ProjectPage({ params }: Props) {
             />
           }
           documents={<DocumentsSection projectId={id} documentCount={documentCount ?? 0} />}
+          map={
+            <MapTab
+              address={project.address}
+              city={project.city}
+              state={project.state}
+              projectName={project.name}
+            />
+          }
         />
       </div>
     </div>

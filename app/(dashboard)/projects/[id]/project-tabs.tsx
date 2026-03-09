@@ -18,6 +18,7 @@ interface ProjectTabsProps {
   contracts: React.ReactNode;
   vendors: React.ReactNode;
   documents: React.ReactNode;
+  map: React.ReactNode;
 }
 
 export function ProjectTabs({
@@ -30,6 +31,7 @@ export function ProjectTabs({
   contracts,
   vendors,
   documents,
+  map,
 }: ProjectTabsProps) {
   const [active, setActive] = useState("overview");
 
@@ -39,6 +41,7 @@ export function ProjectTabs({
     { id: "contracts", label: "Contracts", count: contractCount },
     { id: "vendors", label: "Vendors", count: vendorCount },
     { id: "documents", label: "Documents", count: documentCount },
+    { id: "map", label: "Map" },
   ];
 
   const contentMap: Record<string, React.ReactNode> = {
@@ -47,6 +50,7 @@ export function ProjectTabs({
     contracts,
     vendors,
     documents,
+    map,
   };
 
   return (
