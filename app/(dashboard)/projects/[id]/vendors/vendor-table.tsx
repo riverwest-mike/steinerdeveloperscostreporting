@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { addProjectVendor, setVendorActive, deleteProjectVendor, renameProjectVendor } from "./actions";
 
 interface Vendor {
@@ -192,7 +193,12 @@ export function VendorTable({ projectId, vendors, canEdit, isAdmin }: VendorTabl
                         {editError && <span className="text-xs text-destructive">{editError}</span>}
                       </div>
                     ) : (
-                      v.name
+                      <Link
+                        href={`/vendors/${encodeURIComponent(v.name)}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        {v.name}
+                      </Link>
                     )}
                   </td>
                   <td className="px-4 py-2.5">
