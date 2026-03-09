@@ -80,9 +80,6 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Commitment Detail", desc: "Every contract that makes up PCM column G (Total Committed)." },
       { label: "Change Order Log", desc: "All change orders across projects — filter by status, type, cost category, or date range." },
       { label: "Balance Sheet", desc: "AppFolio balance sheet data synced per project." },
-      { label: "Trial Balance", desc: "All AppFolio transactions grouped by GL account for a selected project and date range." },
-      { label: "Gate Detail", desc: "Transactions filtered by gate (budget phase). Shows everything assigned to a specific gate with project, vendor, cost category, and amounts. Gate assignments are set automatically during sync." },
-      { label: "Reporting Package", desc: "Open the PCM Report and Balance Sheet for a project side-by-side in two new tabs — useful for client deliverables." },
     ],
     tip: "Use the Columns button on any report to show or hide individual columns. Your column preferences are saved per report.",
   },
@@ -230,6 +227,25 @@ export const HELP: Record<string, PageHelpContent> = {
     tip: "The cost code must match the account code in AppFolio for transaction matching to work. Check Admin › AppFolio if transactions are appearing as 'Unmatched'.",
   },
 
+
+  pipeline: {
+    title: "Pipeline",
+    description: "Track every project from initial prospect through disposition. The pipeline gives ownership-level visibility across your entire deal flow — budget consumption, equity deployed, and time in each stage.",
+    actions: [
+      { label: "Board view", desc: "The default Kanban view shows one column per stage. Each card displays the project name, budget consumption bar, financial highlights, and days in the current stage. Admins and Project Managers can move a project to a different stage using the dropdown at the bottom of each card." },
+      { label: "List view", desc: "A sortable table showing all projects with stage, budget, actual spend, equity invested, projected cost, and expected completion. Click any column header to sort. Use the stage filter chips at the top to narrow to a single stage." },
+      { label: "Edit financials", desc: "Each board card has a pencil icon to edit three financial fields: Acquisition Price, Equity Invested, and Projected Total Cost. These appear on the card and in the list view totals row." },
+      { label: "Move stage", desc: "Admins and Project Managers can change a project's pipeline stage using the dropdown on the board card or in the list view. The stage change is logged in the audit trail and the 'days in stage' counter resets." },
+      { label: "Show archived", desc: "Archived projects are hidden by default. Click '+ N archived' in the toolbar to include them in the view." },
+    ],
+    sections: [
+      {
+        heading: "Stage Reference",
+        body: "Prospect — Land or asset under initial evaluation, no commitment yet.\n\nUnder Contract — PSA executed; due diligence underway.\n\nPre-Development — Entitlements, design, permitting.\n\nConstruction — Active build phase.\n\nLease-Up — Construction complete; occupancy ramping.\n\nStabilized — Fully operational at target occupancy.\n\nDisposed — Asset sold or exited.",
+      },
+    ],
+    tip: "Stage changes are recorded in Admin › Audit Log. The Acquisition Price, Equity Invested, and Projected Cost fields feed the portfolio totals row at the bottom of the list view.",
+  },
 
   vendors: {
     title: "Vendors",
