@@ -4,8 +4,8 @@ CREATE TABLE IF NOT EXISTS transaction_notes (
   appfolio_bill_id TEXT PRIMARY KEY
     REFERENCES appfolio_transactions(appfolio_bill_id) ON DELETE CASCADE,
   note             TEXT NOT NULL DEFAULT '',
-  created_by       UUID REFERENCES users(id) ON DELETE SET NULL,
-  updated_by       UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_by       TEXT REFERENCES users(id) ON DELETE SET NULL,
+  updated_by       TEXT REFERENCES users(id) ON DELETE SET NULL,
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

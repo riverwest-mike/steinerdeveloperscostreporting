@@ -17,39 +17,51 @@ interface Category {
   code: string;
 }
 
+interface Gate {
+  id: string;
+  name: string;
+  sequence_number: number;
+}
+
 interface ReportControlsProps {
   projects: Project[];
   categories: Category[];
+  gates: Gate[];
   currentProjectIds: string[];
   currentVendorName: string | null;
   currentCategoryCode: string | null;
   currentAsOf: string;
+  currentGateId: string | null;
 }
 
 export function ReportControls({
   projects,
   categories,
+  gates,
   currentProjectIds,
   currentVendorName,
   currentCategoryCode,
   currentAsOf,
+  currentGateId,
 }: ReportControlsProps) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(currentProjectIds));
   const [vendorName, setVendorName] = useState(currentVendorName ?? "");
   const [categoryCode, setCategoryCode] = useState(currentCategoryCode ?? "");
   const [asOf, setAsOf] = useState(currentAsOf);
+  const [gateId, setGateId] = useState(currentGateId ?? "");
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [syncMsg, setSyncMsg] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  function buildUrl(ids: Set<string>, vendor: string, code: string, date: string) {
+  function buildUrl(ids: Set<string>, vendor: string, code: string, date: string, gate: string) {
     const params = new URLSearchParams();
     const sorted = [...ids].sort();
     if (sorted.length > 0) params.set("projectIds", sorted.join(","));
     if (vendor.trim()) params.set("vendorName", vendor.trim());
     if (code) params.set("categoryCode", code);
     if (date) params.set("asOf", date);
+    if (gate) params.set("gateId", gate);
     return `/reports/vendor-detail?${params.toString()}`;
   }
 
@@ -60,13 +72,14 @@ export function ReportControls({
         vendorName,
         categoryCode,
         asOf,
+        gateId,
       }));
     } catch { /* ignore */ }
 
     const toSync = projects.filter((p) => selectedIds.has(p.id) && p.appfolio_property_id);
 
     if (toSync.length === 0) {
-      router.push(buildUrl(selectedIds, vendorName, categoryCode, asOf));
+      router.push(buildUrl(selectedIds, vendorName, categoryCode, asOf, gateId));
       return;
     }
 
@@ -93,7 +106,7 @@ export function ReportControls({
         setSyncStatus("error");
         setSyncMsg(err instanceof Error ? err.message : "Sync failed");
       }
-      router.push(buildUrl(selectedIds, vendorName, categoryCode, asOf));
+      router.push(buildUrl(selectedIds, vendorName, categoryCode, asOf, gateId));
       router.refresh();
     });
   }
@@ -109,7 +122,7 @@ export function ReportControls({
           <ProjectMultiSelect
             projects={projects}
             selectedIds={selectedIds}
-            onChange={(ids) => { setSelectedIds(ids); setSyncStatus("idle"); }}
+            onChange={(ids) => { setSelectedIds(ids); setGateId(""); setSyncStatus("idle"); }}
           />
           <span className="text-[10px] text-muted-foreground">None selected = all projects</span>
         </div>
@@ -146,6 +159,27 @@ export function ReportControls({
             ))}
           </select>
         </div>
+
+        {gates.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <label htmlFor="vd-gate" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Gate
+            </label>
+            <select
+              id="vd-gate"
+              value={gateId}
+              onChange={(e) => { setGateId(e.target.value); setSyncStatus("idle"); }}
+              className="h-9 min-w-[180px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">— All Gates —</option>
+              {gates.map((g) => (
+                <option key={g.id} value={g.id}>
+                  G{g.sequence_number} — {g.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="flex flex-col gap-1">
           <label htmlFor="vd-date" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
