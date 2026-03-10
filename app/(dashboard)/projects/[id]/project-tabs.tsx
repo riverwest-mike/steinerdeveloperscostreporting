@@ -14,11 +14,13 @@ interface ProjectTabsProps {
   contractCount: number;
   vendorCount: number;
   documentCount: number;
+  drawCount: number;
   overview: React.ReactNode;
   gates: React.ReactNode;
   contracts: React.ReactNode;
   vendors: React.ReactNode;
   documents: React.ReactNode;
+  draws: React.ReactNode;
   map: React.ReactNode;
 }
 
@@ -27,11 +29,13 @@ export function ProjectTabs({
   contractCount,
   vendorCount,
   documentCount,
+  drawCount,
   overview,
   gates,
   contracts,
   vendors,
   documents,
+  draws,
   map,
 }: ProjectTabsProps) {
   const searchParams = useSearchParams();
@@ -58,6 +62,7 @@ export function ProjectTabs({
     { id: "contracts", label: "Contracts", count: contractCount },
     { id: "vendors", label: "Vendors", count: vendorCount },
     { id: "documents", label: "Documents", count: documentCount },
+    { id: "draws", label: "Draws", count: drawCount },
     { id: "map", label: "Map" },
   ];
 
@@ -67,6 +72,7 @@ export function ProjectTabs({
     contracts,
     vendors,
     documents,
+    draws,
     map,
   };
 

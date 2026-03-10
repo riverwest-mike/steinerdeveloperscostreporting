@@ -22,6 +22,7 @@ interface Project {
   description: string | null;
   image_url: string | null;
   pm_user_id: string | null;
+  lender: string | null;
 }
 
 interface PmUser {
@@ -272,7 +273,23 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl, isAdmin, pmUse
         </div>
       )}
 
-      {/* Row 6: Description */}
+      {/* Row 6: Lender */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="space-y-1">
+          <label className="text-xs font-medium" htmlFor="lender">
+            Lender
+          </label>
+          <input
+            id="lender"
+            name="lender"
+            defaultValue={editing?.lender ?? ""}
+            placeholder="e.g. First Midwest Bank"
+            className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+          />
+        </div>
+      </div>
+
+      {/* Row 7: Description */}
       <div className="space-y-1">
         <label className="text-xs font-medium" htmlFor="description">
           Notes / Description
@@ -287,7 +304,7 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl, isAdmin, pmUse
         />
       </div>
 
-      {/* Row 7: Cover Image */}
+      {/* Row 8: Cover Image */}
       <div className="space-y-1">
         <label className="text-xs font-medium" htmlFor="image">
           Cover Image
