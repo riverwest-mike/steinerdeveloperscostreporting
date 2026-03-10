@@ -208,18 +208,16 @@ export async function getPendingInvites(): Promise<{
   }
 }
 
-export async function revokeInvite(inviteId: string): Promise<{ error?: string }> {
+export async function revokeInvite(inviteId: string, email: string): Promise<{ error?: string }> {
   try {
     const { supabase } = await requireAdminCaller();
     const clerk = await clerkClient();
-    // Get email before revoking so we can clean up pending assignments
-    const inv = await clerk.invitations.getInvitation(inviteId);
     await clerk.invitations.revokeInvitation(inviteId);
     // Clean up any pending project assignments for this invite
     await supabase
       .from("pending_project_assignments")
       .delete()
-      .eq("invite_email", inv.emailAddress);
+      .eq("invite_email", email);
     revalidatePath("/admin");
     return {};
   } catch (err) {

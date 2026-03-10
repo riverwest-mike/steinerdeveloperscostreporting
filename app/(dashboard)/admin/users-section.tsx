@@ -49,7 +49,7 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
     setRevokeError(null);
     setRevoking(inviteId);
     startTransition(async () => {
-      const result = await revokeInvite(inviteId);
+      const result = await revokeInvite(inviteId, email);
       if (result.error) setRevokeError(result.error);
       setRevoking(null);
     });
