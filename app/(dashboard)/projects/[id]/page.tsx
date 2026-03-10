@@ -128,10 +128,10 @@ export default async function ProjectPage({ params }: Props) {
         </nav>
 
         {/* Project identity header — always visible above tabs */}
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between flex-wrap gap-2">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{project.name}</h1>
               <span
                 className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                   STATUS_STYLES[project.status] ?? "bg-gray-100 text-gray-800"

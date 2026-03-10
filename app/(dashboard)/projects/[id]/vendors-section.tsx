@@ -29,19 +29,28 @@ export function VendorsSection({ projectId, vendors }: VendorsSectionProps) {
   });
 
   return (
-    <div className="space-y-4 mt-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <p className="text-sm text-muted-foreground">
-          {vendors.length} vendor{vendors.length !== 1 ? "s" : ""}.{" "}
-          <span className="text-green-700 font-medium">{activeCount} active</span>
+    <div className="rounded-lg border mt-6">
+      {/* Panel header — matches Gates & Contracts */}
+      <div className="px-4 py-3 border-b bg-muted/50 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-sm">Vendors</h3>
+          <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5">
+            {vendors.length}
+          </span>
+          {activeCount > 0 && (
+            <span className="text-xs text-green-700 font-medium hidden sm:inline">
+              {activeCount} active
+            </span>
+          )}
           {inactiveCount > 0 && (
-            <span className="text-muted-foreground">, {inactiveCount} inactive</span>
-          )}.
-        </p>
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              , {inactiveCount} inactive
+            </span>
+          )}
+        </div>
         <Link
           href={`/projects/${projectId}/vendors`}
-          className="rounded border px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors shrink-0"
+          className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
         >
           Manage Vendors →
         </Link>
@@ -49,13 +58,13 @@ export function VendorsSection({ projectId, vendors }: VendorsSectionProps) {
 
       {/* Search + filter row */}
       {vendors.length > 0 && (
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="px-4 py-3 border-b bg-muted/20 flex items-center gap-3 flex-wrap">
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search vendors…"
-            className="h-9 w-full max-w-xs rounded border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            className="h-8 w-full max-w-xs rounded border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
           />
           <div className="flex rounded-md border overflow-hidden text-xs font-medium w-fit">
             {(["active", "inactive", "all"] as const).map((f) => (
@@ -81,32 +90,28 @@ export function VendorsSection({ projectId, vendors }: VendorsSectionProps) {
 
       {/* Table */}
       {vendors.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            No vendors yet. Vendors are added automatically when AppFolio syncs
-            or when contracts are entered.
-          </p>
+        <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+          No vendors yet. Vendors are added automatically when AppFolio syncs
+          or when contracts are entered.
         </div>
       ) : displayed.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            {search
-              ? `No vendors match "${search}".`
-              : filter === "inactive"
-              ? "No inactive vendors."
-              : "No vendors match this filter."}
-          </p>
+        <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+          {search
+            ? `No vendors match "${search}".`
+            : filter === "inactive"
+            ? "No inactive vendors."
+            : "No vendors match this filter."}
         </div>
       ) : (
-        <div className="rounded-lg border overflow-hidden">
+        <div className="max-h-72 overflow-x-auto overflow-y-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-slate-800 text-white text-xs">
-                <th className="px-4 py-2.5 text-left font-medium">
+              <tr className="bg-slate-800 text-white sticky top-0">
+                <th className="px-4 py-2.5 text-left text-xs font-medium">
                   Vendor Name
                 </th>
-                <th className="px-4 py-2.5 text-left font-medium">Status</th>
-                <th className="px-4 py-2.5 text-right font-medium">Profile</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium">Status</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium">Profile</th>
               </tr>
             </thead>
             <tbody className="divide-y">

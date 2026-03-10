@@ -38,13 +38,13 @@ export function MapTab({ address, city, state, projectName }: MapTabProps) {
           href={googleMapsUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded border px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors shrink-0"
+          className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
         >
           Open in Google Maps →
         </a>
       </div>
 
-      <div className="rounded-lg border overflow-hidden" style={{ height: 480 }}>
+      <div className="rounded-lg border overflow-hidden h-64 sm:h-96 md:h-[480px]">
         <iframe
           title={`Map of ${projectName}`}
           width="100%"

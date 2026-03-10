@@ -56,15 +56,15 @@ export function ContractsSection({ projectId, contracts }: ContractsSectionProps
         <div className="max-h-72 overflow-y-auto overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/30 sticky top-0">
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Vendor</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Contract #</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Gates</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Category</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Original</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Approved COs</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">Revised</th>
-                <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Status</th>
+              <tr className="bg-slate-800 text-white sticky top-0">
+                <th className="px-4 py-2.5 text-left text-xs font-medium">Vendor</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium hidden md:table-cell">Contract #</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium hidden lg:table-cell">Gates</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium hidden lg:table-cell">Category</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium hidden sm:table-cell">Original</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium hidden md:table-cell">Approved COs</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium">Revised</th>
+                <th className="px-4 py-2.5 text-left text-xs font-medium">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -78,13 +78,13 @@ export function ContractsSection({ projectId, contracts }: ContractsSectionProps
                       {c.vendor_name}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  <td className="px-4 py-3 font-mono text-xs text-muted-foreground hidden md:table-cell">
                     {c.contract_number ?? "—"}
                   </td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{c.gate_names ?? "—"}</td>
-                  <td className="px-4 py-3 text-xs text-muted-foreground">{c.category_name ?? "—"}</td>
-                  <td className="px-4 py-3 text-right font-mono text-xs">{fmtCurrency(c.original_value)}</td>
-                  <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
+                  <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">{c.gate_names ?? "—"}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground hidden lg:table-cell">{c.category_name ?? "—"}</td>
+                  <td className="px-4 py-3 text-right font-mono text-xs hidden sm:table-cell">{fmtCurrency(c.original_value)}</td>
+                  <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground hidden md:table-cell">
                     {c.approved_co_amount !== 0 ? fmtCurrency(c.approved_co_amount) : "—"}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-xs font-medium">{fmtCurrency(c.revised_value)}</td>
@@ -98,11 +98,14 @@ export function ContractsSection({ projectId, contracts }: ContractsSectionProps
             </tbody>
             <tfoot>
               <tr className="border-t bg-muted/30 font-medium">
-                <td className="px-4 py-2.5 text-xs" colSpan={4}>Total ({contracts.length})</td>
-                <td className="px-4 py-2.5 text-right font-mono text-xs">
+                <td className="px-4 py-2.5 text-xs">Total ({contracts.length})</td>
+                <td className="hidden md:table-cell" />
+                <td className="hidden lg:table-cell" />
+                <td className="hidden lg:table-cell" />
+                <td className="px-4 py-2.5 text-right font-mono text-xs hidden sm:table-cell">
                   {fmtCurrency(contracts.reduce((s, c) => s + c.original_value, 0))}
                 </td>
-                <td className="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">
+                <td className="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground hidden md:table-cell">
                   {fmtCurrency(contracts.reduce((s, c) => s + c.approved_co_amount, 0))}
                 </td>
                 <td className="px-4 py-2.5 text-right font-mono text-xs">

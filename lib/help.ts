@@ -22,20 +22,21 @@ export const HELP: Record<string, PageHelpContent> = {
     actions: [
       { label: "Status tabs", desc: "Filter the list by status: All, Active, On Hold, Completed, or Archived. The count next to each tab shows how many projects match." },
       { label: "New Project", desc: "Create a project by filling in the name, code, type, address, and other details. The code (e.g. 'SD-001') appears throughout reports. If an AppFolio property is mapped at creation, a transaction sync runs automatically so data is available immediately." },
-      { label: "Click a project row", desc: "Opens the project detail page with its gates, contracts, and full budget breakdown." },
+      { label: "Click a project row", desc: "Opens the project detail page with its gates, contracts, vendors, documents, and map." },
     ],
     tip: "Admins see all projects. Other roles only see projects they've been assigned to in Admin › Users & Access.",
   },
 
   projectDetail: {
     title: "Project Profile",
-    description: "The full profile for a single project. Five tabs organize everything: Overview, Gates, Contracts, Vendors, and Documents.",
+    description: "The full profile for a single project. Six tabs organize everything: Overview, Gates, Contracts, Vendors, Documents, and Map.",
     actions: [
       { label: "Overview tab", desc: "Shows project metadata — name, code, type, address, AppFolio property, and status. Admins and Project Managers can edit these details inline." },
-      { label: "Gates tab", desc: "Lists every budget phase (e.g. Pre-Development, Construction). Click a gate row to open its cost-category budget detail. The progress bar shows committed vs. budgeted. Use 'Add Gate' to create a new phase, or 'Upload Excel' to bulk-import a gate budget from a formatted spreadsheet." },
-      { label: "Contracts tab", desc: "All contracts for this project. Click any row to open the contract and view its Schedule of Values and change orders. Use 'Add Contract' to create a new contract with vendor, value, gate, and cost category." },
-      { label: "Vendors tab", desc: "Active vendors linked to this project. Use the search box to filter by name — results update as you type. Click any vendor tag to open that vendor's full profile page showing compliance documents, transaction history, and all project assignments. Use 'Manage Vendors' to add, rename, or deactivate vendors." },
-      { label: "Documents tab", desc: "Project-level file attachments. Click 'Manage Documents' to upload or remove files." },
+      { label: "Gates tab", desc: "Lists every budget phase (e.g. Pre-Development, Construction). Click a gate row to open its cost-category budget detail. Use '+ Add Gate' to create a new phase, or 'Upload Excel' to bulk-import a gate budget from a formatted spreadsheet." },
+      { label: "Contracts tab", desc: "All contracts for this project. Click any row to open the contract and view its Schedule of Values and change orders. Use '+ Add Contract' to create a new contract with vendor, value, gate, and cost category." },
+      { label: "Vendors tab", desc: "Vendors linked to this project. Use the search box and Active/Inactive/All filter to find vendors. Click any vendor name to open their full profile. Use 'Manage Vendors' to add, rename, or deactivate vendors." },
+      { label: "Documents tab", desc: "Project-level file attachments. Click 'Manage Documents' to upload, download, or remove files. Supports any file type." },
+      { label: "Map tab", desc: "Shows the project location on Google Maps based on the address entered in the Overview tab. Use 'Open in Google Maps' to open in a new tab for directions or street view." },
     ],
     tip: "Run the PCM Report (Reporting › Project Cost Management) to see this project's complete budget-vs.-actual breakdown across all gates and cost categories.",
   },
@@ -80,6 +81,9 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Commitment Detail", desc: "Every contract that makes up PCM column G (Total Committed)." },
       { label: "Change Order Log", desc: "All change orders across projects — filter by status, type, cost category, or date range." },
       { label: "Balance Sheet", desc: "AppFolio balance sheet data synced per project." },
+      { label: "Trial Balance", desc: "All GL accounts with debit, credit, and net balance totals. Includes a balanced check in the totals row." },
+      { label: "Gate Detail", desc: "All transactions assigned to a specific gate (budget phase) — filter by project, gate, cost category, and payment status." },
+      { label: "Reporting Package", desc: "Opens the PCM Report and Balance Sheet side-by-side in two tabs for a selected project — useful for client deliverables." },
     ],
     tip: "Use the Columns button on any report to show or hide individual columns. Your column preferences are saved per report.",
   },
@@ -93,6 +97,8 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Run Report", desc: "Syncs AppFolio data for the selected projects, then loads the report. May take a few seconds for large projects." },
       { label: "Click column G", desc: "Any cell in the Total Committed column opens Commitment Detail pre-filtered to that project + cost category." },
       { label: "Click columns J or K", desc: "Opens Cost Detail pre-filtered to that project + cost category + paid/unpaid status." },
+      { label: "Export to Excel", desc: "Downloads all report data as a formatted spreadsheet with pre-set column widths and number formatting." },
+      { label: "Print / PDF", desc: "Switches to landscape orientation with branded dark table headers for professional-looking output." },
     ],
     sections: [
       {
@@ -116,6 +122,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Paid / Unpaid", desc: "Toggle between paid (J) and unpaid (K) transactions, or show all." },
       { label: "Date range", desc: "Filter transactions to a specific date window." },
       { label: "Gate column", desc: "Shows which gate (budget phase) each transaction has been assigned to. Assignments are set automatically during sync based on the transaction's bill date. A small blue dot indicates the gate was manually assigned. Admins and Project Managers can change the gate by hovering over the row and clicking the pencil icon — a dropdown lists all gates for that project." },
+      { label: "Export to Excel", desc: "Downloads all filtered rows as a formatted spreadsheet." },
     ],
     tip: "Click a bill description to open the invoice directly in AppFolio (requires your AppFolio URL to be configured in Admin).",
   },
@@ -128,6 +135,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Project filter", desc: "Limit to one project, or show the vendor across all projects you have access to." },
       { label: "Date range", desc: "Filter to a specific time window." },
       { label: "Gate column", desc: "Shows which gate (budget phase) each transaction has been assigned to. Assignments are set automatically during sync based on the transaction's bill date. A small blue dot indicates the gate was manually assigned. Admins and Project Managers can change the gate by hovering over the row and clicking the pencil icon." },
+      { label: "Export to Excel", desc: "Downloads all filtered rows as a formatted spreadsheet." },
     ],
     tip: "Useful for checking whether a vendor's invoices match their contract commitments.",
   },
@@ -142,6 +150,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Payment filter", desc: "Show all transactions, paid only, or unpaid only." },
       { label: "As of Date", desc: "Filters transactions to activity through this date. Useful for month-end reporting." },
       { label: "Gate column", desc: "Shows the assigned gate for each transaction. Admins and Project Managers can reassign a transaction to a different gate by clicking the pencil icon. A blue dot indicates the gate was manually assigned rather than auto-assigned." },
+      { label: "Export to Excel", desc: "Downloads all filtered rows as a formatted spreadsheet." },
     ],
     tip: "Gate assignments are set automatically during sync when the transaction's bill date falls within the gate's start and end date window. Set start and end dates on your gates in the Project › Gate Detail page to enable auto-assignment.",
   },
@@ -171,6 +180,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Cost category filter", desc: "Narrow to a specific cost code." },
       { label: "Contract status", desc: "Show Active contracts only, Complete, or All (includes terminated)." },
       { label: "As-of Date", desc: "Only includes contracts and change orders with activity through this date." },
+      { label: "Export to Excel", desc: "Downloads all filtered rows as a formatted spreadsheet." },
     ],
     tip: "Clicking PCM column G opens this report pre-filtered to that project and cost category automatically.",
   },
@@ -182,8 +192,34 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Select projects", desc: "Pick one or multiple projects. Each must have an AppFolio property mapped in Admin › AppFolio." },
       { label: "Accounting Basis", desc: "Choose Accrual or Cash basis to match your reporting needs." },
       { label: "Run Report", desc: "Syncs AppFolio balance sheet data for the selected projects before displaying." },
+      { label: "Export to Excel", desc: "Downloads the balance sheet as a formatted spreadsheet." },
     ],
     tip: "Balance sheet data is only as current as the last AppFolio sync. Run from Admin › AppFolio to force an update.",
+  },
+
+  trialBalance: {
+    title: "Trial Balance Report",
+    description: "All GL accounts for the selected project and date range, with debit (invoiced), credit (paid), and net balance totals. Includes all known GL accounts — even those with no activity in the period.",
+    actions: [
+      { label: "Project filter", desc: "Select a single project to see its GL accounts, or leave blank to see all projects you have access to." },
+      { label: "Date From / Date To", desc: "Filter transactions to a specific time window. Leave Date From blank to include all history through the end date." },
+      { label: "Run Report", desc: "Loads GL account data for the selected filters. No AppFolio sync is triggered — this report reads data already synced." },
+      { label: "Balanced check", desc: "The totals row shows a green '✓ Balanced' badge if Debits = Credits + Net Balance, confirming data integrity. A red badge means there may be inconsistent data." },
+      { label: "DR / CR badges", desc: "Each row shows whether the net balance is a Debit (DR, amber) or Credit (CR, blue) position." },
+      { label: "Export to Excel", desc: "Downloads the trial balance as a formatted spreadsheet." },
+    ],
+    tip: "The Trial Balance uses the same AppFolio transaction data as the PCM and Cost Detail reports. Run a sync from Admin › AppFolio first if you need the most current data.",
+  },
+
+  reportingPackage: {
+    title: "Reporting Package",
+    description: "Opens the Project Cost Management Report and Balance Sheet Report side-by-side in two browser tabs for a selected project — useful for producing a complete client deliverable in one step.",
+    actions: [
+      { label: "Select project", desc: "Choose the project you want to report on. Only one project can be selected at a time for the Reporting Package." },
+      { label: "Open Package", desc: "Click 'Open Reporting Package' to launch both the PCM Report and the Balance Sheet in separate browser tabs, pre-filtered to the selected project." },
+      { label: "Print or Export", desc: "In each tab, use the Print or Export to Excel buttons to generate the deliverables. The PCM Report prints in landscape with branded formatting; the Balance Sheet does the same." },
+    ],
+    tip: "Make sure your browser allows pop-ups from this site, or the two tabs may not open automatically. If only one tab opens, check your browser's pop-up settings.",
   },
 
   adminIndex: {
@@ -226,7 +262,6 @@ export const HELP: Record<string, PageHelpContent> = {
     ],
     tip: "The cost code must match the account code in AppFolio for transaction matching to work. Check Admin › AppFolio if transactions are appearing as 'Unmatched'.",
   },
-
 
   vendors: {
     title: "Vendors",
