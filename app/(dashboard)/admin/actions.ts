@@ -9,14 +9,15 @@ type Role = "admin" | "project_manager" | "read_only";
 
 export async function inviteUser(
   email: string,
-  role: Role
+  role: Role,
+  projectIds: string[] = []
 ): Promise<{ error?: string }> {
   try {
     await requireAdminCaller();
     const clerk = await clerkClient();
     await clerk.invitations.createInvitation({
       emailAddress: email,
-      publicMetadata: { role },
+      publicMetadata: { role, projectIds },
       redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/sign-up`,
       ignoreExisting: false,
     });
@@ -128,20 +129,24 @@ export async function removeUserFromProject(
 }
 
 export async function getPendingInvites(): Promise<{
-  invites?: Array<{ id: string; emailAddress: string; role: string; createdAt: number; status: string }>;
+  invites?: Array<{ id: string; emailAddress: string; role: string; createdAt: number; status: string; projectIds: string[] }>;
   error?: string;
 }> {
   try {
     await requireAdminCaller();
     const clerk = await clerkClient();
     const { data: invitations } = await clerk.invitations.getInvitationList({ status: "pending" });
-    const invites = invitations.map((inv) => ({
-      id: inv.id,
-      emailAddress: inv.emailAddress,
-      role: (inv.publicMetadata as Record<string, string>)?.role ?? "read_only",
-      createdAt: inv.createdAt,
-      status: inv.status,
-    }));
+    const invites = invitations.map((inv) => {
+      const meta = inv.publicMetadata as Record<string, unknown>;
+      return {
+        id: inv.id,
+        emailAddress: inv.emailAddress,
+        role: (meta?.role as string) ?? "read_only",
+        projectIds: Array.isArray(meta?.projectIds) ? (meta.projectIds as string[]) : [],
+        createdAt: inv.createdAt,
+        status: inv.status,
+      };
+    });
     return { invites };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to fetch invitations" };

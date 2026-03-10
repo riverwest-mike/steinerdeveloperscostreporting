@@ -49,7 +49,8 @@ export default async function AdminUsersPage() {
         <UsersSection
           users={(users ?? []) as { id: string; email: string; full_name: string; role: string; is_active: boolean; created_at: string }[]}
           currentUserId={userId!}
-          pendingInvites={(pendingInvites ?? []) as { id: string; emailAddress: string; role: string; createdAt: number; status: string }[]}
+          pendingInvites={(pendingInvites ?? []) as { id: string; emailAddress: string; role: string; createdAt: number; status: string; projectIds: string[] }[]}
+          projects={(projects ?? []) as { id: string; name: string; code: string }[]}
         />
 
         <ProjectAccessSection
