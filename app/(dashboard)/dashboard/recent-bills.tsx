@@ -40,9 +40,11 @@ function usd(n: number): string {
 function BillsTable({
   bills,
   expanded = false,
+  onExpand,
 }: {
   bills: BillRow[];
   expanded?: boolean;
+  onExpand?: () => void;
 }) {
   const [days, setDays] = useState<number>(7);
   const [projectFilter, setProjectFilter] = useState("All");
@@ -154,6 +156,7 @@ function BillsTable({
               </option>
             ))}
           </select>
+          {onExpand && <ExpandButton onClick={onExpand} />}
         </div>
       </div>
 
@@ -273,12 +276,7 @@ export function RecentBills({ bills }: { bills: BillRow[] }) {
 
   return (
     <>
-      <div className="relative">
-        <div className="absolute top-0 right-0 z-10">
-          <ExpandButton onClick={() => setOpen(true)} />
-        </div>
-        <BillsTable bills={bills} />
-      </div>
+      <BillsTable bills={bills} onExpand={() => setOpen(true)} />
       <ExpandedModal open={open} onClose={() => setOpen(false)}>
         <BillsTable bills={bills} expanded />
       </ExpandedModal>
