@@ -20,7 +20,7 @@ export async function updateTransactionGate(
     .single();
 
   const role = (user as { role?: string } | null)?.role;
-  if (role !== "admin" && role !== "project_manager") {
+  if (role !== "admin" && role !== "project_manager" && role !== "accounting") {
     return { error: "Insufficient permissions" };
   }
 

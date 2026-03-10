@@ -22,7 +22,7 @@ export async function GET() {
       .select("role")
       .eq("id", userId)
       .single();
-    if (user?.role !== "admin") {
+    if (user?.role !== "admin" && user?.role !== "accounting") {
       return NextResponse.json({ error: "Admin role required" }, { status: 403 });
     }
 

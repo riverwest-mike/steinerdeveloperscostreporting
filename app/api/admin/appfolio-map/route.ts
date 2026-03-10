@@ -17,7 +17,7 @@ async function requireAdmin(): Promise<{ userId: string } | NextResponse> {
   if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const supabase = createAdminClient();
   const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
-  if (user?.role !== "admin") return NextResponse.json({ error: "Admin role required" }, { status: 403 });
+  if (user?.role !== "admin" && user?.role !== "accounting") return NextResponse.json({ error: "Admin role required" }, { status: 403 });
   return { userId };
 }
 

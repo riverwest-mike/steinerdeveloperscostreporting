@@ -15,7 +15,7 @@ async function requirePM() {
     .select("role")
     .eq("id", userId)
     .single();
-  if (!data || !["admin", "project_manager"].includes(data.role)) {
+  if (!data || !["admin", "project_manager", "accounting"].includes(data.role)) {
     throw new Error(`Insufficient permissions (role: ${data?.role ?? "none"})`);
   }
   return { userId, role: data.role as string, supabase };

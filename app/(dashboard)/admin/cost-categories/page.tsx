@@ -18,7 +18,7 @@ export default async function CostCategoriesPage() {
     .eq("id", userId!)
     .single();
 
-  if (caller?.role !== "admin") {
+  if (caller?.role !== "admin" && caller?.role !== "accounting") {
     redirect("/dashboard");
   }
 

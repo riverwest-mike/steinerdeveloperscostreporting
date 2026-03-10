@@ -25,7 +25,8 @@ export async function POST(request: Request) {
     .eq("id", userId)
     .single();
 
-  if ((user as { role?: string } | null)?.role !== "admin") {
+  const userRole = (user as { role?: string } | null)?.role;
+  if (userRole !== "admin" && userRole !== "accounting") {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 

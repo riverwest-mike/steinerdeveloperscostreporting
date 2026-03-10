@@ -135,13 +135,25 @@ Transactions are pulled from the AppFolio vendor ledger API:
 
 ## User Roles
 
-| Role | Capabilities |
-|------|-------------|
-| **Admin** | Full access — user management, cost categories, AppFolio settings, all reports |
-| **Project Manager** | Create/edit projects, gates, contracts, COs; reassign transaction gates; run reports |
-| **Read Only** | View all data; no edits |
+| Permission | Admin | Accounting | Project Manager | Read Only |
+|---|:---:|:---:|:---:|:---:|
+| **Project scope** | All projects | All projects | Assigned only | Assigned only |
+| View projects, gates, contracts, COs | ✅ | ✅ | ✅ | ✅ |
+| View reports (all types) | ✅ | ✅ | ✅ | ✅ |
+| View audit log | ✅ | ✅ | ❌ | ❌ |
+| Create / edit projects | ✅ | ✅ | ✅ | ❌ |
+| Create / edit gates & budgets | ✅ | ✅ | ✅ | ❌ |
+| Create / edit contracts & change orders | ✅ | ✅ | ✅ | ❌ |
+| Reassign transaction gates | ✅ | ✅ | ✅ | ❌ |
+| Upload vendor documents | ✅ | ✅ | ✅ | ❌ |
+| Link AppFolio property IDs | ✅ | ✅ | ❌ | ❌ |
+| AppFolio sync & settings | ✅ | ✅ | ❌ | ❌ |
+| Manage cost categories | ✅ | ✅ | ❌ | ❌ |
+| **Delete projects** | ✅ | ❌ | ❌ | ❌ |
+| **Delete / reopen gates** | ✅ | ❌ | ❌ | ❌ |
+| **Users & Access** (invite, roles, activate) | ✅ | ❌ | ❌ | ❌ |
 
-Admins see all projects. PMs and Read Only users see only projects they have been assigned to in Admin › Users & Access.
+Admins and Accounting users see all projects. Project Managers and Read Only users see only projects they have been assigned to in Admin › Users & Access.
 
 ## Deployment
 

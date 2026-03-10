@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-type Role = "admin" | "project_manager" | "read_only";
+type Role = "admin" | "project_manager" | "read_only" | "accounting";
 
 export async function inviteUser(
   email: string,

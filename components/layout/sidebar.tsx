@@ -43,6 +43,10 @@ interface SidebarProps {
 export function Sidebar({ role, onClose }: SidebarProps) {
   const pathname = usePathname();
   const isAdmin = role === "admin";
+  const showAdminSection = role === "admin" || role === "accounting";
+  const visibleAdminItems = role === "accounting"
+    ? adminItems.filter((item) => item.href !== "/admin/users")
+    : adminItems;
 
   const [reportsOpen, setReportsOpen] = useState(pathname.startsWith("/reports"));
   const [adminOpen, setAdminOpen] = useState(pathname.startsWith("/admin"));
@@ -148,7 +152,7 @@ export function Sidebar({ role, onClose }: SidebarProps) {
         </div>
 
         {/* Admin */}
-        {isAdmin && (
+        {showAdminSection && (
           <>
             <div className="my-2" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }} />
             <div>
@@ -171,7 +175,7 @@ export function Sidebar({ role, onClose }: SidebarProps) {
                   className="mt-1 ml-4 space-y-0.5 pl-3"
                   style={{ borderLeft: "1px solid hsl(var(--sidebar-border))" }}
                 >
-                  {adminItems.map((item) => (
+                  {visibleAdminItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
