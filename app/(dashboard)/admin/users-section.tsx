@@ -21,15 +21,23 @@ interface PendingInvite {
   role: string;
   createdAt: number;
   status: string;
+  projectIds: string[];
+}
+
+interface Project {
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface UsersSectionProps {
   users: User[];
   currentUserId: string;
   pendingInvites?: PendingInvite[];
+  projects?: Project[];
 }
 
-export function UsersSection({ users, currentUserId, pendingInvites = [] }: UsersSectionProps) {
+export function UsersSection({ users, currentUserId, pendingInvites = [], projects = [] }: UsersSectionProps) {
   const [showForm, setShowForm] = useState(false);
   const [revoking, setRevoking] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState<string | null>(null);
@@ -60,7 +68,7 @@ export function UsersSection({ users, currentUserId, pendingInvites = [] }: User
 
       {showForm && (
         <div className="rounded-lg border p-5 mb-4 bg-muted/20">
-          <InviteUserForm onSuccess={() => setShowForm(false)} />
+          <InviteUserForm onSuccess={() => setShowForm(false)} projects={projects} />
         </div>
       )}
 
@@ -124,39 +132,56 @@ export function UsersSection({ users, currentUserId, pendingInvites = [] }: User
                 <tr className="border-b bg-muted/50">
                   <th className="px-4 py-3 text-left font-medium">Email</th>
                   <th className="px-4 py-3 text-left font-medium">Role</th>
+                  <th className="px-4 py-3 text-left font-medium">Projects</th>
                   <th className="px-4 py-3 text-left font-medium">Invited</th>
                   <th className="px-4 py-3 text-left font-medium">Status</th>
                   <th className="px-4 py-3 text-left font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {pendingInvites.map((inv) => (
-                  <tr key={inv.id} className="border-b last:border-0 bg-amber-50/30">
-                    <td className="px-4 py-3 text-muted-foreground">{inv.emailAddress}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 capitalize">
-                        {inv.role.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(inv.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
-                        Pending
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => handleRevoke(inv.id, inv.emailAddress)}
-                        disabled={isPending || revoking === inv.id}
-                        className="text-xs text-destructive/70 hover:text-destructive transition-colors disabled:opacity-50"
-                      >
-                        {revoking === inv.id ? "Revoking…" : "Revoke"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {pendingInvites.map((inv) => {
+                  const assignedProjects = projects.filter((p) => inv.projectIds.includes(p.id));
+                  return (
+                    <tr key={inv.id} className="border-b last:border-0 bg-amber-50/30">
+                      <td className="px-4 py-3 text-muted-foreground">{inv.emailAddress}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 capitalize">
+                          {inv.role.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {assignedProjects.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {assignedProjects.map((p) => (
+                              <span key={p.id} className="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                                <span className="font-mono mr-1 opacity-60">{p.code}</span>{p.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {new Date(inv.createdAt).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
+                          Pending
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => handleRevoke(inv.id, inv.emailAddress)}
+                          disabled={isPending || revoking === inv.id}
+                          className="text-xs text-destructive/70 hover:text-destructive transition-colors disabled:opacity-50"
+                        >
+                          {revoking === inv.id ? "Revoking…" : "Revoke"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

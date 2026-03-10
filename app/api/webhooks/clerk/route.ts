@@ -76,6 +76,23 @@ export async function POST(req: Request) {
       console.error("Supabase insert error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Auto-assign the new user to any projects specified in the invitation metadata.
+    const projectIds = Array.isArray(public_metadata?.projectIds)
+      ? (public_metadata.projectIds as string[])
+      : [];
+    if (projectIds.length > 0) {
+      const rows = projectIds.map((projectId) => ({
+        user_id: id,
+        project_id: projectId,
+        assigned_by: id, // self-assigned via invite
+      }));
+      const { error: assignError } = await supabase.from("project_users").insert(rows);
+      if (assignError) {
+        console.error("[webhook] project_users insert error:", assignError);
+        // Non-fatal — user is already created; log and continue.
+      }
+    }
   }
 
   if (eventType === "user.updated") {
