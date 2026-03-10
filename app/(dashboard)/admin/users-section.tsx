@@ -13,7 +13,6 @@ interface User {
   role: string;
   is_active: boolean;
   created_at: string;
-  last_login_at: string | null;
 }
 
 interface PendingInvite {
@@ -43,6 +42,13 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
   const [revoking, setRevoking] = useState<string | null>(null);
   const [revokeError, setRevokeError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+
+  const filteredUsers = users.filter((u) => {
+    if (statusFilter === "active") return u.is_active;
+    if (statusFilter === "inactive") return !u.is_active;
+    return true;
+  });
 
   function handleRevoke(inviteId: string, email: string) {
     if (!confirm(`Revoke invitation for ${email}? They will no longer be able to use this invite link.`)) return;
@@ -73,6 +79,22 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
         </div>
       )}
 
+      <div className="flex items-center gap-2 mb-3">
+        <label htmlFor="status-filter" className="text-sm font-medium text-muted-foreground">
+          Status:
+        </label>
+        <select
+          id="status-filter"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
+          className="rounded border bg-background px-2 py-1 text-sm"
+        >
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
       <div className="rounded-lg border overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -82,12 +104,11 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
               <th className="px-4 py-3 text-left font-medium">Role</th>
               <th className="px-4 py-3 text-left font-medium">Status</th>
               <th className="px-4 py-3 text-left font-medium">Joined</th>
-              <th className="px-4 py-3 text-left font-medium">Last Login</th>
               <th className="px-4 py-3 text-left font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <tr key={u.id} className="border-b last:border-0">
                 <td className="px-4 py-3 font-medium">{u.full_name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
@@ -105,11 +126,6 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {new Date(u.created_at).toLocaleDateString()}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {u.last_login_at
-                    ? new Date(u.last_login_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-                    : <span className="italic text-xs">Never</span>}
                 </td>
                 <td className="px-4 py-3">
                   <RoleSelect
