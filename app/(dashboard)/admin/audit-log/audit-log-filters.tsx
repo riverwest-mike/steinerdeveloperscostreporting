@@ -7,6 +7,7 @@ interface User { id: string; full_name: string; email: string }
 interface Project { id: string; name: string; code: string }
 
 const ACTION_LABELS: Record<string, string> = {
+  "user.login":            "Signed in",
   "project.create":        "Created project",
   "project.update":        "Updated project",
   "project.delete":        "Deleted project",
@@ -29,6 +30,7 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const ACTION_GROUPS = [
+  { label: "Users", values: ["user.login"] },
   { label: "Projects", values: ["project.create", "project.update", "project.delete", "project.link_appfolio"] },
   { label: "Gates", values: ["gate.create", "gate.update", "gate.delete", "gate.activate", "gate.close", "gate.upload_bulk", "gate.budget_update"] },
   { label: "Contracts", values: ["contract.create", "contract.update", "contract.delete"] },

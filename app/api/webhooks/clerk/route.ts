@@ -130,6 +130,35 @@ export async function POST(req: Request) {
     }
   }
 
+  if (eventType === "session.created") {
+    const { user_id } = data as { user_id: string };
+
+    if (user_id) {
+      // Update last_login_at on the user record (only if they exist in Supabase).
+      const now = new Date().toISOString();
+      const { data: existing } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", user_id)
+        .single();
+
+      if (existing) {
+        await supabase
+          .from("users")
+          .update({ last_login_at: now, updated_at: now })
+          .eq("id", user_id);
+
+        // Write a login audit entry.
+        await supabase.from("audit_logs").insert({
+          user_id,
+          action: "user.login",
+          entity_type: "user",
+          entity_id: user_id,
+        });
+      }
+    }
+  }
+
   if (eventType === "user.deleted") {
     const { id } = data;
     if (id) {

@@ -12,6 +12,7 @@ import { HELP } from "@/lib/help";
 const PAGE_SIZE = 100;
 
 const ACTION_LABELS: Record<string, string> = {
+  "user.login":            "Signed in",
   "project.create":        "Created project",
   "project.update":        "Updated project",
   "project.delete":        "Deleted project",
@@ -34,6 +35,7 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const ACTION_COLORS: Record<string, string> = {
+  "user.login":            "bg-indigo-100 text-indigo-800",
   "project.create":        "bg-green-100 text-green-800",
   "project.update":        "bg-blue-100 text-blue-800",
   "project.delete":        "bg-red-100 text-red-700",
