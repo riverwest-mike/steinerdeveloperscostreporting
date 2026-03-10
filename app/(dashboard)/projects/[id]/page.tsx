@@ -30,6 +30,7 @@ export default async function ProjectPage({ params }: Props) {
     { data: vendors },
     { count: documentCount },
     userRole,
+    { data: pmUsers },
   ] = await Promise.all([
     supabase.from("projects").select("*").eq("id", id).single(),
     supabase
@@ -52,6 +53,7 @@ export default async function ProjectPage({ params }: Props) {
       .select("id", { count: "exact", head: true })
       .eq("project_id", id),
     getMyRole(),
+    supabase.from("users").select("id, full_name").eq("role", "project_manager").eq("is_active", true).order("full_name"),
   ]);
 
   if (!project) notFound();
@@ -154,6 +156,8 @@ export default async function ProjectPage({ params }: Props) {
               project={project}
               isAdmin={userRole === "admin"}
               appfolioBaseUrl={process.env.APPFOLIO_DATABASE_URL}
+              pmUsers={userRole === "admin" ? (pmUsers ?? []) : undefined}
+              pmName={project.pm_user_id ? (pmUsers ?? []).find((u: { id: string; full_name: string }) => u.id === project.pm_user_id)?.full_name ?? null : null}
             />
           }
           gates={<GatesSection projectId={id} gates={gatesWithTotals} />}

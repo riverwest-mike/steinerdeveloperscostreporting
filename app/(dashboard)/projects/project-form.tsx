@@ -21,12 +21,20 @@ interface Project {
   status: string;
   description: string | null;
   image_url: string | null;
+  pm_user_id: string | null;
+}
+
+interface PmUser {
+  id: string;
+  full_name: string;
 }
 
 interface ProjectFormProps {
   editing?: Project;
   onCancel?: () => void;
   appfolioBaseUrl?: string;
+  isAdmin?: boolean;
+  pmUsers?: PmUser[];
 }
 
 const PROPERTY_TYPES = ["Multifamily", "MHP", "Commercial", "Mixed-Use", "Land", "Other"];
@@ -37,7 +45,7 @@ const STATUSES = [
   { value: "archived", label: "Archived" },
 ];
 
-export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormProps) {
+export function ProjectForm({ editing, onCancel, appfolioBaseUrl, isAdmin, pmUsers }: ProjectFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [codeManuallyEdited, setCodeManuallyEdited] = useState(!!editing?.code);
@@ -242,7 +250,29 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormP
         </div>
       </div>
 
-      {/* Row 5: Description */}
+      {/* Row 5: Project Manager (admin only) */}
+      {isAdmin && pmUsers && pmUsers.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs font-medium" htmlFor="pm_user_id">
+              Project Manager
+            </label>
+            <select
+              id="pm_user_id"
+              name="pm_user_id"
+              defaultValue={editing?.pm_user_id ?? ""}
+              className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+            >
+              <option value="">— Unassigned —</option>
+              {pmUsers.map((u) => (
+                <option key={u.id} value={u.id}>{u.full_name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Row 6: Description */}
       <div className="space-y-1">
         <label className="text-xs font-medium" htmlFor="description">
           Notes / Description
@@ -257,7 +287,7 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl }: ProjectFormP
         />
       </div>
 
-      {/* Row 6: Cover Image */}
+      {/* Row 7: Cover Image */}
       <div className="space-y-1">
         <label className="text-xs font-medium" htmlFor="image">
           Cover Image

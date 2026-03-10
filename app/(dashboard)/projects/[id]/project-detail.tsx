@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { ProjectForm } from "../project-form";
 import { deleteProject } from "../actions";
 
+interface PmUser {
+  id: string;
+  full_name: string;
+}
+
 interface Project {
   id: string;
   name: string;
@@ -21,6 +26,7 @@ interface Project {
   status: string;
   description: string | null;
   image_url: string | null;
+  pm_user_id: string | null;
   created_at: string;
 }
 
@@ -29,7 +35,19 @@ function fmt(date: string | null) {
   return new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function ProjectDetail({ project, isAdmin, appfolioBaseUrl }: { project: Project; isAdmin?: boolean; appfolioBaseUrl?: string }) {
+export function ProjectDetail({
+  project,
+  isAdmin,
+  appfolioBaseUrl,
+  pmUsers,
+  pmName,
+}: {
+  project: Project;
+  isAdmin?: boolean;
+  appfolioBaseUrl?: string;
+  pmUsers?: PmUser[];
+  pmName?: string | null;
+}) {
   const [editing, setEditing] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
@@ -53,7 +71,13 @@ export function ProjectDetail({ project, isAdmin, appfolioBaseUrl }: { project: 
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base font-semibold">Edit Project</h3>
         </div>
-        <ProjectForm editing={project} onCancel={() => setEditing(false)} appfolioBaseUrl={appfolioBaseUrl} />
+        <ProjectForm
+          editing={project}
+          onCancel={() => setEditing(false)}
+          appfolioBaseUrl={appfolioBaseUrl}
+          isAdmin={isAdmin}
+          pmUsers={pmUsers}
+        />
       </div>
     );
   }
@@ -95,7 +119,7 @@ export function ProjectDetail({ project, isAdmin, appfolioBaseUrl }: { project: 
         </div>
       )}
 
-      {/* Info grid — Scale removed */}
+      {/* Info grid */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <InfoCard label="Property Type" value={project.property_type ?? "—"} />
         <InfoCard
@@ -105,6 +129,7 @@ export function ProjectDetail({ project, isAdmin, appfolioBaseUrl }: { project: 
         <InfoCard label="AppFolio Property ID" value={project.appfolio_property_id ?? "—"} mono />
         <InfoCard label="Acquisition Date" value={fmt(project.acquisition_date)} />
         <InfoCard label="Expected Completion" value={fmt(project.expected_completion)} />
+        <InfoCard label="Project Manager" value={pmName ?? "—"} />
       </div>
 
       {project.description && (
