@@ -77,21 +77,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Auto-assign the new user to any projects specified in the invitation metadata.
-    const projectIds = Array.isArray(public_metadata?.projectIds)
+    // Auto-assign the new user to any projects queued in pending_project_assignments.
+    // Also merges legacy projectIds from Clerk metadata (invites sent before this table existed).
+    const { data: pendingAssigns } = await supabase
+      .from("pending_project_assignments")
+      .select("project_id")
+      .eq("invite_email", email);
+
+    const dbProjectIds = (pendingAssigns ?? []).map((r: { project_id: string }) => r.project_id);
+    const metaProjectIds = Array.isArray(public_metadata?.projectIds)
       ? (public_metadata.projectIds as string[])
       : [];
+    const projectIds = [...new Set([...dbProjectIds, ...metaProjectIds])];
+
     if (projectIds.length > 0) {
       const rows = projectIds.map((projectId) => ({
         user_id: id,
         project_id: projectId,
-        assigned_by: id, // self-assigned via invite
+        assigned_by: id,
       }));
       const { error: assignError } = await supabase.from("project_users").insert(rows);
       if (assignError) {
         console.error("[webhook] project_users insert error:", assignError);
-        // Non-fatal — user is already created; log and continue.
       }
+    }
+
+    // Clean up pending assignments — user now exists in project_users.
+    if (dbProjectIds.length > 0) {
+      await supabase
+        .from("pending_project_assignments")
+        .delete()
+        .eq("invite_email", email);
     }
   }
 
