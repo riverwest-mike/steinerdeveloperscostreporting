@@ -11,6 +11,7 @@ The Cost Tracker gives Steiner Developers a single view of every construction pr
 - **Change orders** — Full workflow (proposed → approved / rejected / voided) for both contract and budget-level COs
 - **AppFolio sync** — Automatic and manual sync of vendor ledger transactions and balance sheet data
 - **Reports** — PCM, Cost Detail, Vendor Detail, Commitment Detail, Change Order Log, Balance Sheet, Trial Balance, Gate Detail, and Reporting Package
+- **Draw requests** — Create lender draw requests by cost category, track cumulative draws and balance remaining, and export to Excel
 - **Gate assignments** — Transactions are automatically assigned to gates based on bill date; manual overrides by admins and PMs
 - **AI assistant** — Ask questions about projects, costs, and reports in natural language
 
@@ -124,6 +125,91 @@ supabase/
 | **Trial Balance** | All GL accounts with debit (invoiced), credit (paid), and balance (unpaid) totals. Includes accounts with no activity in the period. Balanced check in the totals footer. |
 | **Gate Detail** | Transactions assigned to a specific gate, with cost category and payment status filters. |
 | **Reporting Package** | Opens PCM Report and Balance Sheet in two tabs for a selected project — for client deliverables. |
+
+## Workflows
+
+### Contracts & Commitments
+
+Contracts represent committed spend against a project. Each contract flows into PCM column G (Total Committed).
+
+**Creating a contract:**
+
+1. Open a project and go to the **Contracts** tab.
+2. Click **+ Add Contract** and fill in vendor name, original value, gate(s), and primary cost category.
+3. Save the contract.
+
+**Schedule of Values (SOV):**
+
+If a contract covers multiple cost codes (e.g. concrete + framing), add SOV lines instead of relying on the primary category:
+
+1. Open the contract detail page.
+2. Under **Schedule of Values**, add one line per cost category with the allocated dollar amount.
+3. The sum of all SOV lines must equal the contract's total value.
+4. When SOV lines exist, the PCM report uses them — each line appears as its own row under the correct cost category.
+
+**Change order workflow:**
+
+| Status | Meaning | PCM impact |
+|--------|---------|------------|
+| **Proposed** | Pending review | Column D (Proposed Adj.) only — no effect on committed totals |
+| **Approved** | Confirmed | Increases column B (Authorized Adj.) and column G (Total Committed) |
+| **Rejected** | Declined | No budget impact; rejection reason is stored |
+| **Voided** | Previously approved CO reversed | Removes the budget impact from B and G |
+
+Steps:
+1. On the contract detail page, click **+ Add CO**.
+2. Enter description, amount, cost category, and proposed date. The CO number auto-generates (CO-001, CO-002…).
+3. Use **Approve**, **Reject**, or **Void** buttons to advance the status. Rejected COs can record a reason.
+4. Proposed COs can be edited; approved and rejected COs are locked.
+
+**Budget-level COs** (no contract required) work the same way but are created from the **Gate Budget** page. They affect columns B and D in the PCM report but not column G, since there is no contract commitment.
+
+---
+
+### Draw Requests
+
+Draw requests are lender disbursement requests created per project. Each draw specifies the amount requested for each cost category in a given funding round.
+
+**Creating a draw:**
+
+1. Open a project and go to the **Draws** tab.
+2. Click **+ New Draw**. A draft draw is created automatically with the next sequential draw number.
+3. Click the draw row to open it.
+
+**Entering amounts:**
+
+1. Click **Edit Amounts** to enter or update the dollar amount requested for each cost category.
+2. Only categories with an existing budget or prior draw history are shown in read mode. All active categories appear in edit mode.
+3. Save when done.
+
+**Draw status workflow:**
+
+```
+Draft → Submitted → Approved
+                 → Rejected
+Approved / Rejected → (Revert to Draft)
+```
+
+- Use the status buttons in the draw header to advance or revert the draw.
+- Only **Draft** draws can have their amounts or header details (date, lender, title, notes) edited.
+- Approved and rejected draws can be reverted to Draft if corrections are needed.
+
+**Key columns:**
+
+| Column | Description |
+|--------|-------------|
+| **Total Budget** | Revised gate budget for the cost category |
+| **Previously Drawn** | Sum of all other draw requests for the project (any status) — cumulative history |
+| **This Draw** | Amount entered for this specific draw request |
+| **Balance Remaining** | Total Budget − Previously Drawn − This Draw. Negative means the draw exceeds the approved budget. |
+
+**Exporting:**
+
+Click **Export to Excel** to download a `.xlsx` file with the full draw schedule: cost category, total budget, previously drawn, this draw amount, and balance remaining.
+
+> **Note:** Actual invoices and supporting documents are stored in AppFolio. A complete draw package (with attachments) must be assembled in AppFolio — this app generates the draw schedule only.
+
+---
 
 ## AppFolio Sync
 
