@@ -77,6 +77,7 @@ export async function createProject(
       expected_completion: (formData.get("expected_completion") as string) || null,
       status: (formData.get("status") as string) || "active",
       description: (formData.get("description") as string)?.trim() || null,
+      pm_user_id: (formData.get("pm_user_id") as string)?.trim() || null,
       created_by: userId,
     };
 
@@ -175,6 +176,7 @@ export async function updateProject(
       expected_completion: (formData.get("expected_completion") as string) || null,
       status: (formData.get("status") as string) || "active",
       description: (formData.get("description") as string)?.trim() || null,
+      pm_user_id: (formData.get("pm_user_id") as string)?.trim() || null,
       updated_at: new Date().toISOString(),
     };
 
