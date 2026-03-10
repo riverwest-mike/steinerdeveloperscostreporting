@@ -77,17 +77,14 @@ function COITable({
 
   return (
     <div>
-      <div className="mb-3 flex items-start justify-between gap-2 flex-wrap">
-        <div>
-          <h3 className="text-lg font-semibold">COI Compliance Alerts</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {expired.length > 0 && `${expired.length} expired`}
-            {expired.length > 0 && expiringSoon.length > 0 && " · "}
-            {expiringSoon.length > 0 &&
-              `${expiringSoon.length} expiring within 60 days`}
-          </p>
-        </div>
-        <ExpandButton onClick={() => {}} />
+      <div className="mb-3">
+        <h3 className="text-lg font-semibold">COI Compliance Alerts</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {expired.length > 0 && `${expired.length} expired`}
+          {expired.length > 0 && expiringSoon.length > 0 && " · "}
+          {expiringSoon.length > 0 &&
+            `${expiringSoon.length} expiring within 60 days`}
+        </p>
       </div>
 
       {/* Expanded filters */}

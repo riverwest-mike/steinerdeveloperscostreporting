@@ -50,7 +50,7 @@ function AlertsList({
     return true;
   });
 
-  const totalOverage = alerts.reduce((sum, a) => sum + a.overage, 0);
+  const totalOverage = visible.reduce((sum, a) => sum + a.overage, 0);
 
   return (
     <div>

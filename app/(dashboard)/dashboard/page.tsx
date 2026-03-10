@@ -150,8 +150,15 @@ export default async function DashboardPage() {
   }
   const gateByProject = new Map<string, { name: string; budgetTotal: number }>();
   for (const g of activeGates) {
-    gateByProject.set(g.project_id, { name: g.name, budgetTotal: budgetByGate.get(g.id) ?? 0 });
+    const prev = gateByProject.get(g.project_id);
+    gateByProject.set(g.project_id, {
+      // Keep the first gate name; accumulate budget across all active gates
+      name: prev?.name ?? g.name,
+      budgetTotal: (prev?.budgetTotal ?? 0) + (budgetByGate.get(g.id) ?? 0),
+    });
   }
+
+  const projectNameById = new Map(projectList.map((p) => [p.id, p.name]));
 
   // Change orders (admin / PM only)
   let pendingCOs: PendingCO[] = [];
@@ -163,7 +170,6 @@ export default async function DashboardPage() {
       .eq("status", "proposed")
       .order("proposed_date")) as { data: RawCO[] | null };
 
-    const projectNameById = new Map(projectList.map((p) => [p.id, p.name]));
     pendingCOs = (rawCOs ?? []).map((co) => ({
       id: co.id,
       project_id: co.project_id,
@@ -237,7 +243,6 @@ export default async function DashboardPage() {
   for (const p of projectList) {
     if (p.appfolio_property_id) projectToProperty.set(p.id, p.appfolio_property_id);
   }
-  const projectNameById = new Map(projectList.map((p) => [p.id, p.name]));
 
   // Gate → project lookup
   const gateToProject = new Map<string, string>();
