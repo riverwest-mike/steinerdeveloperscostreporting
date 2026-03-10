@@ -30,13 +30,21 @@ export default async function NewGatePage({ params }: Props) {
     <div>
       <Header title={`Add Gate — ${project.name}`} />
       <div className="p-4 sm:p-6">
-        <nav className="text-sm text-muted-foreground mb-6">
+        <nav className="text-sm text-muted-foreground mb-6 flex items-center gap-1.5">
           <Link href="/projects" className="hover:text-foreground transition-colors">Projects</Link>
-          <span className="mx-2">/</span>
-          <Link href={`/projects/${id}`} className="hover:text-foreground transition-colors">{project.name}</Link>
-          <span className="mx-2">/</span>
+          <span>/</span>
+          <Link href={`/projects/${id}?tab=gates`} className="hover:text-foreground transition-colors">{project.name}</Link>
+          <span>/</span>
           <span className="text-foreground font-medium">Add Gate</span>
         </nav>
+        <div className="mb-4">
+          <Link
+            href={`/projects/${id}?tab=gates`}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Back to Gates
+          </Link>
+        </div>
         <div className="max-w-lg">
           <h2 className="text-xl font-bold tracking-tight mb-6">Add Gate</h2>
           <div className="rounded-lg border p-6 bg-card">

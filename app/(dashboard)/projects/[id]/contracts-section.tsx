@@ -46,7 +46,7 @@ export function ContractsSection({ projectId, contracts }: ContractsSectionProps
         </div>
         <Link
           href={`/projects/${projectId}/contracts/new`}
-          className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+          className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           + Add Contract
         </Link>

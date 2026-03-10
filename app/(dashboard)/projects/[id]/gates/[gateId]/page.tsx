@@ -58,32 +58,24 @@ export default async function GatePage({ params }: Props) {
     (budgets ?? []).map((b: BudgetRecord) => [b.cost_category_id, b])
   );
 
-  // Build actuals from synced AppFolio transactions
-  const actualsMap = new Map<string, number>(); // cost_category_id → total amount
+  const actualsMap = new Map<string, number>();
   if (project.appfolio_property_id) {
-    // Build code → category_id lookup (case-insensitive)
     const codeToCategory = new Map<string, string>();
     for (const cat of (categories ?? []) as CategoryRecord[]) {
       codeToCategory.set(cat.code.trim().toUpperCase(), cat.id);
     }
 
-    // Query transactions for this property, optionally filtered by gate date range
     let txQuery = supabase
       .from("appfolio_transactions")
       .select("gl_account_id, gl_account_name, invoice_amount")
       .eq("appfolio_property_id", project.appfolio_property_id);
 
-    if (gate.start_date) {
-      txQuery = txQuery.gte("bill_date", gate.start_date);
-    }
-    if (gate.end_date) {
-      txQuery = txQuery.lte("bill_date", gate.end_date);
-    }
+    if (gate.start_date) txQuery = txQuery.gte("bill_date", gate.start_date);
+    if (gate.end_date) txQuery = txQuery.lte("bill_date", gate.end_date);
 
     const { data: transactions } = await txQuery;
 
     for (const tx of (transactions ?? []) as { gl_account_id: string; gl_account_name: string; invoice_amount: number }[]) {
-      // Try to match GL account to cost category by code
       const glId = (tx.gl_account_id ?? "").trim().toUpperCase();
       const categoryId = codeToCategory.get(glId);
       if (categoryId) {
@@ -108,22 +100,31 @@ export default async function GatePage({ params }: Props) {
 
   return (
     <div>
-      <Header title={`${project.name} — ${gate.name}`} helpContent={HELP.gateDetail} />
+      <Header title={`${project.name} — ${gate.name || `Gate #${gate.sequence_number}`}`} helpContent={HELP.gateDetail} />
       <div className="p-4 sm:p-6">
-        <nav className="text-sm text-muted-foreground mb-4 flex items-center gap-1.5">
+        <nav className="text-sm text-muted-foreground mb-4 flex items-center gap-1.5 flex-wrap">
           <Link href="/projects" className="hover:text-foreground transition-colors">
             Projects
           </Link>
           <span>/</span>
           <Link
-            href={`/projects/${projectId}`}
+            href={`/projects/${projectId}?tab=gates`}
             className="hover:text-foreground transition-colors"
           >
             {project.name}
           </Link>
           <span>/</span>
-          <span className="text-foreground font-medium">{gate.name}</span>
+          <span className="text-foreground font-medium">{gate.name || `Gate #${gate.sequence_number}`}</span>
         </nav>
+
+        <div className="mb-4">
+          <Link
+            href={`/projects/${projectId}?tab=gates`}
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Back to Gates
+          </Link>
+        </div>
 
         <GateDetail
           gate={gate}

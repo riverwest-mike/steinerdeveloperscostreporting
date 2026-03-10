@@ -55,7 +55,7 @@ export async function createGate(
 
     const payload = {
       project_id: projectId,
-      name: (formData.get("name") as string)?.trim() || null,
+      name: (formData.get("name") as string)?.trim() || "",
       sequence_number: sequenceNumber,
       status: "pending" as const,
       start_date: (formData.get("start_date") as string) || null,
@@ -105,7 +105,7 @@ export async function updateGate(
     if (dup) throw new Error(`Gate #${sequenceNumber} already exists for this project`);
 
     const payload = {
-      name: (formData.get("name") as string)?.trim() || null,
+      name: (formData.get("name") as string)?.trim() || "",
       sequence_number: sequenceNumber,
       start_date: (formData.get("start_date") as string) || null,
       end_date: (formData.get("end_date") as string) || null,
@@ -463,5 +463,41 @@ export async function getMyRole(): Promise<string | null> {
     return data?.role ?? null;
   } catch {
     return null;
+  }
+}
+
+export async function reopenGate(
+  gateId: string,
+  projectId: string
+): Promise<{ error?: string }> {
+  try {
+    const { userId, supabase } = await requireAdmin();
+
+    const { error } = await supabase
+      .from("gates")
+      .update({
+        status: "active",
+        is_locked: false,
+        closed_at: null,
+        closed_by: null,
+      })
+      .eq("id", gateId)
+      .eq("status", "closed");
+
+    if (error) throw new Error(error.message);
+
+    await insertAuditLog({
+      user_id: userId,
+      action: "gate.reopen",
+      entity_type: "gate",
+      entity_id: gateId,
+      project_id: projectId,
+    });
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/projects/${projectId}/gates/${gateId}`);
+    return {};
+  } catch (err) {
+    console.error("[reopenGate]", err);
+    return { error: err instanceof Error ? err.message : "Failed to reopen gate" };
   }
 }

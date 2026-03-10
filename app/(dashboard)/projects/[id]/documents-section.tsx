@@ -17,9 +17,9 @@ export function DocumentsSection({ projectId, documentCount }: DocumentsSectionP
         </div>
         <Link
           href={`/projects/${projectId}/documents`}
-          className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+          className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
         >
-          Manage Documents
+          Add Documents
         </Link>
       </div>
 

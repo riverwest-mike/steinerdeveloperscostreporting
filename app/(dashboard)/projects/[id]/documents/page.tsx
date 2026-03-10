@@ -32,7 +32,6 @@ export default async function ProjectDocumentsPage({ params }: Props) {
 
   const role = (userRow as { role?: string } | null)?.role ?? "read_only";
 
-  // read_only users must be assigned to the project to view it
   if (role === "read_only") {
     if (!userId) redirect("/dashboard");
     const { data: access } = await supabase
@@ -47,7 +46,6 @@ export default async function ProjectDocumentsPage({ params }: Props) {
   const canEdit = role === "admin" || role === "project_manager";
   const isAdmin = role === "admin";
 
-  // Flatten the joined user name
   const docs = (documents ?? []).map((d: {
     id: string;
     name: string;
@@ -73,12 +71,12 @@ export default async function ProjectDocumentsPage({ params }: Props) {
         <nav className="text-sm text-muted-foreground mb-6 flex items-center gap-1.5 flex-wrap">
           <Link href="/projects" className="hover:text-foreground transition-colors">Projects</Link>
           <span>/</span>
-          <Link href={`/projects/${id}`} className="hover:text-foreground transition-colors">{project.name}</Link>
+          <Link href={`/projects/${id}?tab=documents`} className="hover:text-foreground transition-colors">{project.name}</Link>
           <span>/</span>
           <span className="text-foreground font-medium">Documents</span>
         </nav>
 
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex items-start justify-between mb-6 gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Project Documents</h2>
             <p className="text-muted-foreground mt-1 text-sm">
@@ -88,6 +86,12 @@ export default async function ProjectDocumentsPage({ params }: Props) {
                 : " Download links expire after 1 hour."}
             </p>
           </div>
+          <Link
+            href={`/projects/${id}?tab=documents`}
+            className="rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors shrink-0"
+          >
+            ← Back to Project
+          </Link>
         </div>
 
         <DocumentList

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Tab {
   id: string;
@@ -33,7 +34,23 @@ export function ProjectTabs({
   documents,
   map,
 }: ProjectTabsProps) {
-  const [active, setActive] = useState("overview");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const initialTab = searchParams.get("tab") ?? "overview";
+  const [active, setActive] = useState(initialTab);
+
+  // Sync if URL param changes (e.g. back navigation)
+  useEffect(() => {
+    const tab = searchParams.get("tab") ?? "overview";
+    setActive(tab);
+  }, [searchParams]);
+
+  function switchTab(tabId: string) {
+    setActive(tabId);
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", tabId);
+    router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+  }
 
   const tabs: Tab[] = [
     { id: "overview", label: "Overview" },
@@ -60,7 +77,7 @@ export function ProjectTabs({
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActive(tab.id)}
+            onClick={() => switchTab(tab.id)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
               active === tab.id
                 ? "border-primary text-foreground"

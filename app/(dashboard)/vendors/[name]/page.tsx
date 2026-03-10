@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { HELP } from "@/lib/help";
 import { VendorDocuments, type VendorDoc } from "./vendor-documents";
+import { VendorProfileEdit } from "./vendor-profile-edit";
 
 interface Props {
   params: Promise<{ name: string }>;
@@ -50,7 +51,6 @@ export default async function VendorProfilePage({ params }: Props) {
   const canEdit = role === "admin" || role === "project_manager";
   const isAdmin = role === "admin";
 
-  // Fetch vendor records for this name across all projects
   const { data: rawVendors } = await supabase
     .from("project_vendors")
     .select("id, project_id, is_active, notes, created_at")
@@ -59,7 +59,6 @@ export default async function VendorProfilePage({ params }: Props) {
   const vendorRows = (rawVendors ?? []) as ProjectVendorRow[];
   if (vendorRows.length === 0) notFound();
 
-  // For non-admin users, filter to assigned projects
   let filteredRows = vendorRows;
   if ((role === "read_only" || role === "project_manager") && userId) {
     const { data: access } = await supabase
@@ -90,7 +89,6 @@ export default async function VendorProfilePage({ params }: Props) {
   const projectById = new Map(projects.map((p) => [p.id, p]));
   const vendorDocs = (rawDocs ?? []) as VendorDoc[];
 
-  // Fetch transaction totals for this vendor across linked projects
   const propertyIds = projects
     .map((p) => p.appfolio_property_id)
     .filter((id): id is string => !!id);
@@ -171,7 +169,6 @@ export default async function VendorProfilePage({ params }: Props) {
   const activeInProjects = filteredRows.filter((v) => v.is_active).length;
   const reportUrl = `/reports/vendor-detail?vendorName=${encodeURIComponent(vendorName)}`;
 
-  // Compliance summary — count expiring/expired COIs
   const coiDocs = vendorDocs.filter((d) => d.document_type === "COI");
   const expiredCOIs = coiDocs.filter(
     (d) => d.expiration_date && new Date(d.expiration_date + "T00:00:00") < new Date()
@@ -196,19 +193,22 @@ export default async function VendorProfilePage({ params }: Props) {
         </nav>
 
         {/* Title + actions */}
-        <div className="flex items-start justify-between mb-6 gap-4">
+        <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">{vendorName}</h2>
             <p className="text-muted-foreground mt-1 text-sm">
               Active in {activeInProjects} of {filteredRows.length} project{filteredRows.length !== 1 ? "s" : ""}.
             </p>
           </div>
-          <Link
-            href={reportUrl}
-            className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
-          >
-            View Transactions →
-          </Link>
+          <div className="flex items-center gap-2 flex-wrap">
+            {canEdit && <VendorProfileEdit vendorName={vendorName} />}
+            <Link
+              href={reportUrl}
+              className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
+            >
+              View Transactions →
+            </Link>
+          </div>
         </div>
 
         {/* Compliance alerts */}
@@ -272,7 +272,7 @@ export default async function VendorProfilePage({ params }: Props) {
                     <td className="px-4 py-2.5">
                       {project ? (
                         <Link
-                          href={`/projects/${vr.project_id}`}
+                          href={`/projects/${vr.project_id}?tab=vendors`}
                           className="font-medium hover:underline text-blue-600"
                         >
                           {project.code} — {project.name}
@@ -323,7 +323,7 @@ export default async function VendorProfilePage({ params }: Props) {
           </table>
         </div>
 
-        {/* Compliance Documents — COI, Lien Waivers, W-9s */}
+        {/* Compliance Documents */}
         <div className="mb-8">
           <h3 className="text-base font-semibold mb-3">Compliance Documents</h3>
           <VendorDocuments
