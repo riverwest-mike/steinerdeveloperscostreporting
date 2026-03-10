@@ -140,8 +140,8 @@ const sections = [
           (<em>All / Active / On Hold / Completed / Archived</em>) to filter. Click any row to open the project.
         </p>
 
-        <h4 className="font-semibold text-slate-800 pt-1">Project Detail — Six Tabs</h4>
-        <Screenshot src="/guide/screenshot-project.png" alt="Project page" caption="A project page shows six tabs: Overview, Gates, Contracts, Vendors, Documents, and Map." />
+        <h4 className="font-semibold text-slate-800 pt-1">Project Detail — Seven Tabs</h4>
+        <Screenshot src="/guide/screenshot-project.png" alt="Project page" caption="A project page shows seven tabs: Overview, Gates, Contracts, Vendors, Documents, Draws, and Map." />
         <div className="rounded-lg border divide-y text-sm">
           {[
             { label: "Overview", desc: "Project metadata — name, code, type, status, address, and AppFolio property. Admins and PMs can edit inline." },
@@ -149,6 +149,7 @@ const sections = [
             { label: "Contracts", desc: "All contracts with original value, approved COs, revised value, and status. Click any row to open the contract detail." },
             { label: "Vendors", desc: "Vendors linked to this project. Search and filter Active/Inactive/All. Click any vendor name to open their profile. Use 'Manage Vendors' to add or deactivate vendors." },
             { label: "Documents", desc: "Project-level file attachments. Click 'Manage Documents' to upload, download, or remove files." },
+            { label: "Draws", desc: "All draw requests for this project. Click '+ New Draw' to create a draw request, then open it to enter amounts by cost category and export to Excel. Draws track budget, previously drawn, and balance remaining." },
             { label: "Map", desc: "Google Maps embed for the project address. Use 'Open in Google Maps' to navigate or get directions." },
           ].map((row) => (
             <div key={row.label} className="flex gap-3 px-4 py-2.5">
