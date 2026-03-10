@@ -29,16 +29,31 @@ export const HELP: Record<string, PageHelpContent> = {
 
   projectDetail: {
     title: "Project Profile",
-    description: "The full profile for a single project. Six tabs organize everything: Overview, Gates, Contracts, Vendors, Documents, and Map.",
+    description: "The full profile for a single project. Seven tabs organize everything: Overview, Gates, Contracts, Vendors, Documents, Draws, and Map.",
     actions: [
-      { label: "Overview tab", desc: "Shows project metadata — name, code, type, address, AppFolio property, and status. Admins and Project Managers can edit these details inline." },
+      { label: "Overview tab", desc: "Shows project metadata — name, code, type, address, lender, AppFolio property, and status. Admins and Project Managers can edit these details inline." },
       { label: "Gates tab", desc: "Lists every budget phase (e.g. Pre-Development, Construction). Click a gate row to open its cost-category budget detail. Use '+ Add Gate' to create a new phase, or 'Upload Excel' to bulk-import a gate budget from a formatted spreadsheet." },
       { label: "Contracts tab", desc: "All contracts for this project. Click any row to open the contract and view its Schedule of Values and change orders. Use '+ Add Contract' to create a new contract with vendor, value, gate, and cost category." },
       { label: "Vendors tab", desc: "Vendors linked to this project. Use the search box and Active/Inactive/All filter to find vendors. Click any vendor name to open their full profile. Use 'Manage Vendors' to add, rename, or deactivate vendors." },
       { label: "Documents tab", desc: "Project-level file attachments. Click 'Manage Documents' to upload, download, or remove files. Supports any file type." },
+      { label: "Draws tab", desc: "All draw requests for this project. Click '+ New Draw' to create a draw request, then open it to enter amounts by cost category and export to Excel. Draws track budget, previously drawn, and balance remaining." },
       { label: "Map tab", desc: "Shows the project location on Google Maps based on the address entered in the Overview tab. Use 'Open in Google Maps' to open in a new tab for directions or street view." },
     ],
     tip: "Run the PCM Report (Reporting › Project Cost Management) to see this project's complete budget-vs.-actual breakdown across all gates and cost categories.",
+  },
+
+  drawDetail: {
+    title: "Draw Request",
+    description: "A single draw request. Enter the amount to request from the lender for each cost category, then export to Excel.",
+    actions: [
+      { label: "Edit Amounts", desc: "Click 'Edit Amounts' to enter or update the dollar amount requested for each cost category. Only categories with budget or prior draw history are shown in read mode; all active categories appear when editing." },
+      { label: "Status workflow", desc: "Draws move through: Draft → Submitted → Approved or Rejected. Use the status buttons in the header to advance the draw. Only draft draws can have their amounts or header edited." },
+      { label: "Edit (header)", desc: "Update the submission date, lender, title, or notes. Only available in Draft status." },
+      { label: "Export to Excel", desc: "Downloads a .xlsx file with the draw schedule: cost category, total budget, previously drawn, this draw amount, and balance remaining." },
+      { label: "Previously Drawn column", desc: "Sum of all other draw requests for the same project (in any status). This gives you the cumulative draw history against each cost category." },
+      { label: "Balance Remaining", desc: "Total Budget minus Previously Drawn minus This Draw. A negative balance means the draw request exceeds the approved budget for that category." },
+    ],
+    tip: "Note: actual invoices are stored in AppFolio. A full draw package (with supporting documents) cannot be generated from this application — use AppFolio for the complete package.",
   },
 
   contractDetail: {

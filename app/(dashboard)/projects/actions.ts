@@ -78,6 +78,7 @@ export async function createProject(
       status: (formData.get("status") as string) || "active",
       description: (formData.get("description") as string)?.trim() || null,
       pm_user_id: (formData.get("pm_user_id") as string)?.trim() || null,
+      lender: (formData.get("lender") as string)?.trim() || null,
       created_by: userId,
     };
 
@@ -178,6 +179,7 @@ export async function updateProject(
       status: (formData.get("status") as string) || "active",
       description: (formData.get("description") as string)?.trim() || null,
       pm_user_id: (formData.get("pm_user_id") as string)?.trim() || null,
+      lender: (formData.get("lender") as string)?.trim() || null,
       updated_at: new Date().toISOString(),
     };
 

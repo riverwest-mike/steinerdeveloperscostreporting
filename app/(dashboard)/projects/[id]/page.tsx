@@ -11,6 +11,7 @@ import { GatesSection } from "./gates-section";
 import { ContractsSection } from "./contracts-section";
 import { VendorsSection } from "./vendors-section";
 import { DocumentsSection } from "./documents-section";
+import { DrawsSection } from "./draws-section";
 import { MapTab } from "./map-tab";
 import { getMyRole } from "./gates/actions";
 import { HELP } from "@/lib/help";
@@ -29,6 +30,7 @@ export default async function ProjectPage({ params }: Props) {
     { data: contracts },
     { data: vendors },
     { count: documentCount },
+    { data: draws },
     userRole,
     { data: pmUsers },
   ] = await Promise.all([
@@ -52,6 +54,11 @@ export default async function ProjectPage({ params }: Props) {
       .from("project_documents")
       .select("id", { count: "exact", head: true })
       .eq("project_id", id),
+    supabase
+      .from("draw_requests")
+      .select("id, draw_number, title, submission_date, status, lender, created_at, draw_request_lines(this_draw_amount)")
+      .eq("project_id", id)
+      .order("draw_number"),
     getMyRole(),
     supabase.from("users").select("id, full_name").eq("role", "project_manager").eq("is_active", true).order("full_name"),
   ]);
@@ -112,6 +119,27 @@ export default async function ProjectPage({ params }: Props) {
   const vendorList = (vendors ?? []) as { name: string; is_active: boolean }[];
   const activeVendors = vendorList.filter((v) => v.is_active);
 
+  interface DrawRaw {
+    id: string;
+    draw_number: number;
+    title: string | null;
+    submission_date: string;
+    status: string;
+    lender: string | null;
+    created_at: string;
+    draw_request_lines: { this_draw_amount: number }[];
+  }
+  const drawList = (draws ?? []).map((d: DrawRaw) => ({
+    id: d.id,
+    draw_number: d.draw_number,
+    title: d.title,
+    submission_date: d.submission_date,
+    status: d.status,
+    lender: d.lender,
+    created_at: d.created_at,
+    total_requested: (d.draw_request_lines ?? []).reduce((sum, l) => sum + (l.this_draw_amount ?? 0), 0),
+  }));
+
   const STATUS_STYLES: Record<string, string> = {
     active: "bg-green-100 text-green-800",
     on_hold: "bg-yellow-100 text-yellow-800",
@@ -151,6 +179,7 @@ export default async function ProjectPage({ params }: Props) {
           contractCount={contractsWithNames.length}
           vendorCount={activeVendors.length}
           documentCount={documentCount ?? 0}
+          drawCount={drawList.length}
           overview={
             <ProjectDetail
               project={project}
@@ -170,6 +199,14 @@ export default async function ProjectPage({ params }: Props) {
             />
           }
           documents={<DocumentsSection projectId={id} documentCount={documentCount ?? 0} />}
+          draws={
+            <DrawsSection
+              projectId={id}
+              draws={drawList}
+              projectLender={project.lender ?? null}
+              canEdit={["admin", "accounting", "project_manager"].includes(userRole ?? "")}
+            />
+          }
           map={
             <MapTab
               address={project.address}

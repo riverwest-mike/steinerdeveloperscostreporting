@@ -27,6 +27,7 @@ interface Project {
   description: string | null;
   image_url: string | null;
   pm_user_id: string | null;
+  lender: string | null;
   created_at: string;
 }
 
@@ -134,6 +135,7 @@ export function ProjectDetail({
         <InfoCard label="Acquisition Date" value={fmt(project.acquisition_date)} />
         <InfoCard label="Expected Completion" value={fmt(project.expected_completion)} />
         <InfoCard label="Project Manager" value={pmName ?? "—"} />
+        <InfoCard label="Lender" value={project.lender ?? "—"} />
       </div>
 
       {project.description && (
