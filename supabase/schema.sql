@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS projects (
   city                   TEXT,
   state                  TEXT,
   property_type          TEXT
-                           CHECK (property_type IN ('Multifamily', 'Commercial', 'Mixed-Use', 'Land', 'Other')),
+                           CHECK (property_type IN ('Multifamily', 'MHP', 'Commercial', 'Mixed-Use', 'Land', 'Other')),
   total_units            INTEGER,
   total_sf               INTEGER,
   acquisition_date       DATE,

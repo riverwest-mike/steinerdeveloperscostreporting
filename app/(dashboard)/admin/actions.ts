@@ -14,11 +14,13 @@ export async function inviteUser(
 ): Promise<{ error?: string }> {
   try {
     const { callerId, supabase } = await requireAdminCaller();
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!appUrl) throw new Error("NEXT_PUBLIC_APP_URL is not set — cannot generate a valid invitation link. Add it to your environment variables.");
     const clerk = await clerkClient();
     await clerk.invitations.createInvitation({
       emailAddress: email,
       publicMetadata: { role },
-      redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/sign-up`,
+      redirectUrl: `${appUrl}/sign-up`,
       ignoreExisting: false,
     });
     // Store project assignments in DB so they can be managed after invite is sent.

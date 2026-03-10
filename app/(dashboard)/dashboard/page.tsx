@@ -62,11 +62,12 @@ export default async function DashboardPage() {
     .single()) as { data: { full_name: string; role: string } | null };
 
   const role = user?.role ?? "read_only";
-  const isAdmin = role === "admin";
+  // Admins and accounting users see all projects (no project-scope restriction).
+  const isAdmin = role === "admin" || role === "accounting";
 
-  // For non-admin users, look up which projects they're assigned to via
-  // project_users and filter explicitly — this avoids relying on Clerk → Supabase
-  // JWT template (RLS) which silently returns nothing when not configured.
+  // For non-admin/non-accounting users, look up which projects they're assigned
+  // to via project_users and filter explicitly — this avoids relying on Clerk →
+  // Supabase JWT template (RLS) which silently returns nothing when not configured.
   let allowedProjectIds: string[] | null = null;
   if (!isAdmin && userId) {
     const { data: assignments } = await adminSupabase
