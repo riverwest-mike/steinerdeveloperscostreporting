@@ -236,3 +236,28 @@ export async function getVendorDocumentSignedUrl(
     return { error: err instanceof Error ? err.message : "Could not generate download link" };
   }
 }
+
+export async function renameVendor(
+  oldName: string,
+  newName: string
+): Promise<{ error?: string; newName?: string }> {
+  try {
+    const { supabase } = await requirePM();
+    const trimmed = newName.trim();
+    if (!trimmed) throw new Error("Vendor name cannot be blank");
+    if (trimmed === oldName) return { newName: oldName };
+
+    const { error } = await supabase
+      .from("project_vendors")
+      .update({ name: trimmed })
+      .ilike("name", oldName);
+
+    if (error) throw new Error(error.message);
+
+    revalidatePath(`/vendors/${encodeURIComponent(oldName)}`);
+    revalidatePath(`/vendors/${encodeURIComponent(trimmed)}`);
+    return { newName: trimmed };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Rename failed" };
+  }
+}

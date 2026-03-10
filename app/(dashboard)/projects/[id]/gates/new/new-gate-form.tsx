@@ -23,7 +23,7 @@ export function NewGateForm({
       try {
         const result = await createGate(projectId, fd);
         if (result?.error) { setError(result.error); return; }
-        router.push(`/projects/${projectId}`);
+        router.push(`/projects/${projectId}?tab=gates`);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Something went wrong");
       }
@@ -93,13 +93,13 @@ export function NewGateForm({
         <button
           type="submit"
           disabled={isPending}
-          className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
         >
           {isPending ? "Adding…" : "Add Gate"}
         </button>
         <button
           type="button"
-          onClick={() => router.push(`/projects/${projectId}`)}
+          onClick={() => router.push(`/projects/${projectId}?tab=gates`)}
           className="rounded border px-4 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
         >
           Cancel

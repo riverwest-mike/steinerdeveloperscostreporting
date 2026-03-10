@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { addProjectVendor } from "./vendors/actions";
 
 interface Vendor {
   name: string;
@@ -16,6 +17,10 @@ interface VendorsSectionProps {
 export function VendorsSection({ projectId, vendors }: VendorsSectionProps) {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"active" | "inactive" | "all">("active");
+  const [showAdd, setShowAdd] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  const [isAdding, startAddTransition] = useTransition();
 
   const activeCount = vendors.filter((v) => v.is_active).length;
   const inactiveCount = vendors.filter((v) => !v.is_active).length;
@@ -28,9 +33,21 @@ export function VendorsSection({ projectId, vendors }: VendorsSectionProps) {
     return true;
   });
 
+  function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!addName.trim()) return;
+    setAddError(null);
+    startAddTransition(async () => {
+      const result = await addProjectVendor(projectId, addName);
+      if (result.error) { setAddError(result.error); return; }
+      setAddName("");
+      setShowAdd(false);
+    });
+  }
+
   return (
     <div className="rounded-lg border mt-6">
-      {/* Panel header — matches Gates & Contracts */}
+      {/* Panel header */}
       <div className="px-4 py-3 border-b bg-muted/50 flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-sm">Vendors</h3>
@@ -48,13 +65,47 @@ export function VendorsSection({ projectId, vendors }: VendorsSectionProps) {
             </span>
           )}
         </div>
-        <Link
-          href={`/projects/${projectId}/vendors`}
-          className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 transition-opacity shrink-0"
+        <button
+          onClick={() => { setShowAdd((v) => !v); setAddError(null); setAddName(""); }}
+          className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
         >
-          Manage Vendors →
-        </Link>
+          {showAdd ? "Cancel" : "Add Vendor"}
+        </button>
       </div>
+
+      {/* Inline add vendor form */}
+      {showAdd && (
+        <div className="px-4 py-4 border-b bg-muted/20">
+          <form onSubmit={handleAdd} className="flex gap-2 items-end flex-wrap">
+            <div className="flex-1 min-w-[200px] space-y-1">
+              <label className="text-xs font-medium">Vendor Name</label>
+              <input
+                type="text"
+                value={addName}
+                onChange={(e) => { setAddName(e.target.value); setAddError(null); }}
+                placeholder="Enter vendor name…"
+                autoFocus
+                className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              {addError && <p className="text-xs text-destructive">{addError}</p>}
+            </div>
+            <button
+              type="submit"
+              disabled={isAdding || !addName.trim()}
+              className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {isAdding ? "Adding…" : "Add Vendor"}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowAdd(false); setAddName(""); setAddError(null); }}
+              className="rounded border px-4 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
+            >
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
 
       {/* Search + filter row */}
       {vendors.length > 0 && (
@@ -111,7 +162,7 @@ export function VendorsSection({ projectId, vendors }: VendorsSectionProps) {
                   Vendor Name
                 </th>
                 <th className="px-4 py-2.5 text-left text-xs font-medium">Status</th>
-                <th className="px-4 py-2.5 text-right text-xs font-medium">Profile</th>
+                <th className="px-4 py-2.5 text-right text-xs font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -146,7 +197,7 @@ export function VendorsSection({ projectId, vendors }: VendorsSectionProps) {
                       href={`/vendors/${encodeURIComponent(v.name)}`}
                       className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      View →
+                      Edit →
                     </Link>
                   </td>
                 </tr>
