@@ -62,11 +62,12 @@ export default async function DashboardPage() {
     .single()) as { data: { full_name: string; role: string } | null };
 
   const role = user?.role ?? "read_only";
-  const isAdmin = role === "admin";
+  // Admins and accounting users see all projects (no project-scope restriction).
+  const isAdmin = role === "admin" || role === "accounting";
 
-  // For non-admin users, look up which projects they're assigned to via
-  // project_users and filter explicitly — this avoids relying on Clerk → Supabase
-  // JWT template (RLS) which silently returns nothing when not configured.
+  // For non-admin/non-accounting users, look up which projects they're assigned
+  // to via project_users and filter explicitly — this avoids relying on Clerk →
+  // Supabase JWT template (RLS) which silently returns nothing when not configured.
   let allowedProjectIds: string[] | null = null;
   if (!isAdmin && userId) {
     const { data: assignments } = await adminSupabase
@@ -91,6 +92,10 @@ export default async function DashboardPage() {
 
   const projectList = rawProjects ?? [];
   const projectIds = projectList.map((p) => p.id);
+  const activeProjectIds = projectList
+    .filter((p) => p.status === "active")
+    .map((p) => p.id);
+  const activeProjectIdSet = new Set(activeProjectIds);
 
   if (projectIds.length === 0) {
     return (
@@ -120,11 +125,13 @@ export default async function DashboardPage() {
   }
 
   // Active gates
-  const { data: rawActiveGates } = (await adminSupabase
-    .from("gates")
-    .select("id, project_id, name")
-    .in("project_id", projectIds)
-    .eq("status", "active")) as { data: RawGate[] | null };
+  const { data: rawActiveGates } = (activeProjectIds.length > 0
+    ? await adminSupabase
+        .from("gates")
+        .select("id, project_id, name")
+        .in("project_id", activeProjectIds)
+        .eq("status", "active")
+    : { data: [] }) as { data: RawGate[] | null };
 
   const activeGates = rawActiveGates ?? [];
   const activeGateIds = activeGates.map((g) => g.id);
@@ -143,8 +150,15 @@ export default async function DashboardPage() {
   }
   const gateByProject = new Map<string, { name: string; budgetTotal: number }>();
   for (const g of activeGates) {
-    gateByProject.set(g.project_id, { name: g.name, budgetTotal: budgetByGate.get(g.id) ?? 0 });
+    const prev = gateByProject.get(g.project_id);
+    gateByProject.set(g.project_id, {
+      // Keep the first gate name; accumulate budget across all active gates
+      name: prev?.name ?? g.name,
+      budgetTotal: (prev?.budgetTotal ?? 0) + (budgetByGate.get(g.id) ?? 0),
+    });
   }
+
+  const projectNameById = new Map(projectList.map((p) => [p.id, p.name]));
 
   // Change orders (admin / PM only)
   let pendingCOs: PendingCO[] = [];
@@ -156,7 +170,6 @@ export default async function DashboardPage() {
       .eq("status", "proposed")
       .order("proposed_date")) as { data: RawCO[] | null };
 
-    const projectNameById = new Map(projectList.map((p) => [p.id, p.name]));
     pendingCOs = (rawCOs ?? []).map((co) => ({
       id: co.id,
       project_id: co.project_id,
@@ -230,7 +243,6 @@ export default async function DashboardPage() {
   for (const p of projectList) {
     if (p.appfolio_property_id) projectToProperty.set(p.id, p.appfolio_property_id);
   }
-  const projectNameById = new Map(projectList.map((p) => [p.id, p.name]));
 
   // Gate → project lookup
   const gateToProject = new Map<string, string>();
@@ -306,7 +318,9 @@ export default async function DashboardPage() {
     .lte("expiration_date", in60DaysStr)
     .order("expiration_date", { ascending: true });
 
-  const coiAlerts: COIAlert[] = (rawCOIDocs ?? []).map((doc: {
+  const coiAlerts: COIAlert[] = (rawCOIDocs ?? []).filter((doc: { project_id: string | null }) =>
+    !doc.project_id || activeProjectIdSet.has(doc.project_id)
+  ).map((doc: {
     vendor_name: string;
     display_name: string;
     expiration_date: string;
@@ -337,7 +351,9 @@ export default async function DashboardPage() {
     .lte("expiration_date", in60DaysStr)
     .order("expiration_date", { ascending: true });
 
-  const lienWaiverAlerts: LienWaiverAlert[] = (rawLienDocs ?? []).map((doc: {
+  const lienWaiverAlerts: LienWaiverAlert[] = (rawLienDocs ?? []).filter((doc: { project_id: string | null }) =>
+    !doc.project_id || activeProjectIdSet.has(doc.project_id)
+  ).map((doc: {
     vendor_name: string;
     display_name: string;
     expiration_date: string | null;

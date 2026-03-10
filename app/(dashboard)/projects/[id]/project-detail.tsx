@@ -38,12 +38,14 @@ function fmt(date: string | null) {
 export function ProjectDetail({
   project,
   isAdmin,
+  canEdit,
   appfolioBaseUrl,
   pmUsers,
   pmName,
 }: {
   project: Project;
   isAdmin?: boolean;
+  canEdit?: boolean;
   appfolioBaseUrl?: string;
   pmUsers?: PmUser[];
   pmName?: string | null;
@@ -86,12 +88,14 @@ export function ProjectDetail({
     <div className="space-y-5">
       {/* Action buttons — top right */}
       <div className="flex items-center justify-end gap-2">
-        <button
-          onClick={() => setEditing(true)}
-          className="rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
-        >
-          Edit Project
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setEditing(true)}
+            className="rounded border px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            Edit Project
+          </button>
+        )}
         {isAdmin && (
           <button
             onClick={handleDelete}

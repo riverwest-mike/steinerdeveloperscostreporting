@@ -155,8 +155,9 @@ export default async function ProjectPage({ params }: Props) {
             <ProjectDetail
               project={project}
               isAdmin={userRole === "admin"}
+              canEdit={["admin", "accounting", "project_manager"].includes(userRole ?? "")}
               appfolioBaseUrl={process.env.APPFOLIO_DATABASE_URL}
-              pmUsers={userRole === "admin" ? (pmUsers ?? []) : undefined}
+              pmUsers={["admin", "accounting"].includes(userRole ?? "") ? (pmUsers ?? []) : undefined}
               pmName={project.pm_user_id ? (pmUsers ?? []).find((u: { id: string; full_name: string }) => u.id === project.pm_user_id)?.full_name ?? null : null}
             />
           }
