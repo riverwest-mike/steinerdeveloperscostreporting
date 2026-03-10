@@ -237,15 +237,18 @@ export const HELP: Record<string, PageHelpContent> = {
 
   adminUsers: {
     title: "Users & Access",
-    description: "Manage all users and their project access. Invite new users, set roles, and control which projects each person can see.",
+    description: "Manage user accounts, roles, and project access. Invite new users, activate or deactivate accounts, and control which projects each person can see.",
     actions: [
-      { label: "Add User", desc: "Click '+ Add User' to send an invitation email. Set the user's role (Read Only, Project Manager, or Admin) before sending. The invite email comes from Clerk — if it goes to spam, ask the recipient to check their junk folder." },
-      { label: "Pending Invitations", desc: "After sending an invite, it appears in the Pending Invitations table until the user completes sign-up. The table shows the email, role, and when it was sent. Use the Revoke button to cancel an invite." },
-      { label: "Activate / Deactivate", desc: "Toggle a user's active status. Inactive users cannot log in but their data is preserved." },
-      { label: "Project Access matrix", desc: "Check boxes in the Project Access section to grant a user access to specific projects. Admins always see all projects." },
+      { label: "Add User", desc: "Click '+ Add User' to send an invitation email. Choose the user's role before sending. The invite email comes from Clerk — if it goes to spam, ask the recipient to check their junk folder." },
+      { label: "Pending Invitations", desc: "After sending an invite, it appears in the Pending Invitations table until the user completes sign-up. Use the Revoke button to cancel an invite before the recipient accepts it." },
+      { label: "Filter by Status", desc: "Use the Status dropdown above the users table to show All, Active, or Inactive users." },
+      { label: "Activate / Deactivate", desc: "Click the Status badge on any user row to toggle their active status. Inactive users cannot log in but their data and history are preserved." },
+      { label: "Change Role", desc: "Use the Actions column to change a user's role. You cannot change your own role." },
+      { label: "Project Access", desc: "Use the Project Access section below to grant or revoke access to specific projects. Admins always have access to all projects regardless of assignments." },
     ],
     sections: [
-      { heading: "Roles", body: "Read Only: view all data. Project Manager: create/edit projects, gates, contracts, and change orders. Admin: all PM capabilities plus user management, cost categories, and AppFolio settings." },
+      { heading: "Roles", body: "Read Only: view-only access to all assigned project data. Project Manager: create and edit projects, gates, contracts, and change orders. Admin: all Project Manager capabilities plus user management, cost categories, and AppFolio settings." },
+      { heading: "Login history", body: "User login activity is recorded in the Audit Log. Go to Admin › Audit Log and filter by user to see their sign-in history." },
     ],
     tip: "A user's role applies across all projects they can access. There are no per-project role overrides.",
   },
