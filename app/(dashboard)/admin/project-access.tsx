@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { assignUserToProject, removeUserFromProject } from "./actions";
+import {
+  assignUserToProject,
+  removeUserFromProject,
+  assignPendingInviteToProject,
+  removePendingInviteFromProject,
+} from "./actions";
 
 interface User {
   id: string;
@@ -21,10 +26,23 @@ interface Assignment {
   user_id: string;
 }
 
+interface PendingInvite {
+  id: string;
+  emailAddress: string;
+  role: string;
+}
+
+interface PendingAssignment {
+  invite_email: string;
+  project_id: string;
+}
+
 interface ProjectAccessSectionProps {
   projects: Project[];
   users: User[];
   assignments: Assignment[];
+  pendingInvites: PendingInvite[];
+  pendingAssignments: PendingAssignment[];
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -37,14 +55,23 @@ export function ProjectAccessSection({
   projects,
   users,
   assignments,
+  pendingInvites,
+  pendingAssignments,
 }: ProjectAccessSectionProps) {
   const [expandedProject, setExpandedProject] = useState<string | null>(null);
 
-  // Build a map: project_id → set of user_ids
+  // project_id → Set<user_id>
   const assignmentMap = new Map<string, Set<string>>();
   for (const a of assignments) {
     if (!assignmentMap.has(a.project_id)) assignmentMap.set(a.project_id, new Set());
     assignmentMap.get(a.project_id)!.add(a.user_id);
+  }
+
+  // project_id → Set<invite_email>
+  const pendingAssignmentMap = new Map<string, Set<string>>();
+  for (const a of pendingAssignments) {
+    if (!pendingAssignmentMap.has(a.project_id)) pendingAssignmentMap.set(a.project_id, new Set());
+    pendingAssignmentMap.get(a.project_id)!.add(a.invite_email);
   }
 
   return (
@@ -52,6 +79,7 @@ export function ProjectAccessSection({
       <h3 className="text-lg font-semibold mb-1">Project Access</h3>
       <p className="text-sm text-muted-foreground mb-4">
         Control which users can see each project. Admins have access to all projects by default.
+        Pending invites can be assigned before the user accepts.
       </p>
       <div className="rounded-lg border divide-y">
         {projects.length === 0 && (
@@ -59,7 +87,12 @@ export function ProjectAccessSection({
         )}
         {projects.map((project) => {
           const assigned = assignmentMap.get(project.id) ?? new Set<string>();
+          const assignedPendingEmails = pendingAssignmentMap.get(project.id) ?? new Set<string>();
           const assignedUsers = users.filter((u) => assigned.has(u.id));
+          const assignedPendingInvites = pendingInvites.filter((inv) =>
+            assignedPendingEmails.has(inv.emailAddress)
+          );
+          const totalCount = assignedUsers.length + assignedPendingInvites.length;
           const isOpen = expandedProject === project.id;
 
           return (
@@ -74,7 +107,12 @@ export function ProjectAccessSection({
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-muted-foreground">
-                    {assignedUsers.length} user{assignedUsers.length !== 1 ? "s" : ""}
+                    {totalCount} user{totalCount !== 1 ? "s" : ""}
+                    {assignedPendingInvites.length > 0 && (
+                      <span className="ml-1 text-amber-600">
+                        ({assignedPendingInvites.length} pending)
+                      </span>
+                    )}
                   </span>
                   <span className="text-muted-foreground text-xs">{isOpen ? "▲" : "▼"}</span>
                 </div>
@@ -86,6 +124,9 @@ export function ProjectAccessSection({
                   allUsers={users}
                   assignedUserIds={assigned}
                   assignedUsers={assignedUsers}
+                  allPendingInvites={pendingInvites}
+                  assignedPendingEmails={assignedPendingEmails}
+                  assignedPendingInvites={assignedPendingInvites}
                 />
               )}
             </div>
@@ -101,31 +142,47 @@ function ProjectUserPanel({
   allUsers,
   assignedUserIds,
   assignedUsers,
+  allPendingInvites,
+  assignedPendingEmails,
+  assignedPendingInvites,
 }: {
   project: Project;
   allUsers: User[];
   assignedUserIds: Set<string>;
   assignedUsers: User[];
+  allPendingInvites: PendingInvite[];
+  assignedPendingEmails: Set<string>;
+  assignedPendingInvites: PendingInvite[];
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [selectedUserId, setSelectedUserId] = useState("");
+  // Value format: "user:<userId>" or "invite:<email>"
+  const [selected, setSelected] = useState("");
 
   const unassignedUsers = allUsers.filter(
     (u) => !assignedUserIds.has(u.id) && u.role !== "admin"
   );
+  const unassignedPendingInvites = allPendingInvites.filter(
+    (inv) => !assignedPendingEmails.has(inv.emailAddress)
+  );
+  const hasUnassigned = unassignedUsers.length > 0 || unassignedPendingInvites.length > 0;
 
   function handleAssign() {
-    if (!selectedUserId) return;
+    if (!selected) return;
     setError(null);
     startTransition(async () => {
-      const result = await assignUserToProject(selectedUserId, project.id);
+      let result: { error?: string };
+      if (selected.startsWith("user:")) {
+        result = await assignUserToProject(selected.slice(5), project.id);
+      } else {
+        result = await assignPendingInviteToProject(selected.slice(7), project.id);
+      }
       if (result?.error) { setError(result.error); return; }
-      setSelectedUserId("");
+      setSelected("");
     });
   }
 
-  function handleRemove(userId: string) {
+  function handleRemoveUser(userId: string) {
     setError(null);
     startTransition(async () => {
       const result = await removeUserFromProject(userId, project.id);
@@ -133,14 +190,24 @@ function ProjectUserPanel({
     });
   }
 
+  function handleRemovePendingInvite(email: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await removePendingInviteFromProject(email, project.id);
+      if (result?.error) setError(result.error);
+    });
+  }
+
+  const hasAnyAssigned = assignedUsers.length > 0 || assignedPendingInvites.length > 0;
+
   return (
     <div className="px-4 pb-4 pt-1 bg-muted/10 border-t space-y-3">
       <p className="text-xs text-muted-foreground">
-        Admins always have access. Assign PMs and read-only users below.
+        Admins always have access. Assign PMs, read-only users, and pending invites below.
       </p>
 
-      {/* Assigned users */}
-      {assignedUsers.length > 0 ? (
+      {/* Assigned users + pending invites */}
+      {hasAnyAssigned ? (
         <div className="flex flex-wrap gap-2">
           {assignedUsers.map((u) => (
             <span
@@ -152,9 +219,29 @@ function ProjectUserPanel({
               <span className="text-muted-foreground">{ROLE_LABELS[u.role] ?? u.role}</span>
               <button
                 disabled={isPending}
-                onClick={() => handleRemove(u.id)}
+                onClick={() => handleRemoveUser(u.id)}
                 className="ml-1 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
                 title={`Remove ${u.full_name}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          {assignedPendingInvites.map((inv) => (
+            <span
+              key={inv.emailAddress}
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs"
+            >
+              <span className="font-medium">{inv.emailAddress}</span>
+              <span className="text-amber-600/60">·</span>
+              <span className="text-amber-700">{ROLE_LABELS[inv.role] ?? inv.role}</span>
+              <span className="text-amber-600/60">·</span>
+              <span className="italic text-amber-600 text-[10px]">invited</span>
+              <button
+                disabled={isPending}
+                onClick={() => handleRemovePendingInvite(inv.emailAddress)}
+                className="ml-1 text-amber-500 hover:text-destructive transition-colors disabled:opacity-50"
+                title={`Remove ${inv.emailAddress}`}
               >
                 ×
               </button>
@@ -165,25 +252,38 @@ function ProjectUserPanel({
         <p className="text-xs text-muted-foreground italic">No users assigned yet.</p>
       )}
 
-      {/* Add user */}
-      {unassignedUsers.length > 0 && (
+      {/* Add user or pending invite */}
+      {hasUnassigned && (
         <div className="flex items-center gap-2">
           <select
-            value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
             disabled={isPending}
             className="rounded border border-input bg-background px-2 py-1 text-xs flex-1 max-w-xs disabled:opacity-50"
           >
             <option value="">— Add a user —</option>
-            {unassignedUsers.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.full_name} ({ROLE_LABELS[u.role] ?? u.role})
-              </option>
-            ))}
+            {unassignedUsers.length > 0 && (
+              <optgroup label="Active users">
+                {unassignedUsers.map((u) => (
+                  <option key={u.id} value={`user:${u.id}`}>
+                    {u.full_name} ({ROLE_LABELS[u.role] ?? u.role})
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {unassignedPendingInvites.length > 0 && (
+              <optgroup label="Pending invites">
+                {unassignedPendingInvites.map((inv) => (
+                  <option key={inv.emailAddress} value={`invite:${inv.emailAddress}`}>
+                    {inv.emailAddress} ({ROLE_LABELS[inv.role] ?? inv.role}) — invited
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
           <button
             onClick={handleAssign}
-            disabled={!selectedUserId || isPending}
+            disabled={!selected || isPending}
             className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
           >
             {isPending ? "…" : "Add"}

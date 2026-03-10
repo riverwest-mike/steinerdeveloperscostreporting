@@ -27,11 +27,13 @@ export default async function AdminUsersPage() {
     { data: users },
     { data: projects },
     { data: projectUsers },
+    { data: pendingAssignments },
     { invites: pendingInvites },
   ] = await Promise.all([
-    supabase.from("users").select("id, email, full_name, role, is_active, created_at").order("full_name"),
+    supabase.from("users").select("id, email, full_name, role, is_active, created_at, last_login_at").order("full_name"),
     supabase.from("projects").select("id, name, code").order("name"),
     supabase.from("project_users").select("project_id, user_id"),
+    supabase.from("pending_project_assignments").select("invite_email, project_id"),
     getPendingInvites(),
   ]);
 
@@ -47,7 +49,7 @@ export default async function AdminUsersPage() {
         </div>
 
         <UsersSection
-          users={(users ?? []) as { id: string; email: string; full_name: string; role: string; is_active: boolean; created_at: string }[]}
+          users={(users ?? []) as { id: string; email: string; full_name: string; role: string; is_active: boolean; created_at: string; last_login_at: string | null }[]}
           currentUserId={userId!}
           pendingInvites={(pendingInvites ?? []) as { id: string; emailAddress: string; role: string; createdAt: number; status: string; projectIds: string[] }[]}
           projects={(projects ?? []) as { id: string; name: string; code: string }[]}
@@ -57,6 +59,8 @@ export default async function AdminUsersPage() {
           projects={(projects ?? []) as { id: string; name: string; code: string }[]}
           users={(users ?? []) as { id: string; full_name: string; email: string; role: string }[]}
           assignments={(projectUsers ?? []) as { project_id: string; user_id: string }[]}
+          pendingInvites={(pendingInvites ?? []) as { id: string; emailAddress: string; role: string }[]}
+          pendingAssignments={(pendingAssignments ?? []) as { invite_email: string; project_id: string }[]}
         />
 
       </div>

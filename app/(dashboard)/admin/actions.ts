@@ -13,14 +13,24 @@ export async function inviteUser(
   projectIds: string[] = []
 ): Promise<{ error?: string }> {
   try {
-    await requireAdminCaller();
+    const { callerId, supabase } = await requireAdminCaller();
     const clerk = await clerkClient();
     await clerk.invitations.createInvitation({
       emailAddress: email,
-      publicMetadata: { role, projectIds },
+      publicMetadata: { role },
       redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/sign-up`,
       ignoreExisting: false,
     });
+    // Store project assignments in DB so they can be managed after invite is sent.
+    if (projectIds.length > 0) {
+      await supabase.from("pending_project_assignments").insert(
+        projectIds.map((projectId) => ({
+          invite_email: email,
+          project_id: projectId,
+          assigned_by: callerId,
+        }))
+      );
+    }
     revalidatePath("/admin");
     return {};
   } catch (err: unknown) {
@@ -128,36 +138,86 @@ export async function removeUserFromProject(
   }
 }
 
+export async function assignPendingInviteToProject(
+  email: string,
+  projectId: string
+): Promise<{ error?: string }> {
+  try {
+    const { callerId, supabase } = await requireAdminCaller();
+    const { error } = await supabase.from("pending_project_assignments").upsert(
+      { invite_email: email, project_id: projectId, assigned_by: callerId },
+      { onConflict: "invite_email,project_id" }
+    );
+    if (error) throw new Error(error.message);
+    revalidatePath("/admin");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to assign project to invite" };
+  }
+}
+
+export async function removePendingInviteFromProject(
+  email: string,
+  projectId: string
+): Promise<{ error?: string }> {
+  try {
+    const { supabase } = await requireAdminCaller();
+    const { error } = await supabase
+      .from("pending_project_assignments")
+      .delete()
+      .eq("invite_email", email)
+      .eq("project_id", projectId);
+    if (error) throw new Error(error.message);
+    revalidatePath("/admin");
+    return {};
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to remove project from invite" };
+  }
+}
+
 export async function getPendingInvites(): Promise<{
   invites?: Array<{ id: string; emailAddress: string; role: string; createdAt: number; status: string; projectIds: string[] }>;
   error?: string;
 }> {
   try {
-    await requireAdminCaller();
+    const { supabase } = await requireAdminCaller();
     const clerk = await clerkClient();
-    const { data: invitations } = await clerk.invitations.getInvitationList({ status: "pending" });
-    const invites = invitations.map((inv) => {
-      const meta = inv.publicMetadata as Record<string, unknown>;
-      return {
-        id: inv.id,
-        emailAddress: inv.emailAddress,
-        role: (meta?.role as string) ?? "read_only",
-        projectIds: Array.isArray(meta?.projectIds) ? (meta.projectIds as string[]) : [],
-        createdAt: inv.createdAt,
-        status: inv.status,
-      };
-    });
+    const [{ data: invitations }, { data: pendingAssigns }] = await Promise.all([
+      clerk.invitations.getInvitationList({ status: "pending" }),
+      supabase.from("pending_project_assignments").select("invite_email, project_id"),
+    ]);
+
+    // Build email → project_id[] map from DB
+    const assignMap = new Map<string, string[]>();
+    for (const a of (pendingAssigns ?? [])) {
+      if (!assignMap.has(a.invite_email)) assignMap.set(a.invite_email, []);
+      assignMap.get(a.invite_email)!.push(a.project_id);
+    }
+
+    const invites = invitations.map((inv) => ({
+      id: inv.id,
+      emailAddress: inv.emailAddress,
+      role: ((inv.publicMetadata as Record<string, unknown>)?.role as string) ?? "read_only",
+      projectIds: assignMap.get(inv.emailAddress) ?? [],
+      createdAt: inv.createdAt,
+      status: inv.status,
+    }));
     return { invites };
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Failed to fetch invitations" };
   }
 }
 
-export async function revokeInvite(inviteId: string): Promise<{ error?: string }> {
+export async function revokeInvite(inviteId: string, email: string): Promise<{ error?: string }> {
   try {
-    await requireAdminCaller();
+    const { supabase } = await requireAdminCaller();
     const clerk = await clerkClient();
     await clerk.invitations.revokeInvitation(inviteId);
+    // Clean up any pending project assignments for this invite
+    await supabase
+      .from("pending_project_assignments")
+      .delete()
+      .eq("invite_email", email);
     revalidatePath("/admin");
     return {};
   } catch (err) {

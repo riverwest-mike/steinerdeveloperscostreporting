@@ -77,21 +77,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Auto-assign the new user to any projects specified in the invitation metadata.
-    const projectIds = Array.isArray(public_metadata?.projectIds)
+    // Auto-assign the new user to any projects queued in pending_project_assignments.
+    // Also merges legacy projectIds from Clerk metadata (invites sent before this table existed).
+    const { data: pendingAssigns } = await supabase
+      .from("pending_project_assignments")
+      .select("project_id")
+      .eq("invite_email", email);
+
+    const dbProjectIds = (pendingAssigns ?? []).map((r: { project_id: string }) => r.project_id);
+    const metaProjectIds = Array.isArray(public_metadata?.projectIds)
       ? (public_metadata.projectIds as string[])
       : [];
+    const projectIds = [...new Set([...dbProjectIds, ...metaProjectIds])];
+
     if (projectIds.length > 0) {
       const rows = projectIds.map((projectId) => ({
         user_id: id,
         project_id: projectId,
-        assigned_by: id, // self-assigned via invite
+        assigned_by: id,
       }));
       const { error: assignError } = await supabase.from("project_users").insert(rows);
       if (assignError) {
         console.error("[webhook] project_users insert error:", assignError);
-        // Non-fatal — user is already created; log and continue.
       }
+    }
+
+    // Clean up pending assignments — user now exists in project_users.
+    if (dbProjectIds.length > 0) {
+      await supabase
+        .from("pending_project_assignments")
+        .delete()
+        .eq("invite_email", email);
     }
   }
 
@@ -127,6 +143,35 @@ export async function POST(req: Request) {
     if (error) {
       console.error("Supabase update error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+  }
+
+  if (eventType === "session.created") {
+    const { user_id } = data as { user_id: string };
+
+    if (user_id) {
+      // Update last_login_at on the user record (only if they exist in Supabase).
+      const now = new Date().toISOString();
+      const { data: existing } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", user_id)
+        .single();
+
+      if (existing) {
+        await supabase
+          .from("users")
+          .update({ last_login_at: now, updated_at: now })
+          .eq("id", user_id);
+
+        // Write a login audit entry.
+        await supabase.from("audit_logs").insert({
+          user_id,
+          action: "user.login",
+          entity_type: "user",
+          entity_id: user_id,
+        });
+      }
     }
   }
 

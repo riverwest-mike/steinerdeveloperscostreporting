@@ -13,6 +13,7 @@ interface User {
   role: string;
   is_active: boolean;
   created_at: string;
+  last_login_at: string | null;
 }
 
 interface PendingInvite {
@@ -48,7 +49,7 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
     setRevokeError(null);
     setRevoking(inviteId);
     startTransition(async () => {
-      const result = await revokeInvite(inviteId);
+      const result = await revokeInvite(inviteId, email);
       if (result.error) setRevokeError(result.error);
       setRevoking(null);
     });
@@ -81,6 +82,7 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
               <th className="px-4 py-3 text-left font-medium">Role</th>
               <th className="px-4 py-3 text-left font-medium">Status</th>
               <th className="px-4 py-3 text-left font-medium">Joined</th>
+              <th className="px-4 py-3 text-left font-medium">Last Login</th>
               <th className="px-4 py-3 text-left font-medium">Actions</th>
             </tr>
           </thead>
@@ -103,6 +105,11 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {new Date(u.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {u.last_login_at
+                    ? new Date(u.last_login_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+                    : <span className="italic text-xs">Never</span>}
                 </td>
                 <td className="px-4 py-3">
                   <RoleSelect
