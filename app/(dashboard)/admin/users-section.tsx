@@ -130,7 +130,7 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
                 <td className="px-4 py-3">
                   <RoleSelect
                     userId={u.id}
-                    currentRole={u.role as "admin" | "project_manager" | "read_only"}
+                    currentRole={u.role as "admin" | "project_manager" | "read_only" | "accounting"}
                     isSelf={u.id === currentUserId}
                   />
                 </td>

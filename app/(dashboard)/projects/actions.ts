@@ -39,7 +39,7 @@ async function requirePM() {
     .select("role")
     .eq("id", userId)
     .single();
-  if (!data || !["admin", "project_manager"].includes(data.role)) {
+  if (!data || !["admin", "project_manager", "accounting"].includes(data.role)) {
     throw new Error(`Insufficient permissions (role: ${data?.role ?? "none"})`);
   }
   return { userId, supabase };
@@ -150,6 +150,7 @@ export async function updateProject(
         .single();
       if (!access) throw new Error("You do not have permission to edit this project");
     }
+    // accounting users see all projects (same as admin) — no project-scope restriction
 
     const newName = (formData.get("name") as string).trim();
     const newCode = (formData.get("code") as string).trim().toUpperCase();
@@ -211,6 +212,15 @@ async function requireAdmin() {
   if (!userId) throw new Error("Not authenticated");
   const supabase = createAdminClient();
   const { data } = await supabase.from("users").select("role").eq("id", userId).single();
+  if (!data || (data.role !== "admin" && data.role !== "accounting")) throw new Error("Admin role required");
+  return { userId, supabase };
+}
+
+async function requireStrictAdmin() {
+  const userId = (await headers()).get("x-clerk-user-id");
+  if (!userId) throw new Error("Not authenticated");
+  const supabase = createAdminClient();
+  const { data } = await supabase.from("users").select("role").eq("id", userId).single();
   if (!data || data.role !== "admin") throw new Error("Admin role required");
   return { userId, supabase };
 }
@@ -247,7 +257,7 @@ export async function linkAppfolioId(
 
 export async function deleteProject(id: string): Promise<{ error?: string }> {
   try {
-    const { userId, supabase } = await requireAdmin();
+    const { userId, supabase } = await requireStrictAdmin();
     const { error } = await supabase.from("projects").delete().eq("id", id);
     if (error) throw new Error(error.message);
     await insertAuditLog({

@@ -92,7 +92,7 @@ export default async function AuditLogPage({ searchParams }: Props) {
     .eq("id", authUserId!)
     .single();
 
-  if (me?.role !== "admin") redirect("/dashboard");
+  if (me?.role !== "admin" && me?.role !== "accounting") redirect("/dashboard");
 
   const page = Math.max(1, Number(searchParams.page ?? 1));
   const offset = (page - 1) * PAGE_SIZE;

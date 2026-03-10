@@ -590,7 +590,7 @@ export async function POST(req: NextRequest) {
 
   const db = createAdminClient();
   const { data: user } = await db.from("users").select("role").eq("id", userId).single();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || user?.role === "accounting";
 
   let accessibleProjectIds: string[] = [];
   if (!isAdmin) {

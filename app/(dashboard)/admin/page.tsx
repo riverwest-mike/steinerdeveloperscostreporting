@@ -53,9 +53,14 @@ export default async function AdminPage() {
     .eq("id", userId!)
     .single();
 
-  if (user?.role !== "admin") {
+  const role = user?.role;
+  if (role !== "admin" && role !== "accounting") {
     redirect("/dashboard");
   }
+
+  const visibleSections = role === "accounting"
+    ? ADMIN_SECTIONS.filter((s) => s.href !== "/admin/users")
+    : ADMIN_SECTIONS;
 
   return (
     <div>
@@ -69,7 +74,7 @@ export default async function AdminPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ADMIN_SECTIONS.map((section) => (
+          {visibleSections.map((section) => (
             <Link
               key={section.href}
               href={section.href}
