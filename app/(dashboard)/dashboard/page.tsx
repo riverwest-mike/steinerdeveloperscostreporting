@@ -91,6 +91,10 @@ export default async function DashboardPage() {
 
   const projectList = rawProjects ?? [];
   const projectIds = projectList.map((p) => p.id);
+  const activeProjectIds = projectList
+    .filter((p) => p.status === "active")
+    .map((p) => p.id);
+  const activeProjectIdSet = new Set(activeProjectIds);
 
   if (projectIds.length === 0) {
     return (
@@ -120,11 +124,13 @@ export default async function DashboardPage() {
   }
 
   // Active gates
-  const { data: rawActiveGates } = (await adminSupabase
-    .from("gates")
-    .select("id, project_id, name")
-    .in("project_id", projectIds)
-    .eq("status", "active")) as { data: RawGate[] | null };
+  const { data: rawActiveGates } = (activeProjectIds.length > 0
+    ? await adminSupabase
+        .from("gates")
+        .select("id, project_id, name")
+        .in("project_id", activeProjectIds)
+        .eq("status", "active")
+    : { data: [] }) as { data: RawGate[] | null };
 
   const activeGates = rawActiveGates ?? [];
   const activeGateIds = activeGates.map((g) => g.id);
@@ -306,7 +312,9 @@ export default async function DashboardPage() {
     .lte("expiration_date", in60DaysStr)
     .order("expiration_date", { ascending: true });
 
-  const coiAlerts: COIAlert[] = (rawCOIDocs ?? []).map((doc: {
+  const coiAlerts: COIAlert[] = (rawCOIDocs ?? []).filter((doc: { project_id: string | null }) =>
+    !doc.project_id || activeProjectIdSet.has(doc.project_id)
+  ).map((doc: {
     vendor_name: string;
     display_name: string;
     expiration_date: string;
@@ -337,7 +345,9 @@ export default async function DashboardPage() {
     .lte("expiration_date", in60DaysStr)
     .order("expiration_date", { ascending: true });
 
-  const lienWaiverAlerts: LienWaiverAlert[] = (rawLienDocs ?? []).map((doc: {
+  const lienWaiverAlerts: LienWaiverAlert[] = (rawLienDocs ?? []).filter((doc: { project_id: string | null }) =>
+    !doc.project_id || activeProjectIdSet.has(doc.project_id)
+  ).map((doc: {
     vendor_name: string;
     display_name: string;
     expiration_date: string | null;
