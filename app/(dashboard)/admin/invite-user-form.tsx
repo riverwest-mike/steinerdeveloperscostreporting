@@ -134,7 +134,7 @@ export function InviteUserForm({
         <p className="mt-3 text-xs text-destructive">{result.error}</p>
       )}
       <p className="text-xs text-muted-foreground mt-3 border-t pt-3">
-        The invited user will receive an email with a link to create their account. New users can only sign up via invitation — enable this in the Clerk dashboard under User &amp; Authentication → Restrictions → &quot;Require invitation&quot;.
+        The invited user will receive an email with a link to create their account.
       </p>
     </div>
   );
