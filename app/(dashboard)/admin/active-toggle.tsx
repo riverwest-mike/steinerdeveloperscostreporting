@@ -15,7 +15,7 @@ export function ActiveToggle({ userId, isActive, isSelf }: ActiveToggleProps) {
 
   if (isSelf) {
     return (
-      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800">
         Active
       </span>
     );
@@ -32,10 +32,11 @@ export function ActiveToggle({ userId, isActive, isSelf }: ActiveToggleProps) {
             if (result?.error) setError(result.error);
           });
         }}
-        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+        title={isActive ? "Click to deactivate" : "Click to activate"}
+        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer ${
           isActive
-            ? "bg-green-100 text-green-800 hover:bg-red-100 hover:text-red-800"
-            : "bg-red-100 text-red-800 hover:bg-green-100 hover:text-green-800"
+            ? "bg-emerald-100 text-emerald-800 hover:bg-red-100 hover:text-red-800"
+            : "bg-muted text-muted-foreground hover:bg-emerald-100 hover:text-emerald-800"
         }`}
       >
         {isPending ? "…" : isActive ? "Active" : "Inactive"}

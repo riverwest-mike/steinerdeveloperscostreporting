@@ -5,6 +5,7 @@ import { RoleSelect } from "./role-select";
 import { ActiveToggle } from "./active-toggle";
 import { InviteUserForm } from "./invite-user-form";
 import { revokeInvite } from "./actions";
+import { Button } from "@/components/ui/button";
 
 interface User {
   id: string;
@@ -37,6 +38,12 @@ interface UsersSectionProps {
   projects?: Project[];
 }
 
+const STATUS_FILTERS = [
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "inactive", label: "Inactive" },
+] as const;
+
 export function UsersSection({ users, currentUserId, pendingInvites = [], projects = [] }: UsersSectionProps) {
   const [showForm, setShowForm] = useState(false);
   const [revoking, setRevoking] = useState<string | null>(null);
@@ -62,58 +69,61 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Users</h3>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
-        >
+    <div className="rounded-xl border bg-card shadow-sm">
+      <div className="px-5 py-4 border-b flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold">Users</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Manage accounts, roles, and access. Use the Actions column to change a user&apos;s role.
+          </p>
+        </div>
+        <Button size="sm" onClick={() => setShowForm((v) => !v)} variant={showForm ? "outline" : "default"}>
           {showForm ? "Cancel" : "+ Add User"}
-        </button>
+        </Button>
       </div>
 
       {showForm && (
-        <div className="rounded-lg border p-5 mb-4 bg-muted/20">
+        <div className="px-5 py-4 border-b bg-muted/20">
           <InviteUserForm onSuccess={() => setShowForm(false)} projects={projects} />
         </div>
       )}
 
-      <div className="flex items-center gap-2 mb-3">
-        <label htmlFor="status-filter" className="text-sm font-medium text-muted-foreground">
-          Status:
-        </label>
-        <select
-          id="status-filter"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "inactive")}
-          className="rounded border bg-background px-2 py-1 text-sm"
-        >
-          <option value="all">All</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
+      <div className="px-5 py-3 border-b flex items-center gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground mr-1">Status:</span>
+        {STATUS_FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setStatusFilter(f.value)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              statusFilter === f.value
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
-      <div className="rounded-lg border overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm rw-table">
           <thead>
-            <tr className="border-b bg-muted/50">
-              <th className="px-4 py-3 text-left font-medium">Name</th>
-              <th className="px-4 py-3 text-left font-medium">Email</th>
-              <th className="px-4 py-3 text-left font-medium">Role</th>
-              <th className="px-4 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-left font-medium">Joined</th>
-              <th className="px-4 py-3 text-left font-medium">Actions</th>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Joined</th>
+              <th>Change Role</th>
             </tr>
           </thead>
           <tbody>
             {filteredUsers.map((u) => (
-              <tr key={u.id} className="border-b last:border-0">
+              <tr key={u.id}>
                 <td className="px-4 py-3 font-medium">{u.full_name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
                 <td className="px-4 py-3">
-                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary capitalize">
                     {u.role.replace("_", " ")}
                   </span>
                 </td>
@@ -136,39 +146,53 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
                 </td>
               </tr>
             ))}
+            {filteredUsers.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  No users match the current filter.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
 
+      <div className="px-5 py-3 text-xs text-muted-foreground border-t">
+        Users appear here after accepting an invitation and completing sign-up. Click the Status badge to activate or deactivate a user — you cannot change your own.
+      </div>
+
       {/* Pending Invitations */}
       {pendingInvites.length > 0 && (
-        <div className="mt-6">
-          <h4 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">
-            Pending Invitations ({pendingInvites.length})
-          </h4>
+        <div className="border-t">
+          <div className="px-5 py-3 flex items-center gap-2">
+            <h4 className="text-sm font-semibold">Pending Invitations</h4>
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800">
+              {pendingInvites.length}
+            </span>
+          </div>
           {revokeError && (
-            <p className="text-xs text-destructive mb-2">{revokeError}</p>
+            <p className="px-5 pb-2 text-xs text-destructive">{revokeError}</p>
           )}
-          <div className="rounded-lg border overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm rw-table">
               <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-3 text-left font-medium">Email</th>
-                  <th className="px-4 py-3 text-left font-medium">Role</th>
-                  <th className="px-4 py-3 text-left font-medium">Projects</th>
-                  <th className="px-4 py-3 text-left font-medium">Invited</th>
-                  <th className="px-4 py-3 text-left font-medium">Status</th>
-                  <th className="px-4 py-3 text-left font-medium">Actions</th>
+                <tr>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Projects</th>
+                  <th>Invited</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {pendingInvites.map((inv) => {
                   const assignedProjects = projects.filter((p) => inv.projectIds.includes(p.id));
                   return (
-                    <tr key={inv.id} className="border-b last:border-0 bg-amber-50/30">
+                    <tr key={inv.id}>
                       <td className="px-4 py-3 text-muted-foreground">{inv.emailAddress}</td>
                       <td className="px-4 py-3">
-                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 capitalize">
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-secondary text-secondary-foreground capitalize">
                           {inv.role.replace("_", " ")}
                         </span>
                       </td>
@@ -176,7 +200,7 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
                         {assignedProjects.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {assignedProjects.map((p) => (
-                              <span key={p.id} className="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-blue-50 text-blue-700 border border-blue-200">
+                              <span key={p.id} className="inline-flex items-center rounded px-1.5 py-0.5 text-xs bg-primary/10 text-primary border border-primary/20">
                                 <span className="font-mono mr-1 opacity-60">{p.code}</span>{p.name}
                               </span>
                             ))}
@@ -194,13 +218,15 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleRevoke(inv.id, inv.emailAddress)}
                           disabled={isPending || revoking === inv.id}
-                          className="text-xs text-destructive/70 hover:text-destructive transition-colors disabled:opacity-50"
+                          className="h-auto px-2 py-1 text-xs text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                         >
                           {revoking === inv.id ? "Revoking…" : "Revoke"}
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -208,15 +234,11 @@ export function UsersSection({ users, currentUserId, pendingInvites = [], projec
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            These users have been invited but have not yet completed sign-up. The invite email may take a few minutes to arrive. If the email went to junk mail, ask the user to check their spam folder or resend the invite.
+          <p className="px-5 py-3 text-xs text-muted-foreground border-t">
+            These users have been invited but have not yet completed sign-up. The invite email may take a few minutes to arrive. Ask users to check their spam folder if needed.
           </p>
         </div>
       )}
-
-      <p className="text-xs text-muted-foreground mt-2">
-        Users appear here after accepting an invitation and completing sign-up. Use the Actions column to change a user&apos;s role — you cannot change your own. Click the Status badge to activate or deactivate a user.
-      </p>
     </div>
   );
 }
