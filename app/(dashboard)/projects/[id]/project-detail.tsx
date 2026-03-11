@@ -27,6 +27,7 @@ interface Project {
   description: string | null;
   image_url: string | null;
   pm_user_id: string | null;
+  pending_pm_email: string | null;
   lender: string | null;
   created_at: string;
 }

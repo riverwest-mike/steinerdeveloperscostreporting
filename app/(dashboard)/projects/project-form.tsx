@@ -22,6 +22,7 @@ interface Project {
   description: string | null;
   image_url: string | null;
   pm_user_id: string | null;
+  pending_pm_email: string | null;
   lender: string | null;
 }
 
@@ -261,7 +262,7 @@ export function ProjectForm({ editing, onCancel, appfolioBaseUrl, isAdmin, pmUse
             <select
               id="pm_user_id"
               name="pm_user_id"
-              defaultValue={editing?.pm_user_id ?? ""}
+              defaultValue={editing?.pm_user_id ?? (editing?.pending_pm_email ? `pending:${editing.pending_pm_email}` : "")}
               className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
             >
               <option value="">— Unassigned —</option>

@@ -8,6 +8,16 @@ import { runAppfolioSync } from "@/lib/appfolio-sync-core";
 
 const IMAGE_BUCKET = "project-images";
 
+// Parses the pm_user_id form field value which may be a real user ID or a
+// "pending:{email}" string representing an invited-but-not-yet-accepted PM.
+function parsePmValue(raw: string | null): { pm_user_id: string | null; pending_pm_email: string | null } {
+  const value = raw?.trim() || "";
+  if (value.startsWith("pending:")) {
+    return { pm_user_id: null, pending_pm_email: value.slice("pending:".length) || null };
+  }
+  return { pm_user_id: value || null, pending_pm_email: null };
+}
+
 async function uploadProjectImage(
   supabase: ReturnType<typeof createAdminClient>,
   projectId: string,
@@ -77,7 +87,7 @@ export async function createProject(
       expected_completion: (formData.get("expected_completion") as string) || null,
       status: (formData.get("status") as string) || "active",
       description: (formData.get("description") as string)?.trim() || null,
-      pm_user_id: (formData.get("pm_user_id") as string)?.trim() || null,
+      ...parsePmValue(formData.get("pm_user_id") as string),
       lender: (formData.get("lender") as string)?.trim() || null,
       created_by: userId,
     };
@@ -178,7 +188,7 @@ export async function updateProject(
       expected_completion: (formData.get("expected_completion") as string) || null,
       status: (formData.get("status") as string) || "active",
       description: (formData.get("description") as string)?.trim() || null,
-      pm_user_id: (formData.get("pm_user_id") as string)?.trim() || null,
+      ...parsePmValue(formData.get("pm_user_id") as string),
       lender: (formData.get("lender") as string)?.trim() || null,
       updated_at: new Date().toISOString(),
     };
