@@ -79,7 +79,7 @@ export function ProjectTabs({
   return (
     <div className="mt-5">
       {/* Tab bar */}
-      <div className="border-b flex gap-0 overflow-x-auto">
+      <div className="border-b flex flex-wrap gap-0">
         {tabs.map((tab) => (
           <button
             key={tab.id}
