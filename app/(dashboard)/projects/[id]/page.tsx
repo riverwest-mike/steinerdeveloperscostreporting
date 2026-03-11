@@ -14,6 +14,7 @@ import { DocumentsSection } from "./documents-section";
 import { DrawsSection } from "./draws-section";
 import { MapTab } from "./map-tab";
 import { getMyRole } from "./gates/actions";
+import { getPendingInvites } from "@/app/(dashboard)/admin/actions";
 import { HELP } from "@/lib/help";
 
 interface Props {
@@ -62,6 +63,16 @@ export default async function ProjectPage({ params }: Props) {
     getMyRole(),
     supabase.from("users").select("id, full_name").eq("role", "project_manager").eq("is_active", true).order("full_name"),
   ]);
+
+  // For admin users, also include pending PM invites in the dropdown
+  let pendingPmUsers: { id: string; full_name: string }[] = [];
+  if (userRole === "admin") {
+    const { invites } = await getPendingInvites();
+    pendingPmUsers = (invites ?? [])
+      .filter((inv) => inv.role === "project_manager")
+      .map((inv) => ({ id: `pending:${inv.emailAddress}`, full_name: `${inv.emailAddress} (Pending)` }));
+  }
+  const allPmUsers = [...(pmUsers ?? []), ...pendingPmUsers];
 
   if (!project) notFound();
 
@@ -186,8 +197,14 @@ export default async function ProjectPage({ params }: Props) {
               isAdmin={userRole === "admin"}
               canEdit={["admin", "accounting", "project_manager"].includes(userRole ?? "")}
               appfolioBaseUrl={process.env.APPFOLIO_DATABASE_URL}
-              pmUsers={["admin", "accounting"].includes(userRole ?? "") ? (pmUsers ?? []) : undefined}
-              pmName={project.pm_user_id ? (pmUsers ?? []).find((u: { id: string; full_name: string }) => u.id === project.pm_user_id)?.full_name ?? null : null}
+              pmUsers={["admin", "accounting"].includes(userRole ?? "") ? (userRole === "admin" ? allPmUsers : (pmUsers ?? [])) : undefined}
+              pmName={
+                project.pm_user_id
+                  ? (pmUsers ?? []).find((u: { id: string; full_name: string }) => u.id === project.pm_user_id)?.full_name ?? null
+                  : project.pending_pm_email
+                  ? `${project.pending_pm_email} (Pending)`
+                  : null
+              }
             />
           }
           gates={<GatesSection projectId={id} gates={gatesWithTotals} />}

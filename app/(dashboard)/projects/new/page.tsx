@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
 import { ProjectForm } from "../project-form";
+import { getPendingInvites } from "@/app/(dashboard)/admin/actions";
 
 export default async function NewProjectPage() {
   const userId = (await headers()).get("x-clerk-user-id");
@@ -15,9 +16,18 @@ export default async function NewProjectPage() {
 
   const isAdmin = currentUser?.role === "admin";
 
-  const pmUsers = isAdmin
+  const activePmUsers = isAdmin
     ? (await supabase.from("users").select("id, full_name").eq("role", "project_manager").eq("is_active", true).order("full_name")).data ?? []
     : [];
+
+  let pmUsers = activePmUsers;
+  if (isAdmin) {
+    const { invites } = await getPendingInvites();
+    const pendingPmUsers = (invites ?? [])
+      .filter((inv) => inv.role === "project_manager")
+      .map((inv) => ({ id: `pending:${inv.emailAddress}`, full_name: `${inv.emailAddress} (Pending)` }));
+    pmUsers = [...activePmUsers, ...pendingPmUsers];
+  }
 
   return (
     <div>
