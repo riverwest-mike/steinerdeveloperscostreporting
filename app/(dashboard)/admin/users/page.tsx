@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
-import { ProjectAccessSection } from "../project-access";
 import { getPendingInvites } from "../actions";
 import { UsersSection } from "../users-section";
 import { HELP } from "@/lib/help";
@@ -27,13 +26,11 @@ export default async function AdminUsersPage() {
     { data: users },
     { data: projects },
     { data: projectUsers },
-    { data: pendingAssignments },
     { invites: pendingInvites },
   ] = await Promise.all([
     supabase.from("users").select("id, email, full_name, role, is_active, created_at").order("full_name"),
     supabase.from("projects").select("id, name, code").order("name"),
     supabase.from("project_users").select("project_id, user_id"),
-    supabase.from("pending_project_assignments").select("invite_email, project_id"),
     getPendingInvites(),
   ]);
 
@@ -53,16 +50,8 @@ export default async function AdminUsersPage() {
           currentUserId={userId!}
           pendingInvites={(pendingInvites ?? []) as { id: string; emailAddress: string; role: string; createdAt: number; status: string; projectIds: string[] }[]}
           projects={(projects ?? []) as { id: string; name: string; code: string }[]}
-        />
-
-        <ProjectAccessSection
-          projects={(projects ?? []) as { id: string; name: string; code: string }[]}
-          users={(users ?? []) as { id: string; full_name: string; email: string; role: string }[]}
           assignments={(projectUsers ?? []) as { project_id: string; user_id: string }[]}
-          pendingInvites={(pendingInvites ?? []) as { id: string; emailAddress: string; role: string }[]}
-          pendingAssignments={(pendingAssignments ?? []) as { invite_email: string; project_id: string }[]}
         />
-
       </div>
     </div>
   );
