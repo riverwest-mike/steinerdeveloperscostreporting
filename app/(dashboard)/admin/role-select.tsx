@@ -24,7 +24,7 @@ export function RoleSelect({ userId, currentRole, isSelf }: RoleSelectProps) {
 
   if (isSelf) {
     return (
-      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800">
+      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-primary/10 text-primary">
         {ROLE_LABELS[currentRole]} (you)
       </span>
     );
@@ -45,7 +45,7 @@ export function RoleSelect({ userId, currentRole, isSelf }: RoleSelectProps) {
         defaultValue={currentRole}
         onChange={handleChange}
         disabled={isPending}
-        className="rounded border border-input bg-background px-2 py-1 text-xs font-medium disabled:opacity-50"
+        className="rounded-md border border-input bg-background px-2 py-1 text-xs font-medium disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
       >
         {(Object.keys(ROLE_LABELS) as Role[]).map((role) => (
           <option key={role} value={role}>{ROLE_LABELS[role]}</option>

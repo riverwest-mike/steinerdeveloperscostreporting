@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   assignUserToProject,
   removeUserFromProject,
@@ -75,15 +77,17 @@ export function ProjectAccessSection({
   }
 
   return (
-    <div>
-      <h3 className="text-lg font-semibold mb-1">Project Access</h3>
-      <p className="text-sm text-muted-foreground mb-4">
-        Control which users can see each project. Admins have access to all projects by default.
-        Pending invites can be assigned before the user accepts.
-      </p>
-      <div className="rounded-lg border divide-y">
+    <div className="rounded-xl border bg-card shadow-sm">
+      <div className="px-5 py-4 border-b">
+        <h3 className="text-base font-semibold">Project Access</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Control which users can see each project. Admins have access to all projects by default.
+          Pending invites can be assigned before the user accepts.
+        </p>
+      </div>
+      <div className="divide-y">
         {projects.length === 0 && (
-          <div className="px-4 py-10 text-center text-sm text-muted-foreground">No projects yet.</div>
+          <div className="px-5 py-10 text-center text-sm text-muted-foreground">No projects yet.</div>
         )}
         {projects.map((project) => {
           const assigned = assignmentMap.get(project.id) ?? new Set<string>();
@@ -98,23 +102,28 @@ export function ProjectAccessSection({
           return (
             <div key={project.id}>
               <button
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-muted/30 transition-colors text-left"
+                className="w-full px-5 py-3.5 flex items-center justify-between hover:bg-muted/40 transition-colors text-left"
                 onClick={() => setExpandedProject(isOpen ? null : project.id)}
               >
                 <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs text-muted-foreground">{project.code}</span>
+                  <span className="font-mono text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                    {project.code}
+                  </span>
                   <span className="font-medium text-sm">{project.name}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-muted-foreground">
                     {totalCount} user{totalCount !== 1 ? "s" : ""}
                     {assignedPendingInvites.length > 0 && (
-                      <span className="ml-1 text-amber-600">
-                        ({assignedPendingInvites.length} pending)
+                      <span className="ml-1.5 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-800">
+                        {assignedPendingInvites.length} pending
                       </span>
                     )}
                   </span>
-                  <span className="text-muted-foreground text-xs">{isOpen ? "▲" : "▼"}</span>
+                  {isOpen
+                    ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  }
                 </div>
               </button>
 
@@ -201,7 +210,7 @@ function ProjectUserPanel({
   const hasAnyAssigned = assignedUsers.length > 0 || assignedPendingInvites.length > 0;
 
   return (
-    <div className="px-4 pb-4 pt-1 bg-muted/10 border-t space-y-3">
+    <div className="px-5 pb-4 pt-3 bg-muted/20 border-t space-y-3">
       <p className="text-xs text-muted-foreground">
         Admins always have access. Assign PMs, read-only users, and pending invites below.
       </p>
@@ -212,15 +221,15 @@ function ProjectUserPanel({
           {assignedUsers.map((u) => (
             <span
               key={u.id}
-              className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs"
+              className="inline-flex items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs shadow-sm"
             >
               <span className="font-medium">{u.full_name}</span>
               <span className="text-muted-foreground">·</span>
-              <span className="text-muted-foreground">{ROLE_LABELS[u.role] ?? u.role}</span>
+              <span className="text-primary/80 font-medium">{ROLE_LABELS[u.role] ?? u.role}</span>
               <button
                 disabled={isPending}
                 onClick={() => handleRemoveUser(u.id)}
-                className="ml-1 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50"
+                className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 leading-none"
                 title={`Remove ${u.full_name}`}
               >
                 ×
@@ -230,17 +239,17 @@ function ProjectUserPanel({
           {assignedPendingInvites.map((inv) => (
             <span
               key={inv.emailAddress}
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs"
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs"
             >
               <span className="font-medium">{inv.emailAddress}</span>
-              <span className="text-amber-600/60">·</span>
-              <span className="text-amber-700">{ROLE_LABELS[inv.role] ?? inv.role}</span>
-              <span className="text-amber-600/60">·</span>
+              <span className="text-amber-400">·</span>
+              <span className="text-amber-700 font-medium">{ROLE_LABELS[inv.role] ?? inv.role}</span>
+              <span className="text-amber-400">·</span>
               <span className="italic text-amber-600 text-[10px]">invited</span>
               <button
                 disabled={isPending}
                 onClick={() => handleRemovePendingInvite(inv.emailAddress)}
-                className="ml-1 text-amber-500 hover:text-destructive transition-colors disabled:opacity-50"
+                className="ml-0.5 text-amber-500 hover:text-destructive transition-colors disabled:opacity-50 leading-none"
                 title={`Remove ${inv.emailAddress}`}
               >
                 ×
@@ -259,7 +268,7 @@ function ProjectUserPanel({
             value={selected}
             onChange={(e) => setSelected(e.target.value)}
             disabled={isPending}
-            className="rounded border border-input bg-background px-2 py-1 text-xs flex-1 max-w-xs disabled:opacity-50"
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-xs flex-1 max-w-xs disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
             <option value="">— Add a user —</option>
             {unassignedUsers.length > 0 && (
@@ -281,13 +290,14 @@ function ProjectUserPanel({
               </optgroup>
             )}
           </select>
-          <button
+          <Button
+            size="sm"
             onClick={handleAssign}
             disabled={!selected || isPending}
-            className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            className="h-8"
           >
             {isPending ? "…" : "Add"}
-          </button>
+          </Button>
         </div>
       )}
 

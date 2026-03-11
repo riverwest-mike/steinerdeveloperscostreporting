@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { inviteUser } from "./actions";
+import { Button } from "@/components/ui/button";
 
 interface Project {
   id: string;
@@ -50,11 +51,11 @@ export function InviteUserForm({
 
   return (
     <div>
-      <h3 className="text-base font-semibold mb-3">Invite New User</h3>
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <h3 className="text-sm font-semibold mb-3">Invite New User</h3>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex items-end gap-3 flex-wrap">
-          <div className="space-y-1 flex-1 min-w-52">
-            <label className="text-xs font-medium" htmlFor="invite-email">
+          <div className="space-y-1.5 flex-1 min-w-52">
+            <label className="text-xs font-medium text-foreground" htmlFor="invite-email">
               Email address <span className="text-destructive">*</span>
             </label>
             <input
@@ -64,11 +65,11 @@ export function InviteUserForm({
               placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             />
           </div>
-          <div className="space-y-1 w-44">
-            <label className="text-xs font-medium" htmlFor="invite-role">Role</label>
+          <div className="space-y-1.5 w-44">
+            <label className="text-xs font-medium text-foreground" htmlFor="invite-role">Role</label>
             <select
               id="invite-role"
               value={role}
@@ -76,7 +77,7 @@ export function InviteUserForm({
                 setRole(e.target.value as typeof role);
                 setSelectedProjectIds([]);
               }}
-              className="w-full rounded border border-input bg-background px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
             >
               <option value="read_only">Read Only</option>
               <option value="project_manager">Project Manager</option>
@@ -84,18 +85,14 @@ export function InviteUserForm({
               <option value="admin">Admin</option>
             </select>
           </div>
-          <button
-            type="submit"
-            disabled={isPending}
-            className="rounded bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
-          >
+          <Button type="submit" disabled={isPending} size="sm" className="h-9">
             {isPending ? "Sending…" : "Send Invitation"}
-          </button>
+          </Button>
         </div>
 
         {showProjectPicker && (
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium">
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-foreground">
               Assign to projects{" "}
               <span className="text-muted-foreground font-normal">(optional — can be changed later)</span>
             </label>
@@ -107,10 +104,10 @@ export function InviteUserForm({
                     key={p.id}
                     type="button"
                     onClick={() => toggleProject(p.id)}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
                       checked
                         ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-background text-foreground border-input hover:border-primary/60"
+                        : "bg-background text-foreground border-input hover:border-primary/60 hover:bg-muted/40"
                     }`}
                   >
                     <span className="font-mono text-[10px] opacity-70">{p.code}</span>
@@ -129,12 +126,14 @@ export function InviteUserForm({
       </form>
 
       {result?.success && (
-        <p className="mt-2 text-xs text-green-700">Invitation sent! The user will receive an email with a sign-up link.</p>
+        <p className="mt-3 text-xs text-green-700 font-medium">
+          Invitation sent! The user will receive an email with a sign-up link.
+        </p>
       )}
       {result?.error && (
-        <p className="mt-2 text-xs text-destructive">{result.error}</p>
+        <p className="mt-3 text-xs text-destructive">{result.error}</p>
       )}
-      <p className="text-xs text-muted-foreground mt-3">
+      <p className="text-xs text-muted-foreground mt-3 border-t pt-3">
         The invited user will receive an email with a link to create their account. New users can only sign up via invitation — enable this in the Clerk dashboard under User &amp; Authentication → Restrictions → &quot;Require invitation&quot;.
       </p>
     </div>
