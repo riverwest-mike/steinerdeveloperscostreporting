@@ -32,6 +32,12 @@ const ACTION_LABELS: Record<string, string> = {
   "change_order.approve":  "Approved change order",
   "change_order.reject":   "Rejected change order",
   "change_order.void":     "Voided change order",
+  "gate.reopen":           "Reopened gate",
+  "draw_request.create":   "Created draw request",
+  "draw_request.update":   "Updated draw request",
+  "draw_request.status":   "Updated draw status",
+  "draw_request.delete":   "Deleted draw request",
+  "draw_request.lines":    "Updated draw lines",
 };
 
 const ACTION_COLORS: Record<string, string> = {
@@ -55,6 +61,12 @@ const ACTION_COLORS: Record<string, string> = {
   "change_order.approve":  "bg-green-100 text-green-800",
   "change_order.reject":   "bg-red-100 text-red-700",
   "change_order.void":     "bg-gray-100 text-gray-600",
+  "gate.reopen":           "bg-emerald-100 text-emerald-800",
+  "draw_request.create":   "bg-green-100 text-green-800",
+  "draw_request.update":   "bg-blue-100 text-blue-800",
+  "draw_request.status":   "bg-slate-100 text-slate-700",
+  "draw_request.delete":   "bg-red-100 text-red-700",
+  "draw_request.lines":    "bg-blue-100 text-blue-800",
 };
 
 interface SearchParams {

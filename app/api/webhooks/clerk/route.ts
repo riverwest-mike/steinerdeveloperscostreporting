@@ -170,6 +170,7 @@ export async function POST(req: Request) {
           action: "user.login",
           entity_type: "user",
           entity_id: user_id,
+          label: "Signed in",
         });
       }
     }
