@@ -52,7 +52,7 @@ export async function POST(req: Request) {
 
     // Only provision users who signed up via an admin invitation.
     // Invitations carry a `role` in publicMetadata; direct sign-ups have none.
-    const role = public_metadata?.role as string | undefined;
+    const role = (public_metadata?.role as string | undefined)?.toLowerCase();
     if (!role) {
       // No invitation metadata — leave this Clerk user without a Supabase record.
       // The dashboard layout will redirect them to /not-invited.
@@ -128,7 +128,7 @@ export async function POST(req: Request) {
 
     const email = email_addresses?.[0]?.email_address ?? "";
     const full_name = [first_name, last_name].filter(Boolean).join(" ") || email;
-    const role = (public_metadata?.role as string) || undefined;
+    const role = (public_metadata?.role as string | undefined)?.toLowerCase() || undefined;
 
     const { error } = await supabase
       .from("users")
