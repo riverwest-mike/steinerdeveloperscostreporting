@@ -65,7 +65,18 @@ export async function updateUserRole(
       .from("users")
       .update({ role: newRole })
       .eq("id", targetUserId);
-    if (dbError) throw new Error(dbError.message);
+    if (dbError) {
+      if (dbError.message.includes("users_role_check")) {
+        return {
+          error:
+            "Database migration required: the 'accounting' role is not yet in the role constraint. " +
+            "Go to Admin → AppFolio → Apply Pending Migrations, or run this SQL in the Supabase SQL Editor:\n\n" +
+            "ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;\n" +
+            "ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'project_manager', 'read_only', 'accounting'));",
+        };
+      }
+      throw new Error(dbError.message);
+    }
 
     const clerk = await clerkClient();
     await clerk.users.updateUser(targetUserId, { publicMetadata: { role: newRole } });

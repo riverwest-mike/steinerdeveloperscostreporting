@@ -88,8 +88,10 @@ NOTIFY pgrst, 'reload schema';
 /**
  * POST /api/admin/apply-migrations
  *
- * Applies pending database migrations. Requires DATABASE_URL env var
- * (available from Supabase project settings > Database > Connection string).
+ * Applies pending database migrations. Tries the following in order:
+ * 1. DATABASE_URL env var (Supabase project settings > Database > Connection string)
+ * 2. SUPABASE_ACCESS_TOKEN env var (Supabase dashboard > Account > Access Tokens)
+ * 3. Returns the SQL with instructions to run manually in the Supabase SQL editor.
  * Admin-only endpoint.
  */
 export async function POST() {
@@ -109,34 +111,71 @@ export async function POST() {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   }
 
+  // Attempt 1: pg.Client with explicit DATABASE_URL
   const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    return NextResponse.json(
-      {
-        error: "DATABASE_URL environment variable is not set.",
-        instructions:
-          "Add DATABASE_URL to your environment variables. " +
-          "Find it in Supabase Dashboard > Project Settings > Database > " +
-          "Connection string (URI format). " +
-          "Alternatively, run the migration SQL manually in the Supabase SQL editor.",
-        sql: MIGRATION_SQL.trim(),
-      },
-      { status: 500 }
-    );
+  if (databaseUrl) {
+    const client = new Client({ connectionString: databaseUrl });
+    try {
+      await client.connect();
+      await client.query(MIGRATION_SQL);
+      return NextResponse.json({
+        success: true,
+        message: "Migrations applied successfully.",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ error: message }, { status: 500 });
+    } finally {
+      await client.end();
+    }
   }
 
-  const client = new Client({ connectionString: databaseUrl });
-  try {
-    await client.connect();
-    await client.query(MIGRATION_SQL);
-    return NextResponse.json({
-      success: true,
-      message: "Migration applied successfully. transaction_gate_assignments table is ready.",
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
-  } finally {
-    await client.end();
+  // Attempt 2: Supabase Management API with SUPABASE_ACCESS_TOKEN
+  const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+
+  if (accessToken && projectRef) {
+    try {
+      const res = await fetch(
+        `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query: MIGRATION_SQL }),
+        }
+      );
+      if (res.ok) {
+        return NextResponse.json({
+          success: true,
+          message: "Migrations applied successfully via Supabase Management API.",
+        });
+      }
+      const errBody = await res.text();
+      return NextResponse.json(
+        { error: `Supabase Management API error (${res.status}): ${errBody}` },
+        { status: 500 }
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return NextResponse.json({ error: message }, { status: 500 });
+    }
   }
+
+  // Fallback: return SQL with instructions
+  return NextResponse.json(
+    {
+      error: "No database credentials configured.",
+      instructions:
+        "Set either DATABASE_URL (Supabase Dashboard → Project Settings → Database → Connection string) " +
+        "or SUPABASE_ACCESS_TOKEN (Supabase Dashboard → Account → Access Tokens) in your environment variables, " +
+        "then click Apply Pending Migrations again. " +
+        "Alternatively, run the SQL below directly in the Supabase SQL Editor.",
+      sql: MIGRATION_SQL.trim(),
+    },
+    { status: 500 }
+  );
 }
