@@ -4,6 +4,11 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { Client } from "pg";
 
 const MIGRATION_SQL = `
+-- accounting role: add 'accounting' to users_role_check constraint (idempotent)
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check
+  CHECK (role IN ('admin', 'project_manager', 'read_only', 'accounting'));
+
 -- transaction_gate_assignments table
 CREATE TABLE IF NOT EXISTS transaction_gate_assignments (
   id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
