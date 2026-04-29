@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { RoleSelect } from "./role-select";
 import { ActiveToggle } from "./active-toggle";
 import { InviteUserForm } from "./invite-user-form";
-import { revokeInvite, assignUserToProject, removeUserFromProject } from "./actions";
+import { revokeInvite, assignUserToProject, removeUserFromProject, syncClerkUsers } from "./actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -188,6 +188,8 @@ export function UsersSection({
   const [revokeError, setRevokeError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
 
   // Build user → project assignment map
   const userProjectMap = new Map<string, Set<string>>();
@@ -201,6 +203,26 @@ export function UsersSection({
     if (statusFilter === "inactive") return !u.is_active;
     return true;
   });
+
+  function handleSyncClerk() {
+    setSyncMsg(null);
+    setSyncing(true);
+    startTransition(async () => {
+      const result = await syncClerkUsers();
+      setSyncing(false);
+      if (result.error) {
+        setSyncMsg({ tone: "error", text: `Sync failed: ${result.error}` });
+      } else {
+        const n = result.created ?? 0;
+        setSyncMsg({
+          tone: "ok",
+          text: n === 0
+            ? "Already up to date — no new users in Clerk."
+            : `Synced ${n} new user${n === 1 ? "" : "s"} from Clerk.`,
+        });
+      }
+    });
+  }
 
   function handleRevoke(inviteId: string, email: string) {
     if (!confirm(`Revoke invitation for ${email}? They will no longer be able to use this invite link.`)) return;
@@ -298,11 +320,32 @@ export function UsersSection({
             <ExcelIcon className="h-4 w-4 text-green-600" />
             Export to Excel
           </button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncClerk}
+            disabled={syncing}
+            title="Pull users created directly in Clerk into this app's user list"
+          >
+            {syncing ? "Syncing…" : "Sync from Clerk"}
+          </Button>
           <Button size="sm" onClick={() => setShowAddModal(true)}>
             + Add User
           </Button>
         </div>
       </div>
+
+      {syncMsg && (
+        <div
+          className={`px-5 py-2 text-xs border-b ${
+            syncMsg.tone === "error"
+              ? "bg-destructive/5 text-destructive"
+              : "bg-emerald-50 text-emerald-800"
+          }`}
+        >
+          {syncMsg.text}
+        </div>
+      )}
 
       {/* Status filter */}
       <div className="px-5 py-3 border-b flex items-center gap-1.5">

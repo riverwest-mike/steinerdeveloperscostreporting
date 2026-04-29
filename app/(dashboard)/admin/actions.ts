@@ -221,6 +221,60 @@ export async function getPendingInvites(): Promise<{
   }
 }
 
+export async function syncClerkUsers(): Promise<{ created?: number; error?: string }> {
+  try {
+    const { supabase } = await requireAdminCaller();
+    const clerk = await clerkClient();
+
+    const { data: existing } = await supabase.from("users").select("id");
+    const existingIds = new Set((existing ?? []).map((u: { id: string }) => u.id));
+
+    const PAGE_SIZE = 100;
+    let offset = 0;
+    let created = 0;
+
+    while (true) {
+      const page = await clerk.users.getUserList({ limit: PAGE_SIZE, offset });
+      const users = page.data;
+      if (users.length === 0) break;
+
+      const rows = users
+        .filter((u) => !existingIds.has(u.id))
+        .map((u) => {
+          const invitedRole = ((u.publicMetadata as Record<string, unknown> | undefined)?.role as string | undefined)?.toLowerCase();
+          const role = invitedRole ?? "read_only";
+          const isActive = Boolean(invitedRole);
+          const email = u.emailAddresses?.[0]?.emailAddress ?? "";
+          const fullName = [u.firstName, u.lastName].filter(Boolean).join(" ") || email;
+          return {
+            id: u.id,
+            email,
+            full_name: fullName,
+            role,
+            is_active: isActive,
+            updated_at: new Date().toISOString(),
+          };
+        })
+        .filter((r) => r.email);
+
+      if (rows.length > 0) {
+        const { error } = await supabase.from("users").insert(rows);
+        if (error) throw new Error(error.message);
+        created += rows.length;
+        for (const r of rows) existingIds.add(r.id);
+      }
+
+      if (users.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
+    }
+
+    revalidatePath("/admin");
+    return { created };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to sync Clerk users" };
+  }
+}
+
 export async function revokeInvite(inviteId: string, email: string): Promise<{ error?: string }> {
   try {
     const { supabase } = await requireAdminCaller();
