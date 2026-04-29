@@ -29,10 +29,8 @@ export default async function DashboardLayout({
     .eq("id", userId)
     .single();
 
-  // If the user signed up without an invitation they won't have a Supabase
-  // record yet (the webhook only creates one when the Clerk user.created event
-  // fires, which requires the invitation flow). Redirect them to a "not invited"
-  // page rather than auto-provisioning them.
+  // No Supabase row means the Clerk webhook hasn't provisioned this user yet
+  // (e.g. created before webhook sync was wired up). Send them to /not-invited.
   if (!user) {
     redirect("/not-invited");
   }
