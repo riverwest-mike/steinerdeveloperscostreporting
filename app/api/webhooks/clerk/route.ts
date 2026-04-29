@@ -50,15 +50,13 @@ export async function POST(req: Request) {
   if (eventType === "user.created") {
     const { id, email_addresses, first_name, last_name, public_metadata } = data;
 
-    // Only provision users who signed up via an admin invitation.
-    // Invitations carry a `role` in publicMetadata; direct sign-ups have none.
-    const role = (public_metadata?.role as string | undefined)?.toLowerCase();
-    if (!role) {
-      // No invitation metadata — leave this Clerk user without a Supabase record.
-      // The dashboard layout will redirect them to /not-invited.
-      console.log(`[webhook] user.created for ${id} has no invitation metadata — skipping provisioning`);
-      return NextResponse.json({ received: true });
-    }
+    // Invited users carry a `role` in publicMetadata. Users created directly in
+    // Clerk (admin dashboard adds, self-signups) have none — provision them as
+    // inactive read_only so they appear on the Users & Access page; the
+    // dashboard layout will keep them out until an admin activates them.
+    const invitedRole = (public_metadata?.role as string | undefined)?.toLowerCase();
+    const role = invitedRole ?? "read_only";
+    const isActive = Boolean(invitedRole);
 
     const email = email_addresses?.[0]?.email_address ?? "";
     const full_name = [first_name, last_name].filter(Boolean).join(" ") || email;
@@ -68,13 +66,18 @@ export async function POST(req: Request) {
       email,
       full_name,
       role,
-      is_active: true,
+      is_active: isActive,
       updated_at: new Date().toISOString(),
     });
 
     if (error) {
       console.error("Supabase insert error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Project auto-assignment only applies to invited users.
+    if (!invitedRole) {
+      return NextResponse.json({ received: true });
     }
 
     // Auto-assign the new user to any projects queued in pending_project_assignments.
