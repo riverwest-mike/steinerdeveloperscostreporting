@@ -8,11 +8,9 @@ import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
 import { ExportButtons } from "./export-buttons";
-import { TransactionNoteCell } from "@/components/transaction-note-cell";
-import { TransactionGateCell } from "@/components/transaction-gate-cell";
-import { TransactionCategoryCell } from "@/components/transaction-category-cell";
 import { ColumnPicker } from "@/components/column-picker";
 import { HELP } from "@/lib/help";
+import { CostDetailTable, type CostDetailRow } from "./cost-detail-table";
 
 const COST_DETAIL_COLUMNS = [
   { key: "project", label: "Project" },
@@ -45,24 +43,6 @@ function appfolioDateCap(): string {
   const d = new Date();
   d.setDate(d.getDate() - 1);
   return localDateStr(d);
-}
-
-function usd(n: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-}
-
-function fmtDate(d: string | null): string {
-  if (!d) return "—";
-  return new Date(d + "T00:00:00").toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 /* ─── Types ───────────────────────────────────────────── */
@@ -160,6 +140,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
             currentAsOf={asOf}
             currentCategoryCode={null}
             currentGateId={null}
+            currentPaymentFilter={null}
           />
           <ReportRestorer />
           <div className="rounded-lg border border-dashed p-16 text-center">
@@ -198,7 +179,22 @@ export default async function CostDetailPage({ searchParams }: Props) {
       .lte("bill_date", asOf < appfolioDateCap() ? asOf : appfolioDateCap());
 
     if (categoryCode) {
-      query = query.ilike("cost_category_code", categoryCode);
+      // PCM matches transactions to a category by either the full code
+      // (e.g. "010700 Survey") or its numeric prefix ("010700"), because
+      // AppFolio's vendor_ledger frequently returns just the numeric
+      // portion. Mirror that so a deep-link from PCM lands on the rows
+      // it just totaled. Wrap values with spaces/commas in double quotes
+      // for PostgREST's or() parser.
+      const trimmed = categoryCode.trim();
+      const prefix = trimmed.split(/\s+/)[0];
+      const q = (v: string) => (/[\s,]/.test(v) ? `"${v}"` : v);
+      if (prefix && prefix !== trimmed) {
+        query = query.or(
+          `cost_category_code.ilike.${q(trimmed)},cost_category_code.ilike.${q(prefix)}`
+        );
+      } else {
+        query = query.ilike("cost_category_code", trimmed);
+      }
     }
 
     if (paymentFilter === "paid") {
@@ -269,11 +265,6 @@ export default async function CostDetailPage({ searchParams }: Props) {
     ? `https://${process.env.APPFOLIO_DATABASE_URL}`
     : null;
 
-  // ── Totals ────────────────────────────────────────────
-  const totalInvoice = transactions.reduce((s, t) => s + Number(t.invoice_amount), 0);
-  const totalPaid = transactions.reduce((s, t) => s + Number(t.paid_amount), 0);
-  const totalUnpaid = transactions.reduce((s, t) => s + Number(t.unpaid_amount), 0);
-
   // ── Category label ────────────────────────────────────
   const selectedCategory = categoryCode
     ? categories.find((c) => c.code.toUpperCase() === categoryCode.toUpperCase())
@@ -301,6 +292,41 @@ export default async function CostDetailPage({ searchParams }: Props) {
     };
   });
 
+  // Build rows for the interactive client table (sortable / filterable headers).
+  const tableRows: CostDetailRow[] = transactions.map((tx) => {
+    const txProject = propertyToProject.get(tx.appfolio_property_id);
+    const ga = gateAssignmentByTxId.get(tx.id);
+    const gateData = ga ? gateNameById.get(ga.gate_id) : null;
+    const projectGates = txProject ? (gatesByProjectId.get(txProject.id) ?? []) : [];
+    return {
+      id: tx.id,
+      appfolio_bill_id: tx.appfolio_bill_id,
+      appfolio_property_id: tx.appfolio_property_id,
+      vendor_name: tx.vendor_name,
+      gl_account_id: tx.gl_account_id,
+      gl_account_name: tx.gl_account_name,
+      cost_category_code: tx.cost_category_code,
+      cost_category_name: tx.cost_category_name,
+      cost_category_code_override: tx.cost_category_code_override,
+      bill_date: tx.bill_date,
+      invoice_amount: Number(tx.invoice_amount),
+      paid_amount: Number(tx.paid_amount),
+      unpaid_amount: Number(tx.unpaid_amount),
+      payment_status: tx.payment_status,
+      check_number: tx.check_number,
+      reference_number: tx.reference_number,
+      description: tx.description,
+      project_id: txProject?.id ?? null,
+      project_code: txProject?.code ?? null,
+      gate_id: ga?.gate_id ?? null,
+      gate_name: gateData?.name ?? null,
+      gate_sequence: gateData?.sequence_number ?? null,
+      gate_is_override: ga?.is_override ?? false,
+      project_gates: projectGates,
+      note: notesByBillId.get(tx.appfolio_bill_id) ?? null,
+    };
+  });
+
   return (
     <div>
       <Header title="Cost Detail Report" helpContent={HELP.costDetail} />
@@ -314,6 +340,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
             currentAsOf={asOf}
             currentCategoryCode={categoryCode}
             currentGateId={gateIdFilter}
+            currentPaymentFilter={paymentFilter}
           />
         </div>
 
@@ -401,159 +428,16 @@ export default async function CostDetailPage({ searchParams }: Props) {
         </div>
 
         {transactions.length > 0 && (
-          <>
-          <style>{`
-            @media print {
-              @page { size: landscape; margin: 10mm 8mm; }
-              .overflow-x-auto { overflow: visible !important; }
-              table { font-size: 7pt !important; min-width: 0 !important; width: 100% !important; table-layout: fixed; }
-              th, td { padding: 1pt 3pt !important; white-space: normal !important; word-break: break-word; overflow: hidden; }
-              th[data-col="description"], td[data-col="description"] { width: 18%; }
-              th[data-col="vendor"], td[data-col="vendor"] { width: 16%; }
-              th[data-col="notes"], td[data-col="notes"] { width: 14%; }
-            }
-          `}</style>
-          <div className="overflow-x-auto rounded-lg border">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-800 text-white">
-                  {showProjectCol && <th data-col="project" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Project</th>}
-                  <th data-col="bill_date" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Bill Date</th>
-                  <th data-col="vendor" className="px-3 py-2.5 text-left font-medium">Vendor</th>
-                  <th data-col="description" className="px-3 py-2.5 text-left font-medium">Description</th>
-                  <th data-col="gl_account" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">GL Account</th>
-                  <th data-col="cost_category" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Cost Category</th>
-                  <th data-col="invoice_amt" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Invoice Amt</th>
-                  <th data-col="paid" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Paid</th>
-                  <th data-col="unpaid" className="px-3 py-2.5 text-right font-medium whitespace-nowrap">Unpaid</th>
-                  <th data-col="status" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Status</th>
-                  <th data-col="check_num" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Check #</th>
-                  <th data-col="gate" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Gate</th>
-                  <th data-col="reference" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Reference</th>
-                  <th data-col="notes" className="px-3 py-2.5 text-left font-medium whitespace-nowrap">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => {
-                  const txProject = propertyToProject.get((tx as Transaction & { appfolio_property_id: string }).appfolio_property_id);
-                  const ga = gateAssignmentByTxId.get(tx.id);
-                  const gateData = ga ? gateNameById.get(ga.gate_id) : null;
-                  const projectGates = txProject ? (gatesByProjectId.get(txProject.id) ?? []) : [];
-                  return (
-                  <tr key={tx.id} className="border-t border-slate-100 hover:bg-slate-50/50">
-                    {showProjectCol && (
-                      <td data-col="project" className="px-3 py-2 whitespace-nowrap">
-                        <span className="font-mono text-[10px] text-muted-foreground">{txProject?.code ?? "—"}</span>
-                      </td>
-                    )}
-                    <td data-col="bill_date" className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
-                      {fmtDate(tx.bill_date)}
-                    </td>
-                    <td data-col="vendor" className="px-3 py-2 font-medium">
-                      <Link
-                        href={`/vendors/${encodeURIComponent(tx.vendor_name)}`}
-                        className="text-blue-600 hover:underline"
-                      >
-                        {tx.vendor_name}
-                      </Link>
-                    </td>
-                    <td data-col="description" className="px-3 py-2 text-muted-foreground max-w-[200px] truncate">
-                      {tx.description ?? "—"}
-                    </td>
-                    <td data-col="gl_account" className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                      <span className="font-mono">{tx.gl_account_id || "—"}</span>
-                      {tx.gl_account_name && (
-                        <span className="ml-1 text-[10px]">{tx.gl_account_name}</span>
-                      )}
-                    </td>
-                    <td data-col="cost_category" className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                      <TransactionCategoryCell
-                        transactionId={tx.id}
-                        currentCode={tx.cost_category_code}
-                        currentName={tx.cost_category_name}
-                        isOverride={!!tx.cost_category_code_override}
-                        categories={categories}
-                        canEdit={canEditGate}
-                      />
-                    </td>
-                    <td data-col="invoice_amt" className="px-3 py-2 text-right tabular-nums font-medium">
-                      {appfolioBaseUrl ? (
-                        <a
-                          href={`${appfolioBaseUrl}/payable_bills/${tx.appfolio_bill_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                          title="Open in AppFolio"
-                        >
-                          {usd(Number(tx.invoice_amount))}
-                        </a>
-                      ) : usd(Number(tx.invoice_amount))}
-                    </td>
-                    <td data-col="paid" className="px-3 py-2 text-right tabular-nums text-green-700">
-                      {usd(Number(tx.paid_amount))}
-                    </td>
-                    <td data-col="unpaid" className="px-3 py-2 text-right tabular-nums text-amber-700">
-                      {Number(tx.unpaid_amount) !== 0 ? usd(Number(tx.unpaid_amount)) : "—"}
-                    </td>
-                    <td data-col="status" className="px-3 py-2 whitespace-nowrap">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                          /^paid$/i.test(tx.payment_status)
-                            ? "bg-green-100 text-green-800"
-                            : /^unpaid$/i.test(tx.payment_status)
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-slate-100 text-slate-700"
-                        }`}
-                      >
-                        {tx.payment_status}
-                      </span>
-                    </td>
-                    <td data-col="check_num" className="px-3 py-2 text-muted-foreground">{tx.check_number ?? "—"}</td>
-                    <td data-col="gate" className="px-3 py-2">
-                      <TransactionGateCell
-                        transactionId={tx.id}
-                        currentGateId={ga?.gate_id ?? null}
-                        currentGateName={gateData?.name ?? null}
-                        currentGateSequence={gateData?.sequence_number ?? null}
-                        isOverride={ga?.is_override ?? false}
-                        projectGates={projectGates}
-                        canEdit={canEditGate}
-                      />
-                    </td>
-                    <td data-col="reference" className="px-3 py-2 text-muted-foreground">{tx.reference_number ?? "—"}</td>
-                    <td data-col="notes" className="px-3 py-2">
-                      <TransactionNoteCell
-                        appfolioBillId={tx.appfolio_bill_id}
-                        initialNote={notesByBillId.get(tx.appfolio_bill_id) ?? null}
-                        isAdmin={isAdmin}
-                      />
-                    </td>
-                  </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-slate-400 bg-slate-800 text-white font-bold text-xs">
-                  {showProjectCol && <td data-col="project" className="px-3 py-3" />}
-                  <td data-col="bill_date" className="px-3 py-3" />
-                  <td data-col="vendor" className="px-3 py-3">TOTAL — {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}</td>
-                  <td data-col="description" className="px-3 py-3" />
-                  <td data-col="gl_account" className="px-3 py-3" />
-                  <td data-col="cost_category" className="px-3 py-3" />
-                  <td data-col="invoice_amt" className="px-3 py-3 text-right tabular-nums">{usd(totalInvoice)}</td>
-                  <td data-col="paid" className="px-3 py-3 text-right tabular-nums">{usd(totalPaid)}</td>
-                  <td data-col="unpaid" className="px-3 py-3 text-right tabular-nums">{totalUnpaid !== 0 ? usd(totalUnpaid) : "—"}</td>
-                  <td data-col="status" className="px-3 py-3" />
-                  <td data-col="check_num" className="px-3 py-3" />
-                  <td data-col="gate" className="px-3 py-3" />
-                  <td data-col="reference" className="px-3 py-3" />
-                  <td data-col="notes" className="px-3 py-3" />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-          </>
+          <CostDetailTable
+            rows={tableRows}
+            showProjectCol={showProjectCol}
+            categories={categories}
+            canEditGate={canEditGate}
+            isAdmin={isAdmin}
+            appfolioBaseUrl={appfolioBaseUrl}
+          />
         )}
+
       </div>
     </div>
   );

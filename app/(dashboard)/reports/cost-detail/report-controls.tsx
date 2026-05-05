@@ -32,6 +32,7 @@ interface ReportControlsProps {
   currentAsOf: string;
   currentCategoryCode: string | null;
   currentGateId: string | null;
+  currentPaymentFilter: string | null;
 }
 
 export function ReportControls({
@@ -42,23 +43,26 @@ export function ReportControls({
   currentAsOf,
   currentCategoryCode,
   currentGateId,
+  currentPaymentFilter,
 }: ReportControlsProps) {
   const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(currentProjectIds));
   const [asOf, setAsOf] = useState(currentAsOf);
   const [categoryCode, setCategoryCode] = useState(currentCategoryCode ?? "");
   const [gateId, setGateId] = useState(currentGateId ?? "");
+  const [paymentFilter, setPaymentFilter] = useState(currentPaymentFilter ?? "");
   const [syncStatus, setSyncStatus] = useState<"idle" | "syncing" | "done" | "error">("idle");
   const [syncMsg, setSyncMsg] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  function buildUrl(ids: Set<string>, date: string, code: string, gate: string) {
+  function buildUrl(ids: Set<string>, date: string, code: string, gate: string, payment: string) {
     const params = new URLSearchParams();
     const sorted = [...ids].sort();
     if (sorted.length > 0) params.set("projectIds", sorted.join(","));
     if (date) params.set("asOf", date);
     if (code) params.set("categoryCode", code);
     if (gate) params.set("gateId", gate);
+    if (payment) params.set("paymentFilter", payment);
     return `/reports/cost-detail?${params.toString()}`;
   }
 
@@ -66,13 +70,13 @@ export function ReportControls({
     if (selectedIds.size === 0) return;
 
     try {
-      localStorage.setItem("cost_detail_last_filter", JSON.stringify({ projectIds: [...selectedIds], categoryCode, asOf, gateId, savedDate: new Date().toISOString().slice(0, 10) }));
+      localStorage.setItem("cost_detail_last_filter", JSON.stringify({ projectIds: [...selectedIds], categoryCode, asOf, gateId, paymentFilter, savedDate: new Date().toISOString().slice(0, 10) }));
     } catch { /* ignore */ }
 
     const toSync = projects.filter((p) => selectedIds.has(p.id) && p.appfolio_property_id);
 
     if (toSync.length === 0) {
-      router.push(buildUrl(selectedIds, asOf, categoryCode, gateId));
+      router.push(buildUrl(selectedIds, asOf, categoryCode, gateId, paymentFilter));
       return;
     }
 
@@ -99,7 +103,7 @@ export function ReportControls({
         setSyncStatus("error");
         setSyncMsg(err instanceof Error ? err.message : "Sync failed");
       }
-      router.push(buildUrl(selectedIds, asOf, categoryCode, gateId));
+      router.push(buildUrl(selectedIds, asOf, categoryCode, gateId, paymentFilter));
       router.refresh();
     });
   }
@@ -158,6 +162,22 @@ export function ReportControls({
             </select>
           </div>
         )}
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="cd-payment" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Payment Status
+          </label>
+          <select
+            id="cd-payment"
+            value={paymentFilter}
+            onChange={(e) => { setPaymentFilter(e.target.value); setSyncStatus("idle"); }}
+            className="h-9 min-w-[140px] rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">— All —</option>
+            <option value="paid">Paid Only</option>
+            <option value="unpaid">Unpaid Only</option>
+          </select>
+        </div>
 
         <div className="flex flex-col gap-1">
           <label htmlFor="cd-date" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
