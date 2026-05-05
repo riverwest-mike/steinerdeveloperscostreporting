@@ -18,7 +18,7 @@ export async function getAccessibleProjectIds(
     .single();
 
   const role = (data as { role?: string } | null)?.role;
-  if (!role || role === "admin" || role === "accounting") return null;
+  if (!role || role === "admin" || role === "accounting" || role === "development_lead") return null;
 
   const { data: access } = await supabase
     .from("project_users")

@@ -16,6 +16,10 @@ import {
   ScrollText,
   BookOpen,
   Building2,
+  MessageSquare,
+  Activity,
+  Cpu,
+  Lock,
 } from "lucide-react";
 import { KilnLockup } from "@/components/brand/kiln-logo";
 import { useState } from "react";
@@ -29,12 +33,23 @@ const reportItems = [
   { href: "/reports/balance-sheet", label: "Balance Sheet" },
 ];
 
-const adminItems = [
+// Settings section (admin + accounting + development_lead)
+const settingsItems = [
   { href: "/admin/users", label: "Users & Access", icon: Users },
   { href: "/admin/cost-categories", label: "Cost Categories", icon: Tag },
   { href: "/admin/appfolio", label: "AppFolio", icon: RefreshCw },
   { href: "/admin/audit-log", label: "Audit Log", icon: ScrollText },
 ];
+
+// Admin section (true admin only)
+const systemAdminItems = [
+  { href: "/admin/monitoring/chat-log", label: "Chat Log", icon: MessageSquare },
+  { href: "/admin/monitoring/user-activity", label: "User Activity", icon: Activity },
+  { href: "/admin/monitoring/ai-usage", label: "AI Usage", icon: Cpu },
+];
+
+const SETTINGS_PATHS = ["/admin/users", "/admin/cost-categories", "/admin/appfolio", "/admin/audit-log"];
+const SYSTEM_ADMIN_PATHS = ["/admin/monitoring"];
 
 interface SidebarProps {
   role: string;
@@ -43,17 +58,21 @@ interface SidebarProps {
 
 export function Sidebar({ role, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const isAdmin = role === "admin";
-  const showAdminSection = role === "admin" || role === "accounting";
-  const visibleAdminItems = role === "accounting"
-    ? adminItems.filter((item) => item.href !== "/admin/users")
-    : adminItems;
+  const showSettingsSection = role === "admin" || role === "accounting" || role === "development_lead";
+  const showSystemAdminSection = role === "admin";
+
+  const visibleSettingsItems = role === "accounting"
+    ? settingsItems.filter((item) => item.href !== "/admin/users")
+    : settingsItems;
+
+  const settingsActive = pathname === "/admin" || SETTINGS_PATHS.some((p) => pathname.startsWith(p));
+  const systemAdminActive = SYSTEM_ADMIN_PATHS.some((p) => pathname.startsWith(p));
 
   const [reportsOpen, setReportsOpen] = useState(pathname.startsWith("/reports"));
-  const [adminOpen, setAdminOpen] = useState(pathname.startsWith("/admin"));
+  const [settingsOpen, setSettingsOpen] = useState(settingsActive);
+  const [systemAdminOpen, setSystemAdminOpen] = useState(systemAdminActive);
 
   const reportsActive = pathname.startsWith("/reports");
-  const adminActive = pathname.startsWith("/admin");
 
   function navItem(active: boolean) {
     return cn(
@@ -142,31 +161,72 @@ export function Sidebar({ role, onClose }: SidebarProps) {
           )}
         </div>
 
-        {/* Admin */}
-        {showAdminSection && (
+        {/* Settings (admin + accounting + development_lead) */}
+        {showSettingsSection && (
           <>
             <div className="my-2" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }} />
             <div>
               <Link
                 href="/admin"
-                onClick={() => { setAdminOpen(true); onClose?.(); }}
-                className={navItem(adminActive)}
+                onClick={() => { setSettingsOpen(true); onClose?.(); }}
+                className={navItem(settingsActive)}
               >
                 <ShieldCheck className="h-4 w-4 shrink-0" />
-                <span className="flex-1">Admin</span>
+                <span className="flex-1">Settings</span>
                 <ChevronDown
-                  onClick={(e) => { e.preventDefault(); setAdminOpen((o) => !o); }}
-                  className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", adminOpen && "rotate-180")}
+                  onClick={(e) => { e.preventDefault(); setSettingsOpen((o) => !o); }}
+                  className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", settingsOpen && "rotate-180")}
                   style={{ color: "hsl(var(--sidebar-muted))" }}
                 />
               </Link>
 
-              {adminOpen && (
+              {settingsOpen && (
                 <div
                   className="mt-1 ml-4 space-y-0.5 pl-3"
                   style={{ borderLeft: "1px solid hsl(var(--sidebar-border))" }}
                 >
-                  {visibleAdminItems.map((item) => (
+                  {visibleSettingsItems.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onClose}
+                      className={subItem(pathname.startsWith(item.href))}
+                    >
+                      <item.icon className="h-3 w-3 shrink-0 opacity-60" />
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Admin monitoring (true admin only) */}
+        {showSystemAdminSection && (
+          <>
+            <div className="my-2" style={{ borderTop: "1px solid hsl(var(--sidebar-border))" }} />
+            <div>
+              <Link
+                href="/admin/monitoring"
+                onClick={() => { setSystemAdminOpen(true); onClose?.(); }}
+                className={navItem(systemAdminActive)}
+              >
+                <Lock className="h-4 w-4 shrink-0" />
+                <span className="flex-1">Admin</span>
+                <ChevronDown
+                  onClick={(e) => { e.preventDefault(); setSystemAdminOpen((o) => !o); }}
+                  className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", systemAdminOpen && "rotate-180")}
+                  style={{ color: "hsl(var(--sidebar-muted))" }}
+                />
+              </Link>
+
+              {systemAdminOpen && (
+                <div
+                  className="mt-1 ml-4 space-y-0.5 pl-3"
+                  style={{ borderLeft: "1px solid hsl(var(--sidebar-border))" }}
+                >
+                  {systemAdminItems.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -195,7 +255,7 @@ export function Sidebar({ role, onClose }: SidebarProps) {
             style={{ background: "hsl(var(--sidebar-active-bg))" }}
           />
           <span className="text-[11px] capitalize" style={{ color: "hsl(var(--sidebar-muted))" }}>
-            {role?.replace("_", " ")}
+            {role?.replace(/_/g, " ")}
           </span>
         </div>
         <button

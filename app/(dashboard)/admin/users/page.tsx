@@ -18,7 +18,7 @@ export default async function AdminUsersPage() {
     .eq("id", userId!)
     .single();
 
-  if (user?.role !== "admin") {
+  if (user?.role !== "admin" && user?.role !== "development_lead") {
     redirect("/dashboard");
   }
 

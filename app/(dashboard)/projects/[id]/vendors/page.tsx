@@ -43,8 +43,8 @@ export default async function ProjectVendorsPage({ params }: Props) {
     if (!access) redirect("/dashboard");
   }
 
-  const canEdit = role === "admin" || role === "project_manager";
-  const isAdmin = role === "admin";
+  const canEdit = role === "admin" || role === "project_manager" || role === "development_lead";
+  const isAdmin = role === "admin" || role === "development_lead";
 
   return (
     <div>

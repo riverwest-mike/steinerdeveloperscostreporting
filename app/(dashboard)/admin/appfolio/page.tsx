@@ -22,7 +22,7 @@ export default async function AppFolioSyncPage() {
     .eq("id", userId!)
     .single();
 
-  if (user?.role !== "admin" && user?.role !== "accounting") {
+  if (user?.role !== "admin" && user?.role !== "accounting" && user?.role !== "development_lead") {
     redirect("/dashboard");
   }
 

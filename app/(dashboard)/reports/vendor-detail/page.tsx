@@ -133,8 +133,8 @@ export default async function VendorDetailPage({ searchParams }: Props) {
     ? await supabase.from("users").select("role").eq("id", userId).single()
     : { data: null };
   const role = (currentUser as { role?: string } | null)?.role;
-  const isAdmin = role === "admin";
-  const canEditGate = role === "admin" || role === "project_manager";
+  const isAdmin = role === "admin" || role === "development_lead";
+  const canEditGate = role === "admin" || role === "project_manager" || role === "development_lead";
 
   const allowedProjectIds = await getAccessibleProjectIds(supabase, userId);
 

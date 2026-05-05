@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     }
     const supabase = createAdminClient();
     const { data: user } = await supabase.from("users").select("role").eq("id", userId).single();
-    if (user?.role !== "admin" && user?.role !== "accounting") {
+    if (user?.role !== "admin" && user?.role !== "accounting" && user?.role !== "development_lead") {
       return NextResponse.json({ error: "Admin role required" }, { status: 403 });
     }
 

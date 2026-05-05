@@ -32,7 +32,7 @@ export function InviteUserForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setResult(null);
-    const projectIds = role === "admin" || role === "accounting" ? [] : selectedProjectIds;
+    const projectIds = role === "admin" || role === "accounting" || role === "development_lead" ? [] : selectedProjectIds;
     startTransition(async () => {
       const res = await inviteUser(email.trim(), role, projectIds);
       if (res.error) {
@@ -47,7 +47,7 @@ export function InviteUserForm({
     });
   }
 
-  const showProjectPicker = role !== "admin" && role !== "accounting" && projects.length > 0;
+  const showProjectPicker = role !== "admin" && role !== "accounting" && role !== "development_lead" && projects.length > 0;
 
   return (
     <div>
