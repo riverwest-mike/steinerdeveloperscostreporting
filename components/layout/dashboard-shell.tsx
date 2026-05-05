@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "./sidebar";
 import { QuickStartTrigger } from "@/components/quickstart/quickstart-trigger";
 import { AiChatWidget } from "@/components/ai-chat-widget";
+import { ActivityTracker } from "@/components/activity-tracker";
 
 export function DashboardShell({
   role,
@@ -64,6 +65,7 @@ export function DashboardShell({
         </main>
       </div>
 
+      <ActivityTracker />
       <QuickStartTrigger />
       <AiChatWidget />
     </div>

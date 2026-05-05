@@ -5,7 +5,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
-import { MessageSquare, Activity, Cpu, ArrowRight } from "lucide-react";
+import { MessageSquare, Activity, Cpu } from "lucide-react";
 
 const SECTIONS = [
   {
@@ -62,23 +62,24 @@ export default async function MonitoringPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 max-w-4xl">
           {SECTIONS.map((section) => (
             <Link
               key={section.href}
               href={section.href}
-              className="group flex flex-col rounded-xl border bg-card p-5 shadow-sm transition-all hover:shadow-md hover:border-primary/40"
+              className="group flex items-start gap-4 rounded-lg border p-5 hover:bg-accent hover:border-primary/30 transition-colors h-full"
             >
-              <div className="flex items-start justify-between mb-4">
-                <div className={`rounded-lg p-2.5 ${section.bg}`}>
-                  <section.icon className={`h-5 w-5 ${section.color}`} />
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
+              <div className={`mt-0.5 rounded-md border p-2 transition-colors shrink-0 ${section.bg} group-hover:opacity-90`}>
+                <section.icon className={`h-5 w-5 ${section.color}`} />
               </div>
-              <h3 className="font-semibold text-base mb-1">{section.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed flex-1">
-                {section.description}
-              </p>
+              <div>
+                <p className="font-semibold group-hover:text-primary transition-colors">
+                  {section.title}
+                </p>
+                <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed">
+                  {section.description}
+                </p>
+              </div>
             </Link>
           ))}
         </div>
