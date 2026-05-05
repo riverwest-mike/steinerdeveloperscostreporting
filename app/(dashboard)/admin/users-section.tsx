@@ -367,7 +367,7 @@ export function UsersSection({
 
       {/* Main Users Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm rw-table">
+        <table className="w-full text-sm kiln-table">
           <thead>
             <tr>
               <th>Name</th>
@@ -443,7 +443,7 @@ export function UsersSection({
             <p className="px-5 pb-2 text-xs text-destructive">{revokeError}</p>
           )}
           <div className="overflow-x-auto">
-            <table className="w-full text-sm rw-table">
+            <table className="w-full text-sm kiln-table">
               <thead>
                 <tr>
                   <th>Email</th>

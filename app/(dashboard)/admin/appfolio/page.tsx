@@ -85,7 +85,7 @@ export default async function AppFolioSyncPage() {
           </nav>
           <h2 className="text-2xl font-bold tracking-tight">AppFolio Sync</h2>
           <p className="text-muted-foreground mt-1">
-            Pull bill and transaction data from AppFolio into the cost tracker.
+            Pull bill and transaction data from AppFolio into KILN.
           </p>
         </div>
 

@@ -4,57 +4,58 @@
 
 @layer base {
   :root {
-    /* ── RiverWest Brand Colors ──────────────────────────────────────────────
-     * To match your exact brand, replace these HSL values.
-     * In browser devtools: Inspect any colored button or header on
-     * riverwestpartners.com → Computed → look for `color` or `background-color`.
-     *
-     * Current palette: Deep Navy sidebar + River Teal primary + warm backgrounds
-     * ────────────────────────────────────────────────────────────────────── */
+    /* ── KILN Brand Palette ──────────────────────────────────────────────────
+     * Terracotta     #C4552D   primary action, sidebar active
+     * Charcoal       #141414   sidebar surface, foreground text
+     * Slate          #3A3F44   secondary structure
+     * Warm Gray      #E6E2DD   neutral surfaces, borders
+     * Signal Blue    #2563EB   informational
+     * Approval Green #16A34A   approved / success
+     * ──────────────────────────────────────────────────────────────────── */
 
-    --background:       216 33% 97%;   /* #f5f7fb  warm off-white            */
-    --foreground:       215 30% 13%;   /* #18263a  near-black                 */
-    --card:             0   0% 100%;   /* #ffffff  white cards                */
-    --card-foreground:  215 30% 13%;
-    --popover:          0   0% 100%;
-    --popover-foreground: 215 30% 13%;
+    --background:       36 33% 97%;    /* warm cream off-white                 */
+    --foreground:       0 0% 8%;       /* charcoal #141414                     */
+    --card:             0 0% 100%;
+    --card-foreground:  0 0% 8%;
+    --popover:          0 0% 100%;
+    --popover-foreground: 0 0% 8%;
 
-    --primary:          165 68% 28%;   /* #157060  River Teal — main action   */
+    --primary:          15 63% 47%;    /* terracotta #C4552D                   */
     --primary-foreground: 0 0% 100%;
 
-    --secondary:        210 20% 94%;
-    --secondary-foreground: 215 30% 13%;
+    --secondary:        36 14% 92%;    /* warm gray surface                    */
+    --secondary-foreground: 0 0% 8%;
 
-    --muted:            210 20% 95%;
-    --muted-foreground: 215 16% 46%;
+    --muted:            36 14% 95%;
+    --muted-foreground: 210 6% 38%;    /* slate-derived                        */
 
-    --accent:           210 20% 92%;
-    --accent-foreground: 215 30% 13%;
+    --accent:           36 14% 89%;    /* warm gray accent                     */
+    --accent-foreground: 0 0% 8%;
 
-    --destructive:      0 82% 57%;
+    --destructive:      0 72% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border:           214 20% 88%;
-    --input:            214 20% 88%;
-    --ring:             165 68% 28%;
+    --border:           36 12% 86%;
+    --input:            36 12% 86%;
+    --ring:             15 63% 47%;
     --radius:           0.5rem;
 
-    /* ── Sidebar tokens (always dark regardless of light/dark mode) ────── */
-    --sidebar-bg:       215 45% 11%;   /* #0e1c2d  deep navy                  */
-    --sidebar-fg:       215 20% 82%;   /* #c3cdd9  light text                 */
-    --sidebar-muted:    215 20% 52%;   /* #708499  dimmed text                */
-    --sidebar-active-bg: 165 68% 28%; /* matches --primary                   */
-    --sidebar-hover-bg: 215 45% 16%;  /* slightly lighter navy on hover       */
-    --sidebar-border:   215 45% 18%;  /* inner divider lines                  */
+    /* ── Sidebar tokens (charcoal surface, terracotta active) ──────────── */
+    --sidebar-bg:       0 0% 8%;       /* charcoal #141414                     */
+    --sidebar-fg:       36 14% 80%;
+    --sidebar-muted:    36 8% 55%;
+    --sidebar-active-bg: 15 63% 47%;   /* matches --primary                    */
+    --sidebar-hover-bg: 0 0% 14%;
+    --sidebar-border:   0 0% 18%;
 
     /* ── Status colors ─────────────────────────────────────────────────── */
-    --status-active:    142 71% 30%;
-    --status-hold:      38  90% 45%;
-    --status-complete:  210 70% 45%;
-    --status-archived:  215 16% 55%;
+    --status-active:    142 76% 36%;   /* approval green #16A34A               */
+    --status-hold:      38 90% 45%;
+    --status-complete:  221 83% 53%;   /* signal blue #2563EB                  */
+    --status-archived:  210 6% 45%;
   }
 
-  /* No dark mode overrides — the app is light-only with a dark sidebar */
+  /* Light-only theme; the sidebar carries its own dark tokens */
 
   * {
     @apply border-border;
@@ -67,11 +68,11 @@
 }
 
 /* ── Shared table header utility ─────────────────────────────────────────
-   Add class="rw-table" to any <table> for consistent branded headers.
+   Add class="kiln-table" to any <table> for consistent branded headers.
    The print styles below ensure colored headers survive printing.
    ──────────────────────────────────────────────────────────────────────── */
 @layer components {
-  .rw-table thead tr {
+  .kiln-table thead tr {
     @apply border-b;
     background-color: hsl(var(--sidebar-bg));
     color: hsl(var(--sidebar-fg));
@@ -79,22 +80,22 @@
     print-color-adjust: exact;
   }
 
-  .rw-table thead th {
+  .kiln-table thead th {
     @apply px-4 py-3 text-left text-xs font-semibold tracking-wide uppercase;
-    color: hsl(215 20% 75%);
+    color: hsl(36 14% 75%);
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  .rw-table tbody tr {
+  .kiln-table tbody tr {
     @apply border-b transition-colors last:border-0;
   }
 
-  .rw-table tbody tr:nth-child(even) {
+  .kiln-table tbody tr:nth-child(even) {
     @apply bg-muted/30;
   }
 
-  .rw-table tbody tr:hover {
+  .kiln-table tbody tr:hover {
     @apply bg-accent/60;
   }
 }
@@ -134,13 +135,13 @@
     display: block !important;
     margin-bottom: 16pt;
     padding-bottom: 8pt;
-    border-bottom: 2pt solid #0e1c2d;
+    border-bottom: 2pt solid #141414;
   }
 
   .print-header h1 {
     font-size: 14pt;
     font-weight: 700;
-    color: #0e1c2d;
+    color: #141414;
   }
 
   .print-header p {
@@ -156,14 +157,14 @@
 
   /* ── All table headers get brand dark background ── */
   table thead tr,
-  .rw-table thead tr {
-    background-color: #0e1c2d !important;
+  .kiln-table thead tr {
+    background-color: #141414 !important;
     color: white !important;
   }
 
   table thead th,
-  .rw-table thead th {
-    color: #c3cdd9 !important;
+  .kiln-table thead th {
+    color: #cbc6be !important;
     font-size: 7pt !important;
     padding: 4pt 6pt !important;
     text-transform: uppercase;
@@ -176,7 +177,7 @@
   }
 
   table tbody tr:nth-child(even) {
-    background-color: #f5f7fb !important;
+    background-color: #f6f3ee !important;
   }
 
   table {

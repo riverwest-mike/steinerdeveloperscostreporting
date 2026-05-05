@@ -1,10 +1,14 @@
-# Steiner Developers Cost Tracker
+# KILN
 
-A construction cost management platform for tracking project budgets, contracts, and actual costs against AppFolio financial data in real time.
+> **Where projects take shape.**
+>
+> _by RiverWest_
+
+KILN is the financial control system for real estate development. Control commitments. Forecast exposure. Approve with confidence. Every decision recorded. Every dollar accounted for.
 
 ## Overview
 
-The Cost Tracker gives Steiner Developers a single view of every construction project's financial position — from approved gate budgets and vendor contracts through to AppFolio-synced invoice actuals. Key capabilities:
+KILN gives developers a single, real-time view of every construction project's financial position — from approved gate budgets and vendor contracts through to AppFolio-synced invoice actuals. Key capabilities:
 
 - **Gate budgets** — Organize each project into approval phases (gates) with cost-category budgets
 - **Contracts & SOV** — Track committed spend with Schedule of Values allocations per cost code

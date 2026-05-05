@@ -17,6 +17,7 @@ import {
   BookOpen,
   Building2,
 } from "lucide-react";
+import { KilnLockup } from "@/components/brand/kiln-logo";
 import { useState } from "react";
 
 const reportItems = [
@@ -79,20 +80,10 @@ export function Sidebar({ role, onClose }: SidebarProps) {
     >
       {/* Logo */}
       <div
-        className="flex h-16 items-center gap-2.5 px-5 shrink-0"
+        className="flex h-16 items-center px-5 shrink-0"
         style={{ borderBottom: "1px solid hsl(var(--sidebar-border))" }}
       >
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[hsl(var(--sidebar-active-bg))]">
-          <span className="text-xs font-black text-white leading-none">SD</span>
-        </div>
-        <div className="min-w-0">
-          <p className="text-[13px] font-bold leading-tight text-white truncate">
-            Steiner Developers
-          </p>
-          <p className="text-[10px] leading-tight" style={{ color: "hsl(var(--sidebar-muted))" }}>
-            Cost Tracker
-          </p>
-        </div>
+        <KilnLockup endorsed size="md" invert />
       </div>
 
       {/* Navigation */}

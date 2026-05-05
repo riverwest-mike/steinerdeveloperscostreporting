@@ -239,7 +239,7 @@ export const HELP: Record<string, PageHelpContent> = {
 
   adminIndex: {
     title: "Admin Panel",
-    description: "System administration for the Cost Tracker. Each section manages a different part of the configuration.",
+    description: "System administration for KILN. Each section manages a different part of the configuration.",
     actions: [
       { label: "Users & Access", desc: "Invite users, set roles (Read Only / Project Manager / Admin), and control which projects each user can see." },
       { label: "Cost Categories", desc: "Manage the cost codes used in gate budgets, contracts, and all reports." },

@@ -46,14 +46,14 @@ function StepList({ steps }: { steps: string[] }) {
 const sections = [
   /* 0 ── Welcome ──────────────────────────────────────────────────────── */
   {
-    title: "Welcome to the Cost Tracker",
+    title: "Welcome to KILN",
     icon: <BookOpen className="h-5 w-5" />,
     content: (
       <div className="space-y-4">
         <p className="text-base text-slate-700 leading-relaxed">
-          This tool gives Steiner Developers a single, real-time view of every construction
-          project&apos;s budget, commitments, and costs — from approved gate budgets through
-          to AppFolio-synced actuals, all in one place.
+          KILN is the financial control system for real estate development. One real-time view
+          of every project&apos;s budget, commitments, and costs — from approved gate budgets
+          through to AppFolio-synced actuals, all in one place.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
@@ -84,7 +84,7 @@ const sections = [
         <div className="rounded-lg border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ background: "hsl(215 45% 11%)" }}>
+              <tr style={{ background: "hsl(var(--sidebar-bg))" }}>
                 <th className="px-4 py-2.5 text-left font-medium text-slate-300">Menu Item</th>
                 <th className="px-4 py-2.5 text-left font-medium text-slate-300">What it&apos;s for</th>
               </tr>
@@ -222,7 +222,7 @@ const sections = [
         </p>
         <Screenshot src="/guide/screenshot-pcm.png" alt="PCM report" caption="13 columns covering budget, commitments, and incurred costs per cost category." />
         <div className="rounded-lg border overflow-hidden text-xs">
-          <div className="px-4 py-2 font-semibold text-slate-300 text-xs" style={{ background: "hsl(215 45% 11%)" }}>
+          <div className="px-4 py-2 font-semibold text-slate-300 text-xs" style={{ background: "hsl(var(--sidebar-bg))" }}>
             Column Reference
           </div>
           <div className="divide-y">
