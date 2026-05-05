@@ -232,7 +232,19 @@ export default async function VendorDetailPage({ searchParams }: Props) {
     }
 
     if (categoryCode) {
-      query = query.ilike("cost_category_code", categoryCode);
+      // Match the same way PCM aggregates: either the full code or its
+      // numeric prefix, since AppFolio sometimes returns just the
+      // numeric portion in cost_category_code.
+      const trimmed = categoryCode.trim();
+      const prefix = trimmed.split(/\s+/)[0];
+      const q = (v: string) => (/[\s,]/.test(v) ? `"${v}"` : v);
+      if (prefix && prefix !== trimmed) {
+        query = query.or(
+          `cost_category_code.ilike.${q(trimmed)},cost_category_code.ilike.${q(prefix)}`
+        );
+      } else {
+        query = query.ilike("cost_category_code", trimmed);
+      }
     }
 
     const { data: rawTx } = await query.order("bill_date", { ascending: false });

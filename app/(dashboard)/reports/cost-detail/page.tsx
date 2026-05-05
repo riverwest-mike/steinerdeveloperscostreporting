@@ -179,7 +179,22 @@ export default async function CostDetailPage({ searchParams }: Props) {
       .lte("bill_date", asOf < appfolioDateCap() ? asOf : appfolioDateCap());
 
     if (categoryCode) {
-      query = query.ilike("cost_category_code", categoryCode);
+      // PCM matches transactions to a category by either the full code
+      // (e.g. "010700 Survey") or its numeric prefix ("010700"), because
+      // AppFolio's vendor_ledger frequently returns just the numeric
+      // portion. Mirror that so a deep-link from PCM lands on the rows
+      // it just totaled. Wrap values with spaces/commas in double quotes
+      // for PostgREST's or() parser.
+      const trimmed = categoryCode.trim();
+      const prefix = trimmed.split(/\s+/)[0];
+      const q = (v: string) => (/[\s,]/.test(v) ? `"${v}"` : v);
+      if (prefix && prefix !== trimmed) {
+        query = query.or(
+          `cost_category_code.ilike.${q(trimmed)},cost_category_code.ilike.${q(prefix)}`
+        );
+      } else {
+        query = query.ilike("cost_category_code", trimmed);
+      }
     }
 
     if (paymentFilter === "paid") {
