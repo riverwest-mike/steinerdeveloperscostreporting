@@ -184,16 +184,29 @@ export default async function CostDetailPage({ searchParams }: Props) {
       query = query.gt("unpaid_amount", 0);
     }
 
-    const { data: rawTx } = await query.order("bill_date", { ascending: false });
+    // Pre-narrow at SQL level using a `like` against the numeric prefix
+    // when a categoryCode is set. This dramatically reduces the result
+    // set before the JS post-filter and avoids the default PostgREST
+    // row cap from chopping off older matching transactions.
+    if (categoryCode) {
+      const trimmed = categoryCode.trim();
+      const prefix = trimmed.split(/\s+/)[0] || trimmed;
+      // Match either the exact full code or anything starting with the
+      // numeric prefix followed by end-of-string or whitespace. The JS
+      // post-filter below will tighten this back to PCM's exact rule.
+      query = query.ilike("cost_category_code", `${prefix}%`);
+    }
+
+    const { data: rawTx } = await query
+      .order("bill_date", { ascending: false })
+      .limit(50000);
     transactions = (rawTx ?? []) as (Transaction & { appfolio_property_id: string })[];
 
-    // Apply category filter in memory using the same matching rules PCM
-    // uses to bucket transactions. PCM accepts either the full cat.code
+    // Tighten the category filter in memory using the same matching rules
+    // PCM uses to bucket transactions: accept either the full cat.code
     // (e.g. "010700 Survey") OR its numeric prefix ("010700") — because
     // AppFolio's vendor_ledger sync stores tx.cost_category_code as just
-    // the numeric portion. Doing this in JS (instead of a SQL or() with
-    // quoted values) avoids PostgREST parser quirks around values that
-    // contain spaces.
+    // the numeric portion.
     if (categoryCode) {
       const target = categoryCode.trim().toUpperCase();
       const targetPrefix = target.split(/\s+/)[0];
@@ -201,7 +214,13 @@ export default async function CostDetailPage({ searchParams }: Props) {
       if (targetPrefix && targetPrefix !== target) accepted.add(targetPrefix);
       transactions = transactions.filter((tx) => {
         const c = (tx.cost_category_code ?? "").trim().toUpperCase();
-        return c.length > 0 && accepted.has(c);
+        if (c.length === 0) return false;
+        if (accepted.has(c)) return true;
+        // Also accept tx codes that start with the prefix followed by
+        // whitespace ("010700 Survey" form when the URL carried just
+        // the prefix), to match PCM's symmetric prefix behavior.
+        const cPrefix = c.split(/\s+/)[0];
+        return accepted.has(cPrefix);
       });
     }
   }
