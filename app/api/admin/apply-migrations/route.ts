@@ -4,10 +4,83 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { Client } from "pg";
 
 const MIGRATION_SQL = `
--- accounting role: add 'accounting' to users_role_check constraint (idempotent)
+-- role constraint: include accounting + development_lead (idempotent)
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check
-  CHECK (role IN ('admin', 'project_manager', 'read_only', 'accounting'));
+  CHECK (role IN ('admin', 'project_manager', 'read_only', 'accounting', 'development_lead'));
+
+-- Admin monitoring tables (20260312): chat_logs, user_activity_logs, ai_usage_logs
+CREATE TABLE IF NOT EXISTS chat_logs (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id    TEXT,
+  messages      JSONB NOT NULL,
+  response      TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS chat_logs_user_id_idx    ON chat_logs (user_id);
+CREATE INDEX IF NOT EXISTS chat_logs_created_at_idx ON chat_logs (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS user_activity_logs (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  action      TEXT NOT NULL,
+  path        TEXT,
+  metadata    JSONB,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS user_activity_logs_user_id_idx    ON user_activity_logs (user_id);
+CREATE INDEX IF NOT EXISTS user_activity_logs_created_at_idx ON user_activity_logs (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS ai_usage_logs (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  model              TEXT NOT NULL,
+  input_tokens       INTEGER NOT NULL DEFAULT 0,
+  output_tokens      INTEGER NOT NULL DEFAULT 0,
+  cache_read_tokens  INTEGER NOT NULL DEFAULT 0,
+  cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+  cost_usd           NUMERIC(12, 6) NOT NULL DEFAULT 0,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ai_usage_logs_user_id_idx    ON ai_usage_logs (user_id);
+CREATE INDEX IF NOT EXISTS ai_usage_logs_created_at_idx ON ai_usage_logs (created_at DESC);
+
+ALTER TABLE chat_logs          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_activity_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_usage_logs      ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'chat_logs' AND policyname = 'Admins read chat_logs') THEN
+    CREATE POLICY "Admins read chat_logs" ON chat_logs FOR SELECT USING (get_my_role() = 'admin');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'chat_logs' AND policyname = 'Insert chat_logs') THEN
+    CREATE POLICY "Insert chat_logs" ON chat_logs FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_activity_logs' AND policyname = 'Admins read user_activity_logs') THEN
+    CREATE POLICY "Admins read user_activity_logs" ON user_activity_logs FOR SELECT USING (get_my_role() = 'admin');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'user_activity_logs' AND policyname = 'Insert user_activity_logs') THEN
+    CREATE POLICY "Insert user_activity_logs" ON user_activity_logs FOR INSERT WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ai_usage_logs' AND policyname = 'Admins read ai_usage_logs') THEN
+    CREATE POLICY "Admins read ai_usage_logs" ON ai_usage_logs FOR SELECT USING (get_my_role() = 'admin');
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'ai_usage_logs' AND policyname = 'Insert ai_usage_logs') THEN
+    CREATE POLICY "Insert ai_usage_logs" ON ai_usage_logs FOR INSERT WITH CHECK (true);
+  END IF;
+END $$;
+
+-- Cost category override (20260313): manual category edits survive AppFolio sync
+ALTER TABLE appfolio_transactions
+  ADD COLUMN IF NOT EXISTS cost_category_code_override TEXT,
+  ADD COLUMN IF NOT EXISTS cost_category_name_override TEXT,
+  ADD COLUMN IF NOT EXISTS cost_category_override_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS cost_category_override_at   TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS appfolio_transactions_category_override_idx
+  ON appfolio_transactions (cost_category_code_override)
+  WHERE cost_category_code_override IS NOT NULL;
 
 -- transaction_gate_assignments table
 CREATE TABLE IF NOT EXISTS transaction_gate_assignments (

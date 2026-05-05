@@ -161,18 +161,23 @@ export async function runAppfolioSync(opts: SyncOptions): Promise<SyncResult> {
       }
       const prelimRows = [...seenBillIds.values()];
 
-      // For rows AppFolio returned no cost code for, preserve the existing DB value
-      const needsLookup = prelimRows
-        .filter((r) => !r._appfolio_code)
-        .map((r) => r.appfolio_bill_id);
+      // Fetch existing rows for ALL bill_ids in this batch so we can:
+      //  (a) preserve manual category overrides set via the UI
+      //  (b) preserve the previous DB value when AppFolio returns no code
+      const allBillIds = prelimRows.map((r) => r.appfolio_bill_id);
 
-      const existingMap = new Map<string, { cost_category_code: string | null; cost_category_name: string | null }>();
-      if (needsLookup.length > 0) {
+      const existingMap = new Map<string, {
+        cost_category_code: string | null;
+        cost_category_name: string | null;
+        cost_category_code_override: string | null;
+        cost_category_name_override: string | null;
+      }>();
+      if (allBillIds.length > 0) {
         const { data: existing } = await supabase
           .from("appfolio_transactions")
-          .select("appfolio_bill_id, cost_category_code, cost_category_name")
-          .in("appfolio_bill_id", needsLookup);
-        for (const e of (existing ?? []) as { appfolio_bill_id: string; cost_category_code: string | null; cost_category_name: string | null }[]) {
+          .select("appfolio_bill_id, cost_category_code, cost_category_name, cost_category_code_override, cost_category_name_override")
+          .in("appfolio_bill_id", allBillIds);
+        for (const e of (existing ?? []) as { appfolio_bill_id: string; cost_category_code: string | null; cost_category_name: string | null; cost_category_code_override: string | null; cost_category_name_override: string | null }[]) {
           existingMap.set(e.appfolio_bill_id, e);
         }
       }
@@ -180,16 +185,19 @@ export async function runAppfolioSync(opts: SyncOptions): Promise<SyncResult> {
       const upsertRows = prelimRows.map((row) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _appfolio_code, _appfolio_name, ...rest } = row;
+        const prev = existingMap.get(row.appfolio_bill_id);
 
-        let finalCode = _appfolio_code;
-        let finalName = _appfolio_name;
+        let finalCode: string | null | undefined = _appfolio_code;
+        let finalName: string | null | undefined = _appfolio_name;
 
-        if (!finalCode) {
-          const prev = existingMap.get(row.appfolio_bill_id);
-          if (prev?.cost_category_code) {
-            finalCode = prev.cost_category_code;
-            finalName = prev.cost_category_name ?? null;
-          }
+        // Manual override always wins
+        if (prev?.cost_category_code_override) {
+          finalCode = prev.cost_category_code_override;
+          finalName = prev.cost_category_name_override ?? null;
+        } else if (!finalCode && prev?.cost_category_code) {
+          // No code from AppFolio — preserve the previous DB value
+          finalCode = prev.cost_category_code;
+          finalName = prev.cost_category_name ?? null;
         }
 
         if (!finalCode) unmappedCount++;

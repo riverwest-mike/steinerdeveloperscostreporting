@@ -10,6 +10,7 @@ import { ReportRestorer } from "./report-restorer";
 import { ExportButtons } from "./export-buttons";
 import { TransactionNoteCell } from "@/components/transaction-note-cell";
 import { TransactionGateCell } from "@/components/transaction-gate-cell";
+import { TransactionCategoryCell } from "@/components/transaction-category-cell";
 import { ColumnPicker } from "@/components/column-picker";
 import { HELP } from "@/lib/help";
 
@@ -74,6 +75,7 @@ interface Transaction {
   gl_account_name: string;
   cost_category_code: string | null;
   cost_category_name: string | null;
+  cost_category_code_override: string | null;
   bill_date: string | null;
   due_date: string | null;
   payment_date: string | null;
@@ -188,7 +190,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
       .from("appfolio_transactions")
       .select(
         "id, appfolio_property_id, appfolio_bill_id, vendor_name, gl_account_id, gl_account_name, " +
-        "cost_category_code, cost_category_name, bill_date, due_date, payment_date, " +
+        "cost_category_code, cost_category_name, cost_category_code_override, bill_date, due_date, payment_date, " +
         "invoice_amount, paid_amount, unpaid_amount, payment_status, payment_type, " +
         "check_number, reference_number, description"
       )
@@ -465,10 +467,14 @@ export default async function CostDetailPage({ searchParams }: Props) {
                       )}
                     </td>
                     <td data-col="cost_category" className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                      <span className="font-mono">{tx.cost_category_code ?? "—"}</span>
-                      {tx.cost_category_name && (
-                        <span className="ml-1 text-[10px]">{tx.cost_category_name}</span>
-                      )}
+                      <TransactionCategoryCell
+                        transactionId={tx.id}
+                        currentCode={tx.cost_category_code}
+                        currentName={tx.cost_category_name}
+                        isOverride={!!tx.cost_category_code_override}
+                        categories={categories}
+                        canEdit={canEditGate}
+                      />
                     </td>
                     <td data-col="invoice_amt" className="px-3 py-2 text-right tabular-nums font-medium">
                       {appfolioBaseUrl ? (
