@@ -1,10 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "git": {
-    "deploymentEnabled": {
-      "main": true
-    }
-  },
+  "installCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]; then echo 'Skipping deploy: non-main branch (see CLAUDE.md policy).' && exit 1; fi && npm install",
   "crons": [
     {
       "path": "/api/cron/daily-sync",
