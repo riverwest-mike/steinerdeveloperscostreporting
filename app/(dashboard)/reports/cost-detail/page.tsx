@@ -178,25 +178,6 @@ export default async function CostDetailPage({ searchParams }: Props) {
       .in("appfolio_property_id", linkedPropertyIds)
       .lte("bill_date", asOf < appfolioDateCap() ? asOf : appfolioDateCap());
 
-    if (categoryCode) {
-      // PCM matches transactions to a category by either the full code
-      // (e.g. "010700 Survey") or its numeric prefix ("010700"), because
-      // AppFolio's vendor_ledger frequently returns just the numeric
-      // portion. Mirror that so a deep-link from PCM lands on the rows
-      // it just totaled. Wrap values with spaces/commas in double quotes
-      // for PostgREST's or() parser.
-      const trimmed = categoryCode.trim();
-      const prefix = trimmed.split(/\s+/)[0];
-      const q = (v: string) => (/[\s,]/.test(v) ? `"${v}"` : v);
-      if (prefix && prefix !== trimmed) {
-        query = query.or(
-          `cost_category_code.ilike.${q(trimmed)},cost_category_code.ilike.${q(prefix)}`
-        );
-      } else {
-        query = query.ilike("cost_category_code", trimmed);
-      }
-    }
-
     if (paymentFilter === "paid") {
       query = query.gt("paid_amount", 0);
     } else if (paymentFilter === "unpaid") {
@@ -205,6 +186,24 @@ export default async function CostDetailPage({ searchParams }: Props) {
 
     const { data: rawTx } = await query.order("bill_date", { ascending: false });
     transactions = (rawTx ?? []) as (Transaction & { appfolio_property_id: string })[];
+
+    // Apply category filter in memory using the same matching rules PCM
+    // uses to bucket transactions. PCM accepts either the full cat.code
+    // (e.g. "010700 Survey") OR its numeric prefix ("010700") — because
+    // AppFolio's vendor_ledger sync stores tx.cost_category_code as just
+    // the numeric portion. Doing this in JS (instead of a SQL or() with
+    // quoted values) avoids PostgREST parser quirks around values that
+    // contain spaces.
+    if (categoryCode) {
+      const target = categoryCode.trim().toUpperCase();
+      const targetPrefix = target.split(/\s+/)[0];
+      const accepted = new Set<string>([target]);
+      if (targetPrefix && targetPrefix !== target) accepted.add(targetPrefix);
+      transactions = transactions.filter((tx) => {
+        const c = (tx.cost_category_code ?? "").trim().toUpperCase();
+        return c.length > 0 && accepted.has(c);
+      });
+    }
   }
 
   // Fetch notes for all transactions on this page
