@@ -112,7 +112,7 @@ export default async function AiUsagePage({
             className="rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">All users</option>
-            {(allUsers ?? []).map((u) => (
+            {(allUsers ?? []).map((u: { id: string; full_name: string | null; email: string }) => (
               <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
             ))}
           </select>
