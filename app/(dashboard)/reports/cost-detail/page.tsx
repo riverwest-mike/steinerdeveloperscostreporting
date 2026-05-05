@@ -166,7 +166,43 @@ export default async function CostDetailPage({ searchParams }: Props) {
   // ── Fetch AppFolio transactions ───────────────────────
   let transactions: (Transaction & { appfolio_property_id: string })[] = [];
 
+  // Diagnostic counts so the empty-state message can explain WHY a
+  // page is empty (no rows for this property at all? excluded by date?
+  // excluded by category filter?). All cheap aggregate queries.
+  let diagPropertyTotal = 0;
+  let diagAfterDate = 0;
+  let diagAfterPayment = 0;
+  let diagAfterCategorySql = 0;
+
   if (linkedPropertyIds.length > 0) {
+    const { count: totalCount } = await supabase
+      .from("appfolio_transactions")
+      .select("id", { count: "exact", head: true })
+      .in("appfolio_property_id", linkedPropertyIds);
+    diagPropertyTotal = totalCount ?? 0;
+
+    const dateCap = asOf < appfolioDateCap() ? asOf : appfolioDateCap();
+    const { count: dateCount } = await supabase
+      .from("appfolio_transactions")
+      .select("id", { count: "exact", head: true })
+      .in("appfolio_property_id", linkedPropertyIds)
+      .lte("bill_date", dateCap);
+    diagAfterDate = dateCount ?? 0;
+
+    if (paymentFilter === "paid" || paymentFilter === "unpaid") {
+      let pQ = supabase
+        .from("appfolio_transactions")
+        .select("id", { count: "exact", head: true })
+        .in("appfolio_property_id", linkedPropertyIds)
+        .lte("bill_date", dateCap);
+      if (paymentFilter === "paid") pQ = pQ.gt("paid_amount", 0);
+      else pQ = pQ.gt("unpaid_amount", 0);
+      const { count: pCount } = await pQ;
+      diagAfterPayment = pCount ?? 0;
+    } else {
+      diagAfterPayment = diagAfterDate;
+    }
+
     let query = supabase
       .from("appfolio_transactions")
       .select(
@@ -176,7 +212,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
         "check_number, reference_number, description"
       )
       .in("appfolio_property_id", linkedPropertyIds)
-      .lte("bill_date", asOf < appfolioDateCap() ? asOf : appfolioDateCap());
+      .lte("bill_date", dateCap);
 
     if (paymentFilter === "paid") {
       query = query.gt("paid_amount", 0);
@@ -201,6 +237,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
       .order("bill_date", { ascending: false })
       .limit(50000);
     transactions = (rawTx ?? []) as (Transaction & { appfolio_property_id: string })[];
+    diagAfterCategorySql = transactions.length;
 
     // Tighten the category filter in memory using the same matching rules
     // PCM uses to bucket transactions: accept either the full cat.code
@@ -435,10 +472,28 @@ export default async function CostDetailPage({ searchParams }: Props) {
                   year: "numeric",
                 })}
                 .{" "}
-                {!gateIdFilter && (
+                {!gateIdFilter && diagPropertyTotal === 0 && (
                   <>Run an AppFolio sync in{" "}
                   <Link href="/admin/appfolio" className="underline font-medium">Admin</Link>{" "}
                   to pull data.</>
+                )}
+              </p>
+              <p className="mt-3 text-[11px] text-muted-foreground/70">
+                Diagnostic — Property rows in DB:{" "}
+                <span className="font-mono font-semibold">{diagPropertyTotal.toLocaleString()}</span>
+                {" · "}After date filter:{" "}
+                <span className="font-mono font-semibold">{diagAfterDate.toLocaleString()}</span>
+                {paymentFilter && (
+                  <>
+                    {" · "}After {paymentFilter} filter:{" "}
+                    <span className="font-mono font-semibold">{diagAfterPayment.toLocaleString()}</span>
+                  </>
+                )}
+                {categoryCode && (
+                  <>
+                    {" · "}After SQL category prefix:{" "}
+                    <span className="font-mono font-semibold">{diagAfterCategorySql.toLocaleString()}</span>
+                  </>
                 )}
               </p>
             </div>
