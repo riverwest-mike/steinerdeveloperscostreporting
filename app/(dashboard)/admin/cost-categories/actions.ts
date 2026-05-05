@@ -14,7 +14,7 @@ async function requireAdmin() {
     .select("role")
     .eq("id", userId)
     .single();
-  if (data?.role !== "admin" && data?.role !== "accounting") throw new Error("Unauthorized");
+  if (data?.role !== "admin" && data?.role !== "accounting" && data?.role !== "development_lead") throw new Error("Unauthorized");
   return { userId, supabase };
 }
 

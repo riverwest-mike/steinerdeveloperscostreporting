@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
-type Role = "admin" | "project_manager" | "read_only" | "accounting";
+type Role = "admin" | "project_manager" | "read_only" | "accounting" | "development_lead";
 
 export async function inviteUser(
   email: string,
@@ -49,7 +49,7 @@ async function requireAdminCaller() {
   if (!userId) throw new Error("Not authenticated");
   const supabase = createAdminClient();
   const { data } = await supabase.from("users").select("role").eq("id", userId).single();
-  if (data?.role !== "admin") throw new Error("Unauthorized");
+  if (data?.role !== "admin" && data?.role !== "development_lead") throw new Error("Unauthorized");
   return { callerId: userId, supabase };
 }
 
@@ -72,7 +72,7 @@ export async function updateUserRole(
             "Database migration required: the 'accounting' role is not yet in the role constraint. " +
             "Go to Admin → AppFolio → Apply Pending Migrations, or run this SQL in the Supabase SQL Editor:\n\n" +
             "ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;\n" +
-            "ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'project_manager', 'read_only', 'accounting'));",
+            "ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'project_manager', 'read_only', 'accounting', 'development_lead'));",
         };
       }
       throw new Error(dbError.message);

@@ -169,7 +169,7 @@ function ProjectUserPanel({
   const [selected, setSelected] = useState("");
 
   const unassignedUsers = allUsers.filter(
-    (u) => !assignedUserIds.has(u.id) && u.role !== "admin"
+    (u) => !assignedUserIds.has(u.id) && u.role !== "admin" && u.role !== "development_lead"
   );
   const unassignedPendingInvites = allPendingInvites.filter(
     (inv) => !assignedPendingEmails.has(inv.emailAddress)

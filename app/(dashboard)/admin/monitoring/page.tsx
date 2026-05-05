@@ -5,76 +5,65 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/server";
 import { Header } from "@/components/layout/header";
-import { Users, Tag, RefreshCw, ScrollText, ArrowRight } from "lucide-react";
-import { HELP } from "@/lib/help";
+import { MessageSquare, Activity, Cpu, ArrowRight } from "lucide-react";
 
-const ADMIN_SECTIONS = [
+const SECTIONS = [
   {
-    href: "/admin/users",
-    title: "Users & Access",
-    description: "Manage user accounts, roles, and project assignments. Invite new users and control who can access which projects.",
-    icon: Users,
+    href: "/admin/monitoring/chat-log",
+    title: "Chat Log",
+    description: "Every AI chat conversation — user, date/time, messages sent and received.",
+    icon: MessageSquare,
     color: "text-blue-600",
     bg: "bg-blue-50",
   },
   {
-    href: "/admin/cost-categories",
-    title: "Cost Categories",
-    description: "Define and manage cost codes used across all projects and gate budgets. Load seed data or create custom categories.",
-    icon: Tag,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
-  },
-  {
-    href: "/admin/appfolio",
-    title: "AppFolio Integration",
-    description: "Sync AppFolio transaction data, manage property-to-project mappings, and review sync history.",
-    icon: RefreshCw,
+    href: "/admin/monitoring/user-activity",
+    title: "User Activity",
+    description: "Page visits and actions taken across the application, by user and timestamp.",
+    icon: Activity,
     color: "text-green-600",
     bg: "bg-green-50",
   },
   {
-    href: "/admin/audit-log",
-    title: "Audit Log",
-    description: "Review all user-initiated changes across projects, gates, contracts, and change orders.",
-    icon: ScrollText,
-    color: "text-orange-600",
-    bg: "bg-orange-50",
+    href: "/admin/monitoring/ai-usage",
+    title: "AI Usage",
+    description: "Token consumption and cost per AI request, broken down by user and date.",
+    icon: Cpu,
+    color: "text-purple-600",
+    bg: "bg-purple-50",
   },
 ];
 
-export default async function AdminPage() {
+export default async function MonitoringPage() {
   const userId = (await headers()).get("x-clerk-user-id");
   const supabase = createAdminClient();
 
   const { data: user } = await supabase
     .from("users")
-    .select("role, full_name")
+    .select("role")
     .eq("id", userId!)
     .single();
 
-  const role = user?.role;
-  if (role !== "admin" && role !== "accounting" && role !== "development_lead") {
+  if (user?.role !== "admin") {
     redirect("/dashboard");
   }
 
-  const visibleSections = role === "accounting"
-    ? ADMIN_SECTIONS.filter((s) => s.href !== "/admin/users")
-    : ADMIN_SECTIONS;
-
   return (
     <div>
-      <Header title="Settings" helpContent={HELP.adminIndex} />
+      <Header title="Admin" />
       <div className="p-4 sm:p-6">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
+          <nav className="text-sm text-muted-foreground mb-4">
+            <span className="text-foreground font-medium">Admin</span>
+          </nav>
+          <h2 className="text-2xl font-bold tracking-tight">Admin</h2>
           <p className="text-muted-foreground mt-1 text-sm">
-            Manage users, cost categories, integrations, and system settings.
+            System monitoring — chat logs, user activity, and AI usage.
           </p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visibleSections.map((section) => (
+          {SECTIONS.map((section) => (
             <Link
               key={section.href}
               href={section.href}

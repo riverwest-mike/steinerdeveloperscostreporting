@@ -14,7 +14,7 @@ export default async function NewProjectPage() {
     .eq("id", userId!)
     .single();
 
-  const isAdmin = currentUser?.role === "admin";
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "development_lead";
 
   const activePmUsers = isAdmin
     ? (await supabase.from("users").select("id, full_name").eq("role", "project_manager").eq("is_active", true).order("full_name")).data ?? []

@@ -18,7 +18,7 @@ export function InviteUserForm({
   projects?: Project[];
 }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"read_only" | "project_manager" | "accounting" | "admin">("read_only");
+  const [role, setRole] = useState<"read_only" | "project_manager" | "accounting" | "admin" | "development_lead">("read_only");
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [result, setResult] = useState<{ success?: boolean; error?: string } | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -32,7 +32,7 @@ export function InviteUserForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setResult(null);
-    const projectIds = role === "admin" || role === "accounting" ? [] : selectedProjectIds;
+    const projectIds = role === "admin" || role === "accounting" || role === "development_lead" ? [] : selectedProjectIds;
     startTransition(async () => {
       const res = await inviteUser(email.trim(), role, projectIds);
       if (res.error) {
@@ -47,7 +47,7 @@ export function InviteUserForm({
     });
   }
 
-  const showProjectPicker = role !== "admin" && role !== "accounting" && projects.length > 0;
+  const showProjectPicker = role !== "admin" && role !== "accounting" && role !== "development_lead" && projects.length > 0;
 
   return (
     <div>
@@ -82,6 +82,7 @@ export function InviteUserForm({
               <option value="read_only">Read Only</option>
               <option value="project_manager">Project Manager</option>
               <option value="accounting">Accounting</option>
+              <option value="development_lead">Development Lead</option>
               <option value="admin">Admin</option>
             </select>
           </div>

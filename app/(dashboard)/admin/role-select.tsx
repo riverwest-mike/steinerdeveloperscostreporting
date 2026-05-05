@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { updateUserRole } from "./actions";
 
-type Role = "admin" | "project_manager" | "read_only" | "accounting";
+type Role = "admin" | "project_manager" | "read_only" | "accounting" | "development_lead";
 
 interface RoleSelectProps {
   userId: string;
@@ -14,6 +14,7 @@ interface RoleSelectProps {
 const ROLE_LABELS: Record<Role, string> = {
   admin: "Admin",
   accounting: "Accounting",
+  development_lead: "Development Lead",
   project_manager: "Project Manager",
   read_only: "Read Only",
 };

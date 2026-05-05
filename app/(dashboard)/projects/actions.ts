@@ -224,7 +224,7 @@ async function requireAdmin() {
   if (!userId) throw new Error("Not authenticated");
   const supabase = createAdminClient();
   const { data } = await supabase.from("users").select("role").eq("id", userId).single();
-  if (!data || (data.role !== "admin" && data.role !== "accounting")) throw new Error("Admin role required");
+  if (!data || (data.role !== "admin" && data.role !== "accounting" && data.role !== "development_lead")) throw new Error("Admin role required");
   return { userId, supabase };
 }
 
@@ -233,7 +233,7 @@ async function requireStrictAdmin() {
   if (!userId) throw new Error("Not authenticated");
   const supabase = createAdminClient();
   const { data } = await supabase.from("users").select("role").eq("id", userId).single();
-  if (!data || data.role !== "admin") throw new Error("Admin role required");
+  if (!data || (data.role !== "admin" && data.role !== "development_lead")) throw new Error("Admin role required");
   return { userId, supabase };
 }
 

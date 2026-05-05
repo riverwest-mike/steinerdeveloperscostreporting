@@ -30,7 +30,7 @@ async function requireAdmin() {
     .select("role")
     .eq("id", userId)
     .single();
-  if (!data || data.role !== "admin") throw new Error("Admin role required");
+  if (!data || (data.role !== "admin" && data.role !== "development_lead")) throw new Error("Admin role required");
   return { userId, supabase };
 }
 

@@ -82,10 +82,10 @@ function UserProjectCell({
   const [adding, setAdding] = useState(false);
   const [selectedProject, setSelectedProject] = useState("");
 
-  // Admins have access to all projects by default
-  if (user.role === "admin") {
+  // Admins and development leads have access to all projects by default
+  if (user.role === "admin" || user.role === "development_lead") {
     return (
-      <span className="text-xs text-muted-foreground italic">All projects (Admin)</span>
+      <span className="text-xs text-muted-foreground italic">All projects ({user.role === "admin" ? "Admin" : "Development Lead"})</span>
     );
   }
 
@@ -242,8 +242,8 @@ export function UsersSection({
       // Users sheet — includes project access
       const userRows = users.map((u) => {
         const assignedIds = userProjectMap.get(u.id) ?? new Set<string>();
-        const assignedProjectNames = u.role === "admin"
-          ? "All Projects (Admin)"
+        const assignedProjectNames = (u.role === "admin" || u.role === "development_lead")
+          ? `All Projects (${u.role === "admin" ? "Admin" : "Development Lead"})`
           : projects
               .filter((p) => assignedIds.has(p.id))
               .map((p) => `${p.code} – ${p.name}`)

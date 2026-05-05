@@ -63,7 +63,7 @@ export default async function DashboardPage() {
 
   const role = user?.role ?? "read_only";
   // Admins and accounting users see all projects (no project-scope restriction).
-  const isAdmin = role === "admin" || role === "accounting";
+  const isAdmin = role === "admin" || role === "accounting" || role === "development_lead";
 
   // For non-admin/non-accounting users, look up which projects they're assigned
   // to via project_users and filter explicitly — this avoids relying on Clerk →

@@ -48,8 +48,8 @@ export default async function VendorProfilePage({ params }: Props) {
     ? await supabase.from("users").select("role").eq("id", userId).single()
     : { data: null };
   const role = (userRow as { role?: string } | null)?.role ?? "read_only";
-  const canEdit = role === "admin" || role === "project_manager";
-  const isAdmin = role === "admin";
+  const canEdit = role === "admin" || role === "project_manager" || role === "development_lead";
+  const isAdmin = role === "admin" || role === "development_lead";
 
   const { data: rawVendors } = await supabase
     .from("project_vendors")

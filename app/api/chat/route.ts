@@ -590,7 +590,7 @@ export async function POST(req: NextRequest) {
 
   const db = createAdminClient();
   const { data: user } = await db.from("users").select("role").eq("id", userId).single();
-  const isAdmin = user?.role === "admin" || user?.role === "accounting";
+  const isAdmin = user?.role === "admin" || user?.role === "accounting" || user?.role === "development_lead";
 
   let accessibleProjectIds: string[] = [];
   if (!isAdmin) {
@@ -602,14 +602,27 @@ export async function POST(req: NextRequest) {
   let loopMessages = [...trimmed];
   let finalText = "";
 
+  // Accumulate token usage across all loop iterations
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let totalCacheReadTokens = 0;
+  let totalCacheWriteTokens = 0;
+  const MODEL = "claude-sonnet-4-6";
+
   for (let i = 0; i < 8; i++) {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: MODEL,
       max_tokens: 2048,
       system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       tools: TOOLS,
       messages: loopMessages,
     });
+
+    // Accumulate usage
+    totalInputTokens += response.usage?.input_tokens ?? 0;
+    totalOutputTokens += response.usage?.output_tokens ?? 0;
+    totalCacheReadTokens += (response.usage as Record<string, number>)?.cache_read_input_tokens ?? 0;
+    totalCacheWriteTokens += (response.usage as Record<string, number>)?.cache_creation_input_tokens ?? 0;
 
     if (response.stop_reason === "end_turn") {
       finalText = (response.content.find((b) => b.type === "text") as Anthropic.TextBlock | undefined)?.text ?? "";
@@ -633,6 +646,39 @@ export async function POST(req: NextRequest) {
       break;
     }
   }
+
+  // Pricing for claude-sonnet-4-6 (per million tokens)
+  const INPUT_COST_PER_M = 3.0;
+  const OUTPUT_COST_PER_M = 15.0;
+  const CACHE_READ_COST_PER_M = 0.3;
+  const CACHE_WRITE_COST_PER_M = 3.75;
+  const costUsd =
+    (totalInputTokens * INPUT_COST_PER_M +
+      totalOutputTokens * OUTPUT_COST_PER_M +
+      totalCacheReadTokens * CACHE_READ_COST_PER_M +
+      totalCacheWriteTokens * CACHE_WRITE_COST_PER_M) /
+    1_000_000;
+
+  // Fire-and-forget logging (non-blocking)
+  const logDb = createAdminClient();
+  Promise.all([
+    logDb.from("ai_usage_logs").insert({
+      user_id: userId,
+      model: MODEL,
+      input_tokens: totalInputTokens,
+      output_tokens: totalOutputTokens,
+      cache_read_tokens: totalCacheReadTokens,
+      cache_write_tokens: totalCacheWriteTokens,
+      cost_usd: costUsd,
+    }),
+    logDb.from("chat_logs").insert({
+      user_id: userId,
+      messages: trimmed,
+      response: finalText,
+    }),
+  ]).catch(() => {
+    // Logging failure must not break the response
+  });
 
   const encoder = new TextEncoder();
   const readable = new ReadableStream({

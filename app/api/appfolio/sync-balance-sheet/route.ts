@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         .select("role")
         .eq("id", userId)
         .single();
-      if (user?.role !== "admin" && user?.role !== "accounting") {
+      if (user?.role !== "admin" && user?.role !== "accounting" && user?.role !== "development_lead") {
         return NextResponse.json({ error: "Admin role required for full sync" }, { status: 403 });
       }
     }

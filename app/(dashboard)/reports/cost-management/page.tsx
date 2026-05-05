@@ -632,15 +632,31 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                   <tbody>
                     {Array.from(unmatchedCats.entries())
                       .sort((a, b) => (b[1].paid + b[1].unpaid) - (a[1].paid + a[1].unpaid))
-                      .map(([code, { name, paid, unpaid }]) => (
+                      .map(([code, { name, paid, unpaid }]) => {
+                        const detailHref = singleProject?.appfolio_property_id
+                          ? `/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${encodeURIComponent(code)}`
+                          : null;
+                        const amount = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(paid + unpaid);
+                        return (
                         <tr key={code} className="border-t border-amber-100">
-                          <td className="py-1 pr-4 font-mono">{code}</td>
-                          <td className="py-1 pr-4">{name}</td>
-                          <td className="py-1 text-right tabular-nums">
-                            {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(paid + unpaid)}
+                          <td className="py-1 pr-4 font-mono">
+                            {detailHref ? (
+                              <Link href={detailHref} className="text-amber-900 underline underline-offset-2 hover:opacity-75">
+                                {code}
+                              </Link>
+                            ) : code}
                           </td>
+                          <td className="py-1 pr-4">
+                            {detailHref ? (
+                              <Link href={detailHref} className="text-amber-900 underline underline-offset-2 hover:opacity-75">
+                                {name}
+                              </Link>
+                            ) : name}
+                          </td>
+                          <td className="py-1 text-right tabular-nums">{amount}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
@@ -722,6 +738,8 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                   const st = sectionRows.reduce(addToTotals, emptyTotals());
                   const st_h = st.c > 0 ? (st.g / st.c) * 100 : null;
 
+                  const isUnmatched = section === UNMATCHED_SECTION;
+
                   return (
                     <Fragment key={section}>
                       {/* Section header */}
@@ -731,14 +749,40 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                           className="px-3 py-2 font-bold text-slate-700 uppercase tracking-wide text-[10px]"
                         >
                           {section}
+                          {isUnmatched && singleProject?.appfolio_property_id && (
+                            <span className="ml-2 normal-case font-normal text-[10px] text-amber-700">
+                              · Click any row to re-classify these transactions
+                            </span>
+                          )}
                         </td>
                       </tr>
 
                       {/* Line items */}
-                      {sectionRows.map((row) => (
-                        <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/50">
-                          <td className="px-3 py-2 font-mono text-muted-foreground">{row.code}</td>
-                          <td className="px-3 py-2">{row.name}</td>
+                      {sectionRows.map((row) => {
+                        const detailHref = singleProject?.appfolio_property_id
+                          ? `/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${encodeURIComponent(row.code)}`
+                          : null;
+                        const codeCellClass = `px-3 py-2 font-mono ${isUnmatched && detailHref ? "" : "text-muted-foreground"}`;
+                        return (
+                        <tr key={row.id} className={`border-t border-slate-100 hover:bg-slate-50/50 ${isUnmatched ? "bg-amber-50/40" : ""}`}>
+                          <td className={codeCellClass}>
+                            {isUnmatched && detailHref ? (
+                              <Link href={detailHref} className="text-primary underline underline-offset-2 hover:opacity-75">
+                                {row.code}
+                              </Link>
+                            ) : (
+                              row.code
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {isUnmatched && detailHref ? (
+                              <Link href={detailHref} className="text-primary underline underline-offset-2 hover:opacity-75">
+                                {row.name}
+                              </Link>
+                            ) : (
+                              row.name
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-right tabular-nums border-l border-slate-100">{usd(row.a_original)}</td>
                           <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{usd(row.b_authorized)}</td>
                           <td className="px-3 py-2 text-right tabular-nums font-medium">{usd(row.c_current)}</td>
@@ -801,7 +845,8 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                           </td>
                           <td className="px-3 py-2 text-right tabular-nums">{usd(row.m_balance)}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
 
                       {/* Section subtotal */}
                       <tr className="border-t border-slate-300 bg-slate-50 font-semibold">
