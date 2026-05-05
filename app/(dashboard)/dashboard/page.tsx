@@ -402,6 +402,24 @@ export default async function DashboardPage() {
   const pendingCOCount = pendingCOs.length;
   const pendingCOValue = pendingCOs.reduce((sum, co) => sum + co.amount, 0);
 
+  // Total committed across all visible non-terminated contracts.
+  const { data: rawContracts } = (projectIds.length > 0
+    ? await adminSupabase
+        .from("contracts")
+        .select("revised_value")
+        .in("project_id", projectIds)
+        .neq("status", "terminated")
+    : { data: [] }) as { data: { revised_value: number | null }[] | null };
+
+  const totalCommitments = (rawContracts ?? []).reduce(
+    (sum, c) => sum + Number(c.revised_value ?? 0), 0
+  );
+
+  // "Forecast to Complete" without a forecast feature = current budget minus
+  // what's already been incurred. Floors at zero so an over-budget project
+  // doesn't render a negative figure in the KPI strip.
+  const forecastToComplete = Math.max(0, portfolioValue - totalSpent);
+
   const projectCards: ProjectCard[] = projectList.map((p) => ({
     id: p.id,
     name: p.name,
@@ -427,28 +445,30 @@ export default async function DashboardPage() {
         </div>
 
         <p className="text-sm font-medium text-foreground -mt-2">
-          Here&apos;s an overview of your construction projects.
+          Where projects take shape — control commitments, forecast exposure, approve with confidence.
         </p>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <div className="rounded-lg border bg-card px-5 py-4">
-            <p className="text-xs font-medium text-muted-foreground">Active Projects</p>
-            <p className="mt-1 text-3xl font-bold">{activeProjects.length}</p>
+            <p className="text-xs font-medium text-muted-foreground">Total Projects</p>
+            <p className="mt-1 text-3xl font-bold">{projectList.length}</p>
           </div>
           <div className="rounded-lg border bg-card px-5 py-4">
-            <p className="text-xs font-medium text-muted-foreground">Portfolio Budget</p>
-            <p className="mt-1 text-3xl font-bold">{portfolioValue > 0 ? usd(portfolioValue) : "—"}</p>
+            <p className="text-xs font-medium text-muted-foreground">Total Commitments</p>
+            <p className="mt-1 text-3xl font-bold">{totalCommitments > 0 ? usd(totalCommitments) : "—"}</p>
           </div>
           <div className="rounded-lg border bg-card px-5 py-4">
-            <p className="text-xs font-medium text-muted-foreground">Total Deployed</p>
-            <p className="mt-1 text-3xl font-bold">{totalSpent > 0 ? usd(totalSpent) : "—"}</p>
+            <p className="text-xs font-medium text-muted-foreground">Forecast to Complete</p>
+            <p className="mt-1 text-3xl font-bold">{forecastToComplete > 0 ? usd(forecastToComplete) : "—"}</p>
           </div>
           {role !== "read_only" ? (
             <div className="rounded-lg border bg-card px-5 py-4">
-              <p className="text-xs font-medium text-muted-foreground">Pending COs</p>
-              <p className="mt-1 text-3xl font-bold">{pendingCOCount > 0 ? pendingCOCount : "—"}</p>
+              <p className="text-xs font-medium text-muted-foreground">Total Exposure</p>
+              <p className="mt-1 text-3xl font-bold">{pendingCOValue > 0 ? usd(pendingCOValue) : "—"}</p>
               {pendingCOCount > 0 && (
-                <p className="text-xs text-amber-600 font-medium mt-0.5">{usd(pendingCOValue)}</p>
+                <p className="text-xs text-amber-600 font-medium mt-0.5">
+                  {pendingCOCount} pending CO{pendingCOCount !== 1 ? "s" : ""}
+                </p>
               )}
             </div>
           ) : (
