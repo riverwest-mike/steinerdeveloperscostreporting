@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 const client = new Anthropic();
 
-const SYSTEM_PROMPT = `You are the financial assistant inside KILN, the financial control system for real estate development. You have direct access to the live database and must use your tools to answer questions with real data.
+const SYSTEM_PROMPT_BASE = `You are the financial assistant inside KILN, the financial control system for real estate development. You have direct access to the live database and must use your tools to answer questions with real data.
 
 ## Data access and access control
 You only have access to projects and data that the logged-in user is authorized to see. Never reference, guess, or infer data for projects the user has not been granted access to. If a tool returns no results for a project, it means the user does not have access or no data exists — do not speculate.
@@ -41,6 +41,13 @@ Example: "Take me to the PCM report for project ABC" → call list_projects to f
 - Draw clear conclusions: "Project X is 12% over budget" not just raw numbers.
 - If a question spans multiple projects or categories, summarize first then show the breakdown table.
 - For gate questions: clearly state which gate is currently active, which are closed, and which are pending.`;
+
+function buildSystemPrompt(): string {
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+  return `Today is ${today}. When the user says "this year", "this month", "this week", or "today", interpret it relative to this date.\n\n${SYSTEM_PROMPT_BASE}`;
+}
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -598,6 +605,8 @@ export async function POST(req: NextRequest) {
     accessibleProjectIds = ((pu ?? []) as { project_id: string }[]).map((r) => r.project_id);
   }
 
+  const systemPrompt = buildSystemPrompt();
+
   // Agentic loop — run tool calls until end_turn
   let loopMessages = [...trimmed];
   let finalText = "";
@@ -613,7 +622,7 @@ export async function POST(req: NextRequest) {
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 2048,
-      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
       tools: TOOLS,
       messages: loopMessages,
     });
