@@ -55,7 +55,6 @@ interface Transaction {
   gl_account_name: string;
   cost_category_code: string | null;
   cost_category_name: string | null;
-  cost_category_code_override: string | null;
   bill_date: string | null;
   due_date: string | null;
   payment_date: string | null;
@@ -208,7 +207,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
       .from("appfolio_transactions")
       .select(
         "id, appfolio_property_id, appfolio_bill_id, vendor_name, gl_account_id, gl_account_name, " +
-        "cost_category_code, cost_category_name, cost_category_code_override, bill_date, due_date, payment_date, " +
+        "cost_category_code, cost_category_name, bill_date, due_date, payment_date, " +
         "invoice_amount, paid_amount, unpaid_amount, payment_status, payment_type, " +
         "check_number, reference_number, description"
       )
@@ -370,7 +369,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
       gl_account_name: tx.gl_account_name,
       cost_category_code: tx.cost_category_code,
       cost_category_name: tx.cost_category_name,
-      cost_category_code_override: tx.cost_category_code_override,
+      cost_category_code_override: null,
       bill_date: tx.bill_date,
       invoice_amount: Number(tx.invoice_amount),
       paid_amount: Number(tx.paid_amount),
