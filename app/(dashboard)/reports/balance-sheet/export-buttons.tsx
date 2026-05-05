@@ -83,6 +83,16 @@ export function ExportButtons({
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws["!cols"] = [{ wch: 16 }, { wch: 40 }, { wch: 18 }];
 
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } },
+    ];
+
+    const { CURRENCY_FMT, freezeHeader, setColumnFormats } = await import("@/lib/xlsx-helpers");
+    setColumnFormats(ws, 5, data.length - 1, [2], CURRENCY_FMT);
+    freezeHeader(ws, 5);
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Balance Sheet");
 

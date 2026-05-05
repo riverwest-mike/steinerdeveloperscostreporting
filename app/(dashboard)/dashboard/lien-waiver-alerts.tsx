@@ -23,15 +23,23 @@ function fmtDate(d: string): string {
   });
 }
 
+interface LienWaiverFilterState {
+  projectFilter: string;
+  setProjectFilter: (s: string) => void;
+  vendorSearch: string;
+  setVendorSearch: (s: string) => void;
+}
+
 function LienWaiverTable({
   alerts,
+  filters,
   expanded = false,
 }: {
   alerts: LienWaiverAlert[];
+  filters: LienWaiverFilterState;
   expanded?: boolean;
 }) {
-  const [projectFilter, setProjectFilter] = useState("All");
-  const [vendorSearch, setVendorSearch] = useState("");
+  const { projectFilter, setProjectFilter, vendorSearch, setVendorSearch } = filters;
 
   const projects = [
     "All",
@@ -211,6 +219,9 @@ function LienWaiverTable({
 
 export function LienWaiverAlerts({ alerts }: { alerts: LienWaiverAlert[] }) {
   const [open, setOpen] = useState(false);
+  const [projectFilter, setProjectFilter] = useState("All");
+  const [vendorSearch, setVendorSearch] = useState("");
+  const filters: LienWaiverFilterState = { projectFilter, setProjectFilter, vendorSearch, setVendorSearch };
 
   if (alerts.length === 0) return null;
 
@@ -220,10 +231,10 @@ export function LienWaiverAlerts({ alerts }: { alerts: LienWaiverAlert[] }) {
         <div className="absolute top-0 right-0 z-10">
           <ExpandButton onClick={() => setOpen(true)} />
         </div>
-        <LienWaiverTable alerts={alerts} />
+        <LienWaiverTable alerts={alerts} filters={filters} />
       </div>
       <ExpandedModal open={open} onClose={() => setOpen(false)}>
-        <LienWaiverTable alerts={alerts} expanded />
+        <LienWaiverTable alerts={alerts} filters={filters} expanded />
       </ExpandedModal>
     </>
   );

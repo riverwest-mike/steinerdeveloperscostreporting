@@ -27,6 +27,13 @@ type ParsedRow = GateUploadRow & {
 };
 
 const FIXED_COLS = new Set(["gate name", "sequence", "gate #", "start date", "end date", "notes"]);
+const VERTICAL_HEADER_MARKER = "field";
+
+/** Extract the bare code from a "CODE - Name" header cell (e.g. "1100 - Surveys" → "1100"). */
+function extractCode(header: string): string {
+  const m = header.match(/^\s*([^\s-][^-]*?)\s*[-–—]\s*.+$/);
+  return m ? m[1].trim() : header.trim();
+}
 
 function normalizeDate(raw: unknown): string | null {
   if (!raw) return null;
@@ -56,6 +63,18 @@ function parseWorkbook(
 
   if (raw.length < 2) return [];
 
+  const firstCell = String(raw[0]?.[0] ?? "").trim().toLowerCase();
+  const isVertical = firstCell === VERTICAL_HEADER_MARKER;
+
+  return isVertical
+    ? parseVertical(raw, seqToExisting)
+    : parseHorizontal(raw, seqToExisting);
+}
+
+function parseHorizontal(
+  raw: unknown[][],
+  seqToExisting: Record<number, ExistingGate>
+): ParsedRow[] {
   const headers = (raw[0] as string[]).map((h) => String(h ?? "").trim());
   const dataRows = raw.slice(1);
 
@@ -69,7 +88,7 @@ function parseWorkbook(
     else if (lower === "start date") idx.start_date = i;
     else if (lower === "end date") idx.end_date = i;
     else if (lower === "notes") idx.notes = i;
-    else if (h && !FIXED_COLS.has(lower)) codeCols.push({ col: h, index: i });
+    else if (h && !FIXED_COLS.has(lower)) codeCols.push({ col: extractCode(h), index: i });
   });
 
   const result: ParsedRow[] = [];
@@ -98,29 +117,105 @@ function parseWorkbook(
       }
     }
 
-    const existing = seqToExisting[seq];
-    let action: RowAction = "new";
-    let existingName: string | undefined;
-
-    if (existing) {
-      action = existing.is_locked ? "locked" : "replace";
-      existingName = existing.name;
-    }
-
-    result.push({
-      name,
-      sequence_number: seq,
+    result.push(buildParsedRow({
+      name, seq, budgets, warnings, seqToExisting,
       start_date: normalizeDate(idx.start_date !== undefined ? cols[idx.start_date] : null),
       end_date: normalizeDate(idx.end_date !== undefined ? cols[idx.end_date] : null),
       notes: idx.notes !== undefined ? String(cols[idx.notes] ?? "").trim() || null : null,
-      budgets,
-      _warnings: warnings,
-      _action: action,
-      _existingName: existingName,
-    });
+    }));
   }
 
   return result;
+}
+
+function parseVertical(
+  raw: unknown[][],
+  seqToExisting: Record<number, ExistingGate>
+): ParsedRow[] {
+  // Column A is field labels; each column B+ is a gate.
+  // Build a map from field label → row index.
+  const labelRow: Record<string, number> = {};
+  const codeRows: { code: string; rowIndex: number }[] = [];
+  for (let r = 1; r < raw.length; r++) {
+    const label = String(raw[r]?.[0] ?? "").trim();
+    if (!label) continue;
+    const lower = label.toLowerCase();
+    if (lower === "gate name") labelRow.name = r;
+    else if (lower === "sequence" || lower === "gate #") labelRow.sequence = r;
+    else if (lower === "start date") labelRow.start_date = r;
+    else if (lower === "end date") labelRow.end_date = r;
+    else if (lower === "notes") labelRow.notes = r;
+    else codeRows.push({ code: extractCode(label), rowIndex: r });
+  }
+
+  // Number of gate columns = max width across all rows minus 1 (column A).
+  const maxCols = Math.max(...raw.map((row) => (row?.length ?? 0))) - 1;
+  const result: ParsedRow[] = [];
+  let seqCounter = 1;
+
+  for (let c = 1; c <= maxCols; c++) {
+    const nameRaw = labelRow.name !== undefined ? raw[labelRow.name]?.[c] : undefined;
+    const name = String(nameRaw ?? "").trim();
+    if (!name) continue;
+
+    const warnings: string[] = [];
+    const seqRaw = labelRow.sequence !== undefined ? raw[labelRow.sequence]?.[c] : undefined;
+    let seq = seqRaw !== undefined && seqRaw !== "" ? Number(seqRaw) : NaN;
+    if (isNaN(seq)) { seq = seqCounter; }
+    seqCounter = seq + 1;
+
+    const budgets: Record<string, number> = {};
+    for (const { code, rowIndex } of codeRows) {
+      const val = raw[rowIndex]?.[c];
+      const n = val !== undefined && val !== "" ? Number(val) : 0;
+      if (isNaN(n)) {
+        warnings.push(`Cell for "${code}" value "${val}" is not a number — using 0`);
+        budgets[code] = 0;
+      } else {
+        budgets[code] = n;
+      }
+    }
+
+    result.push(buildParsedRow({
+      name, seq, budgets, warnings, seqToExisting,
+      start_date: normalizeDate(labelRow.start_date !== undefined ? raw[labelRow.start_date]?.[c] : null),
+      end_date: normalizeDate(labelRow.end_date !== undefined ? raw[labelRow.end_date]?.[c] : null),
+      notes: labelRow.notes !== undefined ? String(raw[labelRow.notes]?.[c] ?? "").trim() || null : null,
+    }));
+  }
+
+  return result;
+}
+
+function buildParsedRow(args: {
+  name: string;
+  seq: number;
+  start_date: string | null;
+  end_date: string | null;
+  notes: string | null;
+  budgets: Record<string, number>;
+  warnings: string[];
+  seqToExisting: Record<number, ExistingGate>;
+}): ParsedRow {
+  const existing = args.seqToExisting[args.seq];
+  let action: RowAction = "new";
+  let existingName: string | undefined;
+  if (existing) {
+    action = existing.is_locked ? "locked" : "replace";
+    existingName = existing.name;
+  }
+
+  return {
+    name: args.name,
+    sequence_number: args.seq,
+    start_date: args.start_date,
+    end_date: args.end_date,
+    notes: args.notes,
+    budgets: args.budgets,
+    _warnings: args.warnings,
+    _action: action,
+    _existingName: existingName,
+  };
 }
 
 function fmtCurrency(n: number) {

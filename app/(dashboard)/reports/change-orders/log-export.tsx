@@ -78,6 +78,18 @@ export function COLogExport({ rows, projectLabel, showProjectCol }: Props) {
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet(data);
+
+    const headerColCount = headers.length;
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: headerColCount - 1 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: headerColCount - 1 } },
+    ];
+
+    const { CURRENCY_FMT, freezeHeader, setColumnFormats } = await import("@/lib/xlsx-helpers");
+    const amountCol = showProjectCol ? 10 : 8; // index of "Amount" column
+    setColumnFormats(ws, 4, data.length - 1, [amountCol], CURRENCY_FMT);
+    freezeHeader(ws, 4);
+
     ws["!cols"] = showProjectCol
       ? [
           { wch: 12 }, { wch: 28 },

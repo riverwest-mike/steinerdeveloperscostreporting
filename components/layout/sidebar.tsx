@@ -135,7 +135,7 @@ export function Sidebar({ role, onClose }: SidebarProps) {
             <BarChart3 className="h-4 w-4 shrink-0" />
             <span className="flex-1">Reporting</span>
             <ChevronDown
-              onClick={(e) => { e.preventDefault(); setReportsOpen((o) => !o); }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setReportsOpen((o) => !o); }}
               className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", reportsOpen && "rotate-180")}
               style={{ color: "hsl(var(--sidebar-muted))" }}
             />
@@ -174,7 +174,7 @@ export function Sidebar({ role, onClose }: SidebarProps) {
                 <ShieldCheck className="h-4 w-4 shrink-0" />
                 <span className="flex-1">Settings</span>
                 <ChevronDown
-                  onClick={(e) => { e.preventDefault(); setSettingsOpen((o) => !o); }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSettingsOpen((o) => !o); }}
                   className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", settingsOpen && "rotate-180")}
                   style={{ color: "hsl(var(--sidebar-muted))" }}
                 />
@@ -215,7 +215,7 @@ export function Sidebar({ role, onClose }: SidebarProps) {
                 <Lock className="h-4 w-4 shrink-0" />
                 <span className="flex-1">Admin</span>
                 <ChevronDown
-                  onClick={(e) => { e.preventDefault(); setSystemAdminOpen((o) => !o); }}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSystemAdminOpen((o) => !o); }}
                   className={cn("h-3.5 w-3.5 shrink-0 transition-transform duration-200", systemAdminOpen && "rotate-180")}
                   style={{ color: "hsl(var(--sidebar-muted))" }}
                 />

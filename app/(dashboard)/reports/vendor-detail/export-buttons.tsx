@@ -124,6 +124,16 @@ export function ExportButtons({ transactions, projects, vendorLabel, asOf }: Exp
       { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 14 },
     ];
 
+    const headerColCount = 17;
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: headerColCount - 1 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: headerColCount - 1 } },
+    ];
+
+    const { CURRENCY_FMT, freezeHeader, setColumnFormats } = await import("@/lib/xlsx-helpers");
+    setColumnFormats(ws, 4, data.length - 1, [10, 11, 12], CURRENCY_FMT);
+    freezeHeader(ws, 4);
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Vendor Detail");
     const safeVendor = vendorLabel.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);

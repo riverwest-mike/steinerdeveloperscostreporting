@@ -668,9 +668,10 @@ export async function POST(req: NextRequest) {
       totalCacheWriteTokens * CACHE_WRITE_COST_PER_M) /
     1_000_000;
 
-  // Fire-and-forget logging (non-blocking)
+  // Await logging so inserts complete before the serverless function is torn down.
+  // Failure must never break the response — catch both individually.
   const logDb = createAdminClient();
-  Promise.all([
+  await Promise.allSettled([
     logDb.from("ai_usage_logs").insert({
       user_id: userId,
       model: MODEL,
@@ -685,9 +686,7 @@ export async function POST(req: NextRequest) {
       messages: trimmed,
       response: finalText,
     }),
-  ]).catch(() => {
-    // Logging failure must not break the response
-  });
+  ]);
 
   const encoder = new TextEncoder();
   const readable = new ReadableStream({

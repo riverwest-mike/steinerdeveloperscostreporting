@@ -26,16 +26,23 @@ function usd(n: number): string {
 
 const OVERAGE_FILTERS = ["All", "5+ over", "10+ over"] as const;
 
+interface BudgetFilterState {
+  overageFilter: (typeof OVERAGE_FILTERS)[number];
+  setOverageFilter: (s: (typeof OVERAGE_FILTERS)[number]) => void;
+  projectFilter: string;
+  setProjectFilter: (s: string) => void;
+}
+
 function AlertsList({
   alerts,
+  filters,
   expanded = false,
 }: {
   alerts: OverBudgetAlert[];
+  filters: BudgetFilterState;
   expanded?: boolean;
 }) {
-  const [overageFilter, setOverageFilter] =
-    useState<(typeof OVERAGE_FILTERS)[number]>("All");
-  const [projectFilter, setProjectFilter] = useState("All");
+  const { overageFilter, setOverageFilter, projectFilter, setProjectFilter } = filters;
 
   const projects = [
     "All",
@@ -166,6 +173,9 @@ function AlertsList({
 
 export function BudgetAlerts({ alerts }: { alerts: OverBudgetAlert[] }) {
   const [open, setOpen] = useState(false);
+  const [overageFilter, setOverageFilter] = useState<(typeof OVERAGE_FILTERS)[number]>("All");
+  const [projectFilter, setProjectFilter] = useState("All");
+  const filters: BudgetFilterState = { overageFilter, setOverageFilter, projectFilter, setProjectFilter };
 
   if (alerts.length === 0) return null;
 
@@ -175,10 +185,10 @@ export function BudgetAlerts({ alerts }: { alerts: OverBudgetAlert[] }) {
         <div className="absolute top-0 right-0 z-10">
           <ExpandButton onClick={() => setOpen(true)} />
         </div>
-        <AlertsList alerts={alerts} />
+        <AlertsList alerts={alerts} filters={filters} />
       </div>
       <ExpandedModal open={open} onClose={() => setOpen(false)}>
-        <AlertsList alerts={alerts} expanded />
+        <AlertsList alerts={alerts} filters={filters} expanded />
       </ExpandedModal>
     </>
   );

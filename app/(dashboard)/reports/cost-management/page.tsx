@@ -9,6 +9,7 @@ import { Header } from "@/components/layout/header";
 import { ReportControls } from "./report-controls";
 import { ReportRestorer } from "./report-restorer";
 import { ExportButtons } from "./export-buttons";
+import { UnmatchedCostModal, type UnmatchedTx } from "@/components/unmatched-cost-modal";
 import { HELP } from "@/lib/help";
 
 /* ─── Helpers ─────────────────────────────────────────── */
@@ -335,6 +336,8 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
   let txMatched = 0;
   // unmatched: cost_category_code -> { name, paid, unpaid }
   const unmatchedCats = new Map<string, { name: string; paid: number; unpaid: number }>();
+  // unmatched: cost_category_code -> raw transactions for the click-through modal
+  const unmatchedTxByCode = new Map<string, UnmatchedTx[]>();
 
   if (linkedPropertyIds.length > 0) {
     // Build code → category id lookup (case-insensitive).
@@ -371,7 +374,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
 
     let txQuery = supabase
       .from("appfolio_transactions")
-      .select("cost_category_code, cost_category_name, vendor_name, paid_amount, unpaid_amount")
+      .select("id, cost_category_code, cost_category_name, vendor_name, description, paid_amount, unpaid_amount, bill_date, payment_status, check_number, reference_number")
       .in("appfolio_property_id", linkedPropertyIds)
       .lte("bill_date", txDateCap);
 
@@ -382,11 +385,17 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
     const { data: rawTx } = await txQuery;
 
     for (const tx of (rawTx ?? []) as {
+      id: string;
       cost_category_code: string | null;
       cost_category_name: string | null;
       vendor_name: string;
+      description: string | null;
       paid_amount: number;
       unpaid_amount: number;
+      bill_date: string | null;
+      payment_status: string;
+      check_number: string | null;
+      reference_number: string | null;
     }[]) {
       txTotal++;
       const code = (tx.cost_category_code ?? "").trim().toUpperCase();
@@ -404,6 +413,20 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
         const displayName = tx.vendor_name || tx.cost_category_name || displayCode;
         const prev = unmatchedCats.get(displayCode) ?? { name: displayName, paid: 0, unpaid: 0 };
         unmatchedCats.set(displayCode, { name: prev.name, paid: prev.paid + paid, unpaid: prev.unpaid + unpaid });
+
+        const txList = unmatchedTxByCode.get(displayCode) ?? [];
+        txList.push({
+          id: tx.id,
+          bill_date: tx.bill_date,
+          vendor_name: tx.vendor_name,
+          description: tx.description,
+          paid_amount: paid,
+          unpaid_amount: unpaid,
+          payment_status: tx.payment_status,
+          check_number: tx.check_number,
+          reference_number: tx.reference_number,
+        });
+        unmatchedTxByCode.set(displayCode, txList);
       }
     }
   }
@@ -749,9 +772,9 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                           className="px-3 py-2 font-bold text-slate-700 uppercase tracking-wide text-[10px]"
                         >
                           {section}
-                          {isUnmatched && singleProject?.appfolio_property_id && (
+                          {isUnmatched && (
                             <span className="ml-2 normal-case font-normal text-[10px] text-amber-700">
-                              · Click any row to re-classify these transactions
+                              · Click any row to view the underlying AppFolio transactions
                             </span>
                           )}
                         </td>
@@ -759,26 +782,24 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
 
                       {/* Line items */}
                       {sectionRows.map((row) => {
-                        const detailHref = singleProject?.appfolio_property_id
-                          ? `/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${encodeURIComponent(row.code)}`
-                          : null;
-                        const codeCellClass = `px-3 py-2 font-mono ${isUnmatched && detailHref ? "" : "text-muted-foreground"}`;
+                        const codeCellClass = `px-3 py-2 font-mono ${isUnmatched ? "" : "text-muted-foreground"}`;
+                        const unmatchedTxs = isUnmatched ? unmatchedTxByCode.get(row.code) ?? [] : [];
                         return (
                         <tr key={row.id} className={`border-t border-slate-100 hover:bg-slate-50/50 ${isUnmatched ? "bg-amber-50/40" : ""}`}>
                           <td className={codeCellClass}>
-                            {isUnmatched && detailHref ? (
-                              <Link href={detailHref} className="text-primary underline underline-offset-2 hover:opacity-75">
+                            {isUnmatched ? (
+                              <UnmatchedCostModal code={row.code} name={row.name} transactions={unmatchedTxs}>
                                 {row.code}
-                              </Link>
+                              </UnmatchedCostModal>
                             ) : (
                               row.code
                             )}
                           </td>
                           <td className="px-3 py-2">
-                            {isUnmatched && detailHref ? (
-                              <Link href={detailHref} className="text-primary underline underline-offset-2 hover:opacity-75">
+                            {isUnmatched ? (
+                              <UnmatchedCostModal code={row.code} name={row.name} transactions={unmatchedTxs}>
                                 {row.name}
-                              </Link>
+                              </UnmatchedCostModal>
                             ) : (
                               row.name
                             )}
