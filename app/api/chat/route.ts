@@ -621,8 +621,8 @@ export async function POST(req: NextRequest) {
     // Accumulate usage
     totalInputTokens += response.usage?.input_tokens ?? 0;
     totalOutputTokens += response.usage?.output_tokens ?? 0;
-    totalCacheReadTokens += (response.usage as Record<string, number>)?.cache_read_input_tokens ?? 0;
-    totalCacheWriteTokens += (response.usage as Record<string, number>)?.cache_creation_input_tokens ?? 0;
+    totalCacheReadTokens += (response.usage as unknown as Record<string, number>)?.cache_read_input_tokens ?? 0;
+    totalCacheWriteTokens += (response.usage as unknown as Record<string, number>)?.cache_creation_input_tokens ?? 0;
 
     if (response.stop_reason === "end_turn") {
       finalText = (response.content.find((b) => b.type === "text") as Anthropic.TextBlock | undefined)?.text ?? "";
