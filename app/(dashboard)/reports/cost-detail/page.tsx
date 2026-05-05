@@ -173,6 +173,7 @@ export default async function CostDetailPage({ searchParams }: Props) {
   let diagAfterDate = 0;
   let diagAfterPayment = 0;
   let diagAfterCategorySql = 0;
+  let diagSelectError: string | null = null;
 
   if (linkedPropertyIds.length > 0) {
     const { count: totalCount } = await supabase
@@ -233,9 +234,13 @@ export default async function CostDetailPage({ searchParams }: Props) {
       query = query.ilike("cost_category_code", `${prefix}%`);
     }
 
-    const { data: rawTx } = await query
+    const { data: rawTx, error: rawTxError } = await query
       .order("bill_date", { ascending: false })
       .limit(50000);
+    if (rawTxError) {
+      console.error("[cost-detail] appfolio_transactions select failed:", rawTxError);
+      diagSelectError = `${rawTxError.code ?? ""} ${rawTxError.message ?? ""}`.trim();
+    }
     transactions = (rawTx ?? []) as (Transaction & { appfolio_property_id: string })[];
     diagAfterCategorySql = transactions.length;
 
@@ -307,12 +312,15 @@ export default async function CostDetailPage({ searchParams }: Props) {
     }
   }
 
+  let diagAfterGate = transactions.length;
+
   // ── Apply gate filter (in-memory, after assignments are loaded) ───
   if (gateIdFilter) {
     transactions = transactions.filter((tx) => {
       const ga = gateAssignmentByTxId.get(tx.id);
       return ga?.gate_id === gateIdFilter;
     });
+    diagAfterGate = transactions.length;
   }
 
   // AppFolio base URL for bill deep-links (server-side only — env var never reaches client)
@@ -495,7 +503,25 @@ export default async function CostDetailPage({ searchParams }: Props) {
                     <span className="font-mono font-semibold">{diagAfterCategorySql.toLocaleString()}</span>
                   </>
                 )}
+                {gateIdFilter && (
+                  <>
+                    {" · "}After gate filter:{" "}
+                    <span className="font-mono font-semibold">{diagAfterGate.toLocaleString()}</span>
+                  </>
+                )}
               </p>
+              <p className="mt-1 text-[10px] text-muted-foreground/60 break-all font-mono">
+                URL params — projectId(s): {(searchParams.projectIds ?? searchParams.projectId) ?? "(none)"}
+                {" · "}asOf: {asOf}
+                {" · "}categoryCode: {categoryCode ?? "(none)"}
+                {" · "}paymentFilter: {paymentFilter ?? "(none)"}
+                {" · "}gateId: {gateIdFilter ?? "(none)"}
+              </p>
+              {diagSelectError && (
+                <p className="mt-2 text-[11px] text-destructive font-mono break-all">
+                  SELECT error: {diagSelectError}
+                </p>
+              )}
             </div>
           )}
         </div>
