@@ -231,24 +231,25 @@ export default async function VendorDetailPage({ searchParams }: Props) {
       query = query.ilike("vendor_name", `%${vendorName}%`);
     }
 
-    if (categoryCode) {
-      // Match the same way PCM aggregates: either the full code or its
-      // numeric prefix, since AppFolio sometimes returns just the
-      // numeric portion in cost_category_code.
-      const trimmed = categoryCode.trim();
-      const prefix = trimmed.split(/\s+/)[0];
-      const q = (v: string) => (/[\s,]/.test(v) ? `"${v}"` : v);
-      if (prefix && prefix !== trimmed) {
-        query = query.or(
-          `cost_category_code.ilike.${q(trimmed)},cost_category_code.ilike.${q(prefix)}`
-        );
-      } else {
-        query = query.ilike("cost_category_code", trimmed);
-      }
-    }
-
     const { data: rawTx } = await query.order("bill_date", { ascending: false });
     transactions = (rawTx ?? []) as VendorTransaction[];
+
+    // Apply category filter in memory using the same matching rules PCM
+    // uses to bucket transactions: accept either the full cat.code or its
+    // numeric prefix. AppFolio's vendor_ledger frequently stores
+    // cost_category_code as just the numeric portion, so a SQL ilike
+    // against the full URL value can return zero rows even when PCM had
+    // already shown a non-zero total for the category.
+    if (categoryCode) {
+      const target = categoryCode.trim().toUpperCase();
+      const targetPrefix = target.split(/\s+/)[0];
+      const accepted = new Set<string>([target]);
+      if (targetPrefix && targetPrefix !== target) accepted.add(targetPrefix);
+      transactions = transactions.filter((tx) => {
+        const c = (tx.cost_category_code ?? "").trim().toUpperCase();
+        return c.length > 0 && accepted.has(c);
+      });
+    }
   }
 
   // Fetch notes for displayed transactions

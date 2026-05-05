@@ -831,7 +831,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                           <td className="px-3 py-2 text-right tabular-nums border-l border-slate-100">
                             {row.j_paid !== 0 && singleProject?.appfolio_property_id ? (
                               <Link
-                                href={`/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${row.code}&paymentFilter=paid`}
+                                href={`/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${encodeURIComponent(row.code)}&paymentFilter=paid`}
                                 className="text-primary underline underline-offset-2 hover:opacity-75"
                               >
                                 {usd(row.j_paid)}
@@ -843,7 +843,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                           <td className="px-3 py-2 text-right tabular-nums">
                             {row.k_unpaid !== 0 && singleProject?.appfolio_property_id ? (
                               <Link
-                                href={`/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${row.code}&paymentFilter=unpaid`}
+                                href={`/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${encodeURIComponent(row.code)}&paymentFilter=unpaid`}
                                 className="text-primary underline underline-offset-2 hover:opacity-75"
                               >
                                 {usd(row.k_unpaid)}
@@ -855,7 +855,7 @@ export default async function CostManagementReportPage({ searchParams }: Props) 
                           <td className="px-3 py-2 text-right tabular-nums font-medium">
                             {row.l_total_incurred !== 0 && singleProject?.appfolio_property_id ? (
                               <Link
-                                href={`/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${row.code}`}
+                                href={`/reports/cost-detail?projectId=${singleProject.id}&asOf=${asOf}&categoryCode=${encodeURIComponent(row.code)}`}
                                 className="text-primary underline underline-offset-2 hover:opacity-75"
                               >
                                 {usd(row.l_total_incurred)}
