@@ -62,6 +62,12 @@ export function DashboardShell({
       <div className="flex flex-1 flex-col overflow-hidden min-w-0 print:block print:overflow-visible">
         <main className="flex-1 overflow-y-auto print:overflow-visible">
           {children}
+          <footer className="border-t mt-8 px-4 sm:px-6 py-3 text-[11px] text-muted-foreground flex items-center justify-between print:hidden">
+            <span>
+              <span className="font-semibold tracking-tight">KILN</span> by RiverWest
+            </span>
+            <span>kilnhq.com</span>
+          </footer>
         </main>
       </div>
 

@@ -53,7 +53,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Previously Drawn column", desc: "Sum of all other draw requests for the same project (in any status). This gives you the cumulative draw history against each cost category." },
       { label: "Balance Remaining", desc: "Total Budget minus Previously Drawn minus This Draw. A negative balance means the draw request exceeds the approved budget for that category." },
     ],
-    tip: "Note: actual invoices are stored in AppFolio. A full draw package (with supporting documents) cannot be generated from this application — use AppFolio for the complete package.",
+    tip: "Note: actual invoices are stored in AppFolio. A full draw package (with supporting documents) cannot be generated from KILN — use AppFolio for the complete package.",
   },
 
   contractDetail: {
@@ -244,7 +244,7 @@ export const HELP: Record<string, PageHelpContent> = {
       { label: "Users & Access", desc: "Invite users, set roles (Read Only / Project Manager / Admin), and control which projects each user can see." },
       { label: "Cost Categories", desc: "Manage the cost codes used in gate budgets, contracts, and all reports." },
       { label: "AppFolio", desc: "Map AppFolio properties to projects and manage sync settings." },
-      { label: "Audit Log", desc: "Review every change made in the system — who changed what, and when." },
+      { label: "Audit Log", desc: "Review every change made in KILN — who changed what, and when." },
       { label: "Budget Imports", desc: "See the history of Excel gate budget uploads in Admin › Audit Log." },
     ],
     tip: "Only Admin users can see this section. Role changes take effect immediately on the user's next page load.",
@@ -307,7 +307,7 @@ export const HELP: Record<string, PageHelpContent> = {
 
   auditLog: {
     title: "Audit Log",
-    description: "A complete, filterable record of every change made in the system. Timestamps display in your local timezone.",
+    description: "A complete, filterable record of every change made in KILN. Timestamps display in your local timezone.",
     actions: [
       { label: "Filter by user", desc: "Select a specific user to see only their actions." },
       { label: "Filter by project", desc: "Limit to changes affecting one project." },
@@ -320,9 +320,9 @@ export const HELP: Record<string, PageHelpContent> = {
 
   appfolio: {
     title: "AppFolio Integration",
-    description: "Connect AppFolio property data to this system. Map properties to projects, run manual syncs, and review sync history.",
+    description: "Connect AppFolio property data to KILN. Map properties to projects, run manual syncs, and review sync history.",
     actions: [
-      { label: "Map a property", desc: "Enter the AppFolio Property ID (found in the AppFolio URL when viewing a property) next to each project. This tells the system where to pull transaction data from." },
+      { label: "Map a property", desc: "Enter the AppFolio Property ID (found in the AppFolio URL when viewing a property) next to each project. This tells KILN where to pull transaction data from." },
       { label: "Sync Now", desc: "Manually trigger an AppFolio data sync for all mapped properties. Running a report also triggers a sync automatically." },
       { label: "Sync history", desc: "The table shows each sync run: whether it was manual or scheduled, how many transactions were imported, and any errors." },
       { label: "Auto-sync", desc: "A daily automatic sync runs at 6 AM UTC (requires CRON_SECRET environment variable to be set in Vercel)." },
