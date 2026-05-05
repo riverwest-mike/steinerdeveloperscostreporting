@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { MessageCircle, X, Send, Loader2, Trash2, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -11,9 +11,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 type Message = Anthropic.MessageParam & { id: string };
 
 export function AiChatWidget() {
-  const pathname = usePathname();
   const router = useRouter();
-  const isDashboard = pathname === "/dashboard";
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -121,14 +119,9 @@ export function AiChatWidget() {
     setInput("");
   }
 
-  // ── Shared panel content ───────────────────────────────────────────────
+  // ── Panel ─────────────────────────────────────────────────────────────
   const panelContent = (
-    <div className={cn(
-      "flex flex-col bg-background overflow-hidden",
-      isDashboard
-        ? "w-full max-w-2xl h-[520px] rounded-xl border border-border shadow-2xl"
-        : "w-[calc(100vw-3rem)] max-w-[360px] h-[min(500px,70vh)] rounded-xl border border-border shadow-2xl"
-    )}>
+    <div className="flex flex-col bg-background overflow-hidden w-[calc(100vw-3rem)] max-w-[380px] h-[min(520px,75vh)] rounded-xl border border-border shadow-2xl">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
         <div className="flex items-center gap-2">
@@ -205,20 +198,7 @@ export function AiChatWidget() {
     </div>
   );
 
-  // ── Dashboard: centered overlay (no floating bubble) ──────────────────
-  if (isDashboard) {
-    if (!open) return null;
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/40 backdrop-blur-sm print:hidden"
-        onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
-      >
-        {panelContent}
-      </div>
-    );
-  }
-
-  // ── Other pages: bottom-right bubble + panel ──────────────────────────
+  // ── Bottom-right floating bubble + panel ─────────────────────────────
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 print:hidden">
       {open && panelContent}
