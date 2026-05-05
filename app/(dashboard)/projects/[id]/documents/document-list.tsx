@@ -278,7 +278,13 @@ export function DocumentList({ projectId, documents, canEdit, isAdmin }: Documen
                     ) : (
                       <div className="flex items-center gap-2">
                         <span className="text-base">{fileIcon(doc.url)}</span>
-                        <span className="font-medium">{doc.name}</span>
+                        <button
+                          onClick={() => handleDownload(doc)}
+                          disabled={downloadingId === doc.id}
+                          className="font-medium text-left hover:text-primary hover:underline underline-offset-2 transition-colors disabled:opacity-50"
+                        >
+                          {doc.name}
+                        </button>
                       </div>
                     )}
                   </td>
