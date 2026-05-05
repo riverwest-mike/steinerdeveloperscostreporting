@@ -93,6 +93,18 @@ export function ExportButtons({ rows, projectLabel, categoryLabel, statusLabel, 
       : [{ wch: 28 }, { wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 22 }, { wch: 20 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }, { wch: 10 }];
     ws["!cols"] = colWidths;
 
+    const headerColCount = headers.length;
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: headerColCount - 1 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: headerColCount - 1 } },
+    ];
+
+    // Currency cols: Base Amount, Approved COs, Total Committed
+    const baseCol = showProjectCol ? 9 : 7;
+    const { CURRENCY_FMT, freezeHeader, setColumnFormats } = await import("@/lib/xlsx-helpers");
+    setColumnFormats(ws, 4, data.length - 1, [baseCol, baseCol + 1, baseCol + 2], CURRENCY_FMT);
+    freezeHeader(ws, 4);
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Commitment Detail");
     const safeLabel = categoryLabel.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 40);

@@ -132,6 +132,21 @@ export function ExportButtons({ rows, sectionOrder, projectLabel, asOf }: Export
     const ws = XLSX.utils.aoa_to_sheet(data);
     ws["!cols"] = [{ wch: 12 }, { wch: 36 }, ...Array(13).fill({ wch: 20 })];
 
+    // Merge title rows across all columns
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: HEADERS.length - 1 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: HEADERS.length - 1 } },
+    ];
+
+    // Apply currency formatting to numeric columns (skip Code, Category, % Committed)
+    const { CURRENCY_FMT, PERCENT_FMT, freezeHeader, setColumnFormats } =
+      await import("@/lib/xlsx-helpers");
+    const currencyCols = [2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14];
+    const percentCol = 9;
+    setColumnFormats(ws, 4, data.length - 1, currencyCols, CURRENCY_FMT);
+    setColumnFormats(ws, 4, data.length - 1, [percentCol], PERCENT_FMT);
+    freezeHeader(ws, 4); // freeze title (3 rows) + header row
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Cost Management Report");
     const filePrefix = projectLabel.replace(/[^a-zA-Z0-9]/g, "_").replace(/_+/g, "_").slice(0, 40);

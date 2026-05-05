@@ -37,20 +37,29 @@ function usd(n: number): string {
   }).format(n);
 }
 
+interface BillsFilterState {
+  days: number;
+  setDays: (n: number) => void;
+  projectFilter: string;
+  setProjectFilter: (s: string) => void;
+  statusFilter: (typeof STATUS_OPTIONS)[number];
+  setStatusFilter: (s: (typeof STATUS_OPTIONS)[number]) => void;
+  vendorSearch: string;
+  setVendorSearch: (s: string) => void;
+}
+
 function BillsTable({
   bills,
+  filters,
   expanded = false,
   onExpand,
 }: {
   bills: BillRow[];
+  filters: BillsFilterState;
   expanded?: boolean;
   onExpand?: () => void;
 }) {
-  const [days, setDays] = useState<number>(7);
-  const [projectFilter, setProjectFilter] = useState("All");
-  const [statusFilter, setStatusFilter] =
-    useState<(typeof STATUS_OPTIONS)[number]>("All");
-  const [vendorSearch, setVendorSearch] = useState("");
+  const { days, setDays, projectFilter, setProjectFilter, statusFilter, setStatusFilter, vendorSearch, setVendorSearch } = filters;
 
   const projects = useMemo(
     () => [
@@ -273,12 +282,19 @@ function BillsTable({
 
 export function RecentBills({ bills }: { bills: BillRow[] }) {
   const [open, setOpen] = useState(false);
+  const [days, setDays] = useState<number>(7);
+  const [projectFilter, setProjectFilter] = useState("All");
+  const [statusFilter, setStatusFilter] = useState<(typeof STATUS_OPTIONS)[number]>("All");
+  const [vendorSearch, setVendorSearch] = useState("");
+  const filters: BillsFilterState = {
+    days, setDays, projectFilter, setProjectFilter, statusFilter, setStatusFilter, vendorSearch, setVendorSearch,
+  };
 
   return (
     <>
-      <BillsTable bills={bills} onExpand={() => setOpen(true)} />
+      <BillsTable bills={bills} filters={filters} onExpand={() => setOpen(true)} />
       <ExpandedModal open={open} onClose={() => setOpen(false)}>
-        <BillsTable bills={bills} expanded />
+        <BillsTable bills={bills} filters={filters} expanded />
       </ExpandedModal>
     </>
   );

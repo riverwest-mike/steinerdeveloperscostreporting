@@ -32,16 +32,25 @@ function daysAgo(dateStr: string): number {
 const AGE_FILTERS = ["All", "7+ days", "14+ days"] as const;
 const SORT_OPTIONS = ["Oldest first", "Newest first", "Amount ↓", "Amount ↑"] as const;
 
+interface PendingCOsFilterState {
+  projectFilter: string;
+  setProjectFilter: (s: string) => void;
+  ageFilter: (typeof AGE_FILTERS)[number];
+  setAgeFilter: (s: (typeof AGE_FILTERS)[number]) => void;
+  sortBy: (typeof SORT_OPTIONS)[number];
+  setSortBy: (s: (typeof SORT_OPTIONS)[number]) => void;
+}
+
 function COList({
   cos,
+  filters,
   expanded = false,
 }: {
   cos: PendingCO[];
+  filters: PendingCOsFilterState;
   expanded?: boolean;
 }) {
-  const [projectFilter, setProjectFilter] = useState("All");
-  const [ageFilter, setAgeFilter] = useState<(typeof AGE_FILTERS)[number]>("All");
-  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]>("Oldest first");
+  const { projectFilter, setProjectFilter, ageFilter, setAgeFilter, sortBy, setSortBy } = filters;
 
   const projects = useMemo(
     () => ["All", ...Array.from(new Set(cos.map((c) => c.project_name))).sort()],
@@ -201,6 +210,12 @@ function COList({
 
 export function PendingCOs({ cos }: { cos: PendingCO[] }) {
   const [open, setOpen] = useState(false);
+  const [projectFilter, setProjectFilter] = useState("All");
+  const [ageFilter, setAgeFilter] = useState<(typeof AGE_FILTERS)[number]>("All");
+  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]>("Oldest first");
+  const filters: PendingCOsFilterState = {
+    projectFilter, setProjectFilter, ageFilter, setAgeFilter, sortBy, setSortBy,
+  };
 
   return (
     <>
@@ -208,10 +223,10 @@ export function PendingCOs({ cos }: { cos: PendingCO[] }) {
         <div className="absolute top-0 right-0 z-10">
           <ExpandButton onClick={() => setOpen(true)} />
         </div>
-        <COList cos={cos} />
+        <COList cos={cos} filters={filters} />
       </div>
       <ExpandedModal open={open} onClose={() => setOpen(false)}>
-        <COList cos={cos} expanded />
+        <COList cos={cos} filters={filters} expanded />
       </ExpandedModal>
     </>
   );

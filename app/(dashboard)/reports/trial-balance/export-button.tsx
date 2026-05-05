@@ -2,6 +2,7 @@
 
 import { Download, Printer } from "lucide-react";
 import * as XLSX from "xlsx";
+import { CURRENCY_FMT, freezeHeader } from "@/lib/xlsx-helpers";
 
 export interface TbRow {
   glAccountId: string;
@@ -38,16 +39,22 @@ export function ExportButton({ rows, projectLabel, dateLabel }: Props) {
 
     const ws = XLSX.utils.aoa_to_sheet(sheetRows);
 
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } },
+    ];
+
     // Format currency columns C-E (indices 2-4) starting at data row 5 (index 4)
     const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
     for (let R = 4; R <= range.e.r; R++) {
       for (const C of [2, 3, 4]) {
         const cellAddr = XLSX.utils.encode_cell({ r: R, c: C });
         if (ws[cellAddr] && typeof ws[cellAddr].v === "number") {
-          ws[cellAddr].z = "#,##0.00";
+          ws[cellAddr].z = CURRENCY_FMT;
         }
       }
     }
+    freezeHeader(ws, 4);
 
     ws["!cols"] = [{ wch: 16 }, { wch: 40 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
 

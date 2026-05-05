@@ -110,6 +110,16 @@ export function ExportButtons({
       { wch: 10 }, { wch: 10 }, { wch: 14 },
     ];
 
+    const headerColCount = 14;
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: headerColCount - 1 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: headerColCount - 1 } },
+    ];
+
+    const { CURRENCY_FMT, freezeHeader, setColumnFormats } = await import("@/lib/xlsx-helpers");
+    setColumnFormats(ws, 4, data.length - 1, [8, 9, 10], CURRENCY_FMT);
+    freezeHeader(ws, 4);
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Cost Detail");
     XLSX.writeFile(wb, `${projectCode}_Cost_Detail_${asOf}.xlsx`);

@@ -3,6 +3,9 @@ import * as XLSX from "xlsx";
 import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/server";
 
+const FIXED_FIELDS = ["Gate Name", "Sequence", "Start Date", "End Date", "Notes"];
+const SAMPLE_GATE_COLUMNS = 4;
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -25,47 +28,55 @@ export async function GET(
     .eq("id", projectId)
     .single();
 
-  const categoryCodes = (categories ?? []).map((c: { code: string; name: string }) => c.code);
+  const cats = (categories ?? []) as { code: string; name: string }[];
 
-  // Build header row
-  const headers = ["Gate Name", "Sequence", "Start Date", "End Date", "Notes", ...categoryCodes];
+  // ── Vertical (transposed) template ─────────────────────────────────────
+  // Column A: field labels
+  // Column B+: one column per gate
+  const columnHeaders = ["Field", ...Array.from({ length: SAMPLE_GATE_COLUMNS }, (_, i) => `Gate ${i + 1}`)];
 
-  // Build example row
-  const exampleBudgets = categoryCodes.map(() => 0);
-  const example = ["Phase 1 - Acquisition", 1, "2025-01-01", "2025-06-30", "Example gate", ...exampleBudgets];
+  const example = ["Phase 1 - Acquisition", "1", "2025-01-01", "2025-06-30", "Example gate"];
 
-  // Build worksheet
-  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+  const rows: (string | number)[][] = [columnHeaders];
+  FIXED_FIELDS.forEach((label, i) => {
+    rows.push([label, example[i] ?? "", ...Array(SAMPLE_GATE_COLUMNS - 1).fill("")]);
+  });
+  for (const cat of cats) {
+    rows.push([`${cat.code} - ${cat.name}`, 0, ...Array(SAMPLE_GATE_COLUMNS - 1).fill("")]);
+  }
 
-  // Column widths
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+
+  // Column widths: wide first column for field labels
   ws["!cols"] = [
-    { wch: 30 }, // Gate Name
-    { wch: 10 }, // Sequence
-    { wch: 14 }, // Start Date
-    { wch: 14 }, // End Date
-    { wch: 30 }, // Notes
-    ...categoryCodes.map(() => ({ wch: 14 })),
+    { wch: 36 },
+    ...Array(SAMPLE_GATE_COLUMNS).fill({ wch: 22 }),
   ];
 
-  // Header row style hint via named range
+  // Freeze the field-label column (A) and the header row
+  (ws as XLSX.WorkSheet & { "!views"?: unknown[] })["!views"] = [
+    { state: "frozen", xSplit: 1, ySplit: 1, topLeftCell: "B2", activePane: "bottomRight" },
+  ];
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Gates");
 
-  // Add a note sheet explaining the format
-  const noteData = [
-    ["Column", "Required?", "Format / Notes"],
+  // ── Instructions sheet ─────────────────────────────────────────────────
+  const noteData: (string | number)[][] = [
+    ["Format", "Vertical (transposed) — fields run down column A; one gate per column starting at B"],
+    [],
+    ["Field", "Required?", "Format / Notes"],
     ["Gate Name", "Yes", "Name of the gate / phase"],
-    ["Sequence", "No", "Numeric order; if blank, rows are numbered 1, 2, 3…"],
+    ["Sequence", "No", "Numeric order; if blank, columns are numbered 1, 2, 3…"],
     ["Start Date", "No", "YYYY-MM-DD or MM/DD/YYYY"],
     ["End Date", "No", "YYYY-MM-DD or MM/DD/YYYY"],
     ["Notes", "No", "Free text"],
-    ...categoryCodes.map((code: string) => {
-      const cat = (categories ?? []).find((c: { code: string; name: string }) => c.code === code);
-      return [code, "No", `Budget amount for "${cat?.name ?? code}"`];
-    }),
+    [],
+    ["Cost Categories", "No", `Each row below "Notes" represents one cost category. Format is "<code> - <name>". Enter the budget amount in the same column as the gate.`],
+    ...cats.map((c) => [`${c.code} - ${c.name}`, "No", `Budget amount for "${c.name}"`]),
   ];
   const notesWs = XLSX.utils.aoa_to_sheet(noteData);
-  notesWs["!cols"] = [{ wch: 16 }, { wch: 12 }, { wch: 40 }];
+  notesWs["!cols"] = [{ wch: 28 }, { wch: 12 }, { wch: 60 }];
   XLSX.utils.book_append_sheet(wb, notesWs, "Instructions");
 
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
