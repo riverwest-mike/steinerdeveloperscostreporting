@@ -47,7 +47,7 @@ export function DashboardShell({
         <div className="fixed inset-0 z-50 md:hidden print:hidden">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={closeDrawer}
             aria-hidden="true"
           />
