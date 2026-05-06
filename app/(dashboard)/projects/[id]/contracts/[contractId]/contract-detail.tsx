@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useConfirmDestructive } from "@/components/confirm-destructive";
 import {
   updateContract,
   deleteContract,
@@ -94,9 +95,15 @@ export function ContractDetail({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
   const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
 
-  function handleDelete() {
-    if (!confirm(`Delete contract "${contract.vendor_name}"? This will permanently remove all change orders and line items. This cannot be undone.`)) return;
+  async function handleDelete() {
+    const reason = await confirmDestructive({
+      title: `Delete contract "${contract.vendor_name}"?`,
+      body: "This will permanently remove all change orders and line items. This cannot be undone.",
+      confirmLabel: "Delete contract",
+    });
+    if (reason === null) return;
     setDeleteError(null);
     startDeleteTransition(async () => {
       const result = await deleteContract(contract.id, projectId);
@@ -295,6 +302,7 @@ function CORow({
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const confirmDestructive = useConfirmDestructive();
 
   function doAction(fn: () => Promise<{ error?: string }>) {
     setError(null);
@@ -380,8 +388,13 @@ function CORow({
                 {isAdmin && (
                   <button
                     disabled={isPending}
-                    onClick={() => {
-                      if (!confirm(`Delete CO "${co.co_number}"? This cannot be undone.`)) return;
+                    onClick={async () => {
+                      const reason = await confirmDestructive({
+                        title: `Delete CO "${co.co_number}"?`,
+                        body: "This cannot be undone.",
+                        confirmLabel: "Delete CO",
+                      });
+                      if (reason === null) return;
                       doAction(() => deleteChangeOrder(co.id, projectId, contractId));
                     }}
                     className="rounded border border-destructive/40 px-2 py-0.5 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
@@ -394,8 +407,13 @@ function CORow({
             {co.status === "approved" && (
               <button
                 disabled={isPending}
-                onClick={() => {
-                  if (!confirm("Void this approved CO? This will reduce the approved CO total and update budget columns B and G.")) return;
+                onClick={async () => {
+                  const reason = await confirmDestructive({
+                    title: "Void this approved CO?",
+                    body: "This will reduce the approved CO total and update budget columns B and G.",
+                    confirmLabel: "Void CO",
+                  });
+                  if (reason === null) return;
                   doAction(() => voidChangeOrder(co.id, contractId, projectId));
                 }}
                 className="rounded border px-2 py-0.5 text-xs text-muted-foreground hover:bg-accent disabled:opacity-50"
@@ -706,13 +724,18 @@ function SOVSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const confirmDestructive = useConfirmDestructive();
 
   const sovTotal = lineItems.reduce((s, li) => s + Number(li.amount), 0);
   const diff = originalValue - sovTotal;
   const balanced = Math.abs(diff) < 0.01;
 
-  function doDelete(lineItemId: string) {
-    if (!confirm("Remove this line item?")) return;
+  async function doDelete(lineItemId: string) {
+    const reason = await confirmDestructive({
+      title: "Remove this line item?",
+      confirmLabel: "Remove line item",
+    });
+    if (reason === null) return;
     setError(null);
     startTransition(async () => {
       const r = await deleteContractLineItem(lineItemId, contractId, projectId);

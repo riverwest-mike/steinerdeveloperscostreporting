@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useRef } from "react";
 import { Loader2 } from "lucide-react";
+import { useConfirmDestructive } from "@/components/confirm-destructive";
 import {
   uploadVendorDocument,
   updateVendorDocument,
@@ -202,6 +203,7 @@ export function VendorDocuments({
   const [editFields, setEditFields] = useState<EditFields>({ ...EMPTY_EDIT_FIELDS });
   const [editError, setEditError] = useState<string | null>(null);
   const [isSaving, startSave] = useTransition();
+  const confirmDestructive = useConfirmDestructive();
 
   // ── Shared actions ────────────────────────────────────────────────────────
   const [actionError, setActionError] = useState<string | null>(null);
@@ -342,8 +344,13 @@ export function VendorDocuments({
     }
   }
 
-  function handleDelete(doc: VendorDoc) {
-    if (!confirm(`Permanently delete "${doc.display_name}"? This cannot be undone.`)) return;
+  async function handleDelete(doc: VendorDoc) {
+    const reason = await confirmDestructive({
+      title: `Permanently delete "${doc.display_name}"?`,
+      body: "This cannot be undone.",
+      confirmLabel: "Delete document",
+    });
+    if (reason === null) return;
     setActionError(null);
     startTransition(async () => {
       const result = await deleteVendorDocument(doc.id, doc.storage_path, vendorName);

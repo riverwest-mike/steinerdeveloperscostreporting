@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useConfirmDestructive } from "@/components/confirm-destructive";
 import { CategoryForm } from "./category-form";
 import { toggleCategoryActive, seedDefaultCategories, deleteCategory } from "./actions";
 
@@ -17,6 +18,7 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const confirmDestructive = useConfirmDestructive();
 
   function handleToggle(id: string, current: boolean) {
     startTransition(() => {
@@ -24,8 +26,13 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
     });
   }
 
-  function handleDelete(id: string, name: string) {
-    if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  async function handleDelete(id: string, name: string) {
+    const reason = await confirmDestructive({
+      title: `Permanently delete "${name}"?`,
+      body: "This cannot be undone.",
+      confirmLabel: "Delete category",
+    });
+    if (reason === null) return;
     startTransition(async () => {
       const result = await deleteCategory(id);
       if (result?.error) alert(result.error);
@@ -71,8 +78,13 @@ export function CategoriesTable({ categories }: { categories: Category[] }) {
                 <td colSpan={6} className="px-4 py-12 text-center">
                   <p className="text-sm text-muted-foreground mb-3">No categories yet.</p>
                   <button
-                    onClick={() => {
-                      if (!confirm("Load all 95 default cost categories? This cannot be undone.")) return;
+                    onClick={async () => {
+                      const reason = await confirmDestructive({
+                        title: "Load all 95 default cost categories?",
+                        body: "This cannot be undone.",
+                        confirmLabel: "Load defaults",
+                      });
+                      if (reason === null) return;
                       startTransition(() => {
                         seedDefaultCategories().catch((err) => alert(err.message));
                       });

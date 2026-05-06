@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useConfirmDestructive } from "@/components/confirm-destructive";
 import { ProjectForm } from "../project-form";
 import { deleteProject } from "../actions";
 
@@ -56,11 +57,18 @@ export function ProjectDetail({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, startDeleteTransition] = useTransition();
   const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
 
   void appfolioBaseUrl;
 
-  function handleDelete() {
-    if (!confirm(`Delete project "${project.name}"? This will permanently remove all gates, budgets, and contracts. This cannot be undone.`)) return;
+  async function handleDelete() {
+    const reason = await confirmDestructive({
+      title: `Delete project "${project.name}"?`,
+      body: "This will permanently remove all gates, budgets, and contracts. This cannot be undone.",
+      confirmLabel: "Delete project",
+      requireReason: true,
+    });
+    if (reason === null) return;
     setDeleteError(null);
     startDeleteTransition(async () => {
       const result = await deleteProject(project.id);

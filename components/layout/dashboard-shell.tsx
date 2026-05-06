@@ -5,6 +5,7 @@ import { Sidebar } from "./sidebar";
 import { QuickStartTrigger } from "@/components/quickstart/quickstart-trigger";
 import { AiChatWidget } from "@/components/ai-chat-widget";
 import { ActivityTracker } from "@/components/activity-tracker";
+import { ConfirmDestructiveProvider } from "@/components/confirm-destructive";
 
 export function DashboardShell({
   role,
@@ -36,6 +37,7 @@ export function DashboardShell({
   }, [mobileOpen]);
 
   return (
+    <ConfirmDestructiveProvider>
     <div className="flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
       {/* Desktop sidebar — always visible on md+ */}
       <div className="hidden md:flex h-full print:hidden">
@@ -75,5 +77,6 @@ export function DashboardShell({
       <QuickStartTrigger />
       <AiChatWidget />
     </div>
+    </ConfirmDestructiveProvider>
   );
 }
