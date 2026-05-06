@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useConfirmDestructive } from "@/components/confirm-destructive";
 import { createDrawRequest, deleteDrawRequest } from "./draws/actions";
 
 interface DrawRequest {
@@ -154,12 +155,18 @@ function DrawRow({
   canEdit: boolean;
 }) {
   const [isDeleting, startDelete] = useTransition();
+  const confirmDestructive = useConfirmDestructive();
   const router = useRouter();
 
-  function handleDelete(e: React.MouseEvent) {
+  async function handleDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm(`Delete Draw #${draw.draw_number}? This cannot be undone.`)) return;
+    const reason = await confirmDestructive({
+      title: `Delete Draw #${draw.draw_number}?`,
+      body: "This cannot be undone.",
+      confirmLabel: "Delete draw",
+    });
+    if (reason === null) return;
     startDelete(async () => {
       await deleteDrawRequest(draw.id, projectId);
       router.refresh();

@@ -53,7 +53,7 @@ export function PageHelp({ content }: PageHelpProps) {
       {/* Backdrop + modal */}
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-end p-4 sm:p-6 bg-black/30 backdrop-blur-sm print:hidden"
+          className="fixed inset-0 z-50 flex items-start justify-end p-4 sm:p-6 bg-black/20 backdrop-blur-sm print:hidden"
           onClick={(e) => { if (e.target === e.currentTarget) close(); }}
         >
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col animate-in slide-in-from-right-4 duration-200">

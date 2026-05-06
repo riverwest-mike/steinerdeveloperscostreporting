@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useConfirmDestructive } from "@/components/confirm-destructive";
 import { RoleSelect } from "./role-select";
 import { ActiveToggle } from "./active-toggle";
 import { InviteUserForm } from "./invite-user-form";
@@ -190,6 +191,7 @@ export function UsersSection({
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  const confirmDestructive = useConfirmDestructive();
 
   // Build user → project assignment map
   const userProjectMap = new Map<string, Set<string>>();
@@ -224,8 +226,13 @@ export function UsersSection({
     });
   }
 
-  function handleRevoke(inviteId: string, email: string) {
-    if (!confirm(`Revoke invitation for ${email}? They will no longer be able to use this invite link.`)) return;
+  async function handleRevoke(inviteId: string, email: string) {
+    const reason = await confirmDestructive({
+      title: `Revoke invitation for ${email}?`,
+      body: "They will no longer be able to use this invite link.",
+      confirmLabel: "Revoke invite",
+    });
+    if (reason === null) return;
     setRevokeError(null);
     setRevoking(inviteId);
     startTransition(async () => {

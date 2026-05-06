@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { useConfirmDestructive } from "@/components/confirm-destructive";
 import { uploadDocument, deleteDocument, getSignedDownloadUrl, updateDocumentMeta } from "./actions";
 
 interface Document {
@@ -66,6 +67,7 @@ export function DocumentList({ projectId, documents, canEdit, isAdmin }: Documen
   const [isPending, startTransition] = useTransition();
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const confirmDestructive = useConfirmDestructive();
   const formRef = useRef<HTMLFormElement>(null);
 
   const filtered = documents.filter((d) => {
@@ -121,8 +123,13 @@ export function DocumentList({ projectId, documents, canEdit, isAdmin }: Documen
     });
   }
 
-  function handleDelete(doc: Document) {
-    if (!confirm(`Permanently delete "${doc.name}"? This cannot be undone.`)) return;
+  async function handleDelete(doc: Document) {
+    const reason = await confirmDestructive({
+      title: `Permanently delete "${doc.name}"?`,
+      body: "This cannot be undone.",
+      confirmLabel: "Delete document",
+    });
+    if (reason === null) return;
     setActionError(null);
     startTransition(async () => {
       const result = await deleteDocument(doc.id, doc.url, projectId);

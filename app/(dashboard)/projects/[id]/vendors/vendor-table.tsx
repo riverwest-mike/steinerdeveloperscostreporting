@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useConfirmDestructive } from "@/components/confirm-destructive";
 import { addProjectVendor, setVendorActive, deleteProjectVendor, renameProjectVendor } from "./actions";
 
 interface Vendor {
@@ -31,6 +32,7 @@ export function VendorTable({ projectId, vendors, canEdit, isAdmin }: VendorTabl
   const [isSaving, startSaveTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const confirmDestructive = useConfirmDestructive();
 
   const displayed = vendors.filter((v) => {
     if (filter === "active" && !v.is_active) return false;
@@ -76,8 +78,13 @@ export function VendorTable({ projectId, vendors, canEdit, isAdmin }: VendorTabl
     });
   }
 
-  function handleDelete(v: Vendor) {
-    if (!confirm(`Permanently delete vendor "${v.name}"? This cannot be undone.`)) return;
+  async function handleDelete(v: Vendor) {
+    const reason = await confirmDestructive({
+      title: `Permanently delete vendor "${v.name}"?`,
+      body: "This cannot be undone.",
+      confirmLabel: "Delete vendor",
+    });
+    if (reason === null) return;
     setActionError(null);
     startTransition(async () => {
       const result = await deleteProjectVendor(v.id, projectId);

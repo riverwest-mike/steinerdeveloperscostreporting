@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { Loader2 } from "lucide-react";
+import { useConfirmDestructive } from "@/components/confirm-destructive";
 import {
   uploadVendorDocument,
   updateVendorDocument,
@@ -201,6 +203,7 @@ export function VendorDocuments({
   const [editFields, setEditFields] = useState<EditFields>({ ...EMPTY_EDIT_FIELDS });
   const [editError, setEditError] = useState<string | null>(null);
   const [isSaving, startSave] = useTransition();
+  const confirmDestructive = useConfirmDestructive();
 
   // ── Shared actions ────────────────────────────────────────────────────────
   const [actionError, setActionError] = useState<string | null>(null);
@@ -341,8 +344,13 @@ export function VendorDocuments({
     }
   }
 
-  function handleDelete(doc: VendorDoc) {
-    if (!confirm(`Permanently delete "${doc.display_name}"? This cannot be undone.`)) return;
+  async function handleDelete(doc: VendorDoc) {
+    const reason = await confirmDestructive({
+      title: `Permanently delete "${doc.display_name}"?`,
+      body: "This cannot be undone.",
+      confirmLabel: "Delete document",
+    });
+    if (reason === null) return;
     setActionError(null);
     startTransition(async () => {
       const result = await deleteVendorDocument(doc.id, doc.storage_path, vendorName);
@@ -481,10 +489,7 @@ export function VendorDocuments({
                   >
                     {isExtracting ? (
                       <>
-                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
+                        <Loader2 className="h-3 w-3 animate-spin" />
                         Extracting…
                       </>
                     ) : (

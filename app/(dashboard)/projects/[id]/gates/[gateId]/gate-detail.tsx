@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useConfirmDestructive } from "@/components/confirm-destructive";
 import { activateGate, closeGate, deleteGate, updateGate, upsertGateBudgets, reopenGate } from "../actions";
 import {
   createBudgetChangeOrder,
@@ -161,6 +162,7 @@ export function GateDetail({ gate, projectId, budgetRows, categories, changeOrde
 function GateStatusButton({ gate, projectId, isAdmin }: { gate: Gate; projectId: string; isAdmin: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const confirmDestructive = useConfirmDestructive();
 
   if (gate.status === "pending") {
     return (
@@ -190,8 +192,13 @@ function GateStatusButton({ gate, projectId, isAdmin }: { gate: Gate; projectId:
       <div className="flex flex-col items-end gap-1">
         <button
           disabled={isPending}
-          onClick={() => {
-            if (!confirm("Close and lock this gate? Admins can reopen it if needed.")) return;
+          onClick={async () => {
+            const reason = await confirmDestructive({
+              title: "Close and lock this gate?",
+              body: "Admins can reopen it if needed.",
+              confirmLabel: "Close gate",
+            });
+            if (reason === null) return;
             setError(null);
             startTransition(async () => {
               try {
@@ -214,8 +221,13 @@ function GateStatusButton({ gate, projectId, isAdmin }: { gate: Gate; projectId:
       <div className="flex flex-col items-end gap-1">
         <button
           disabled={isPending}
-          onClick={() => {
-            if (!confirm("Reopen this gate? It will be unlocked and set back to active.")) return;
+          onClick={async () => {
+            const reason = await confirmDestructive({
+              title: "Reopen this gate?",
+              body: "It will be unlocked and set back to active.",
+              confirmLabel: "Reopen gate",
+            });
+            if (reason === null) return;
             setError(null);
             startTransition(async () => {
               try {
@@ -242,13 +254,19 @@ function DeleteGateButton({ gate, projectId }: { gate: Gate; projectId: string }
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const confirmDestructive = useConfirmDestructive();
 
   return (
     <div className="flex flex-col items-end gap-1">
       <button
         disabled={isPending}
-        onClick={() => {
-          if (!confirm(`Delete Gate #${gate.sequence_number}${gate.name ? ` — ${gate.name}` : ""}? This will permanently remove the gate and all its budget data.`)) return;
+        onClick={async () => {
+          const reason = await confirmDestructive({
+            title: `Delete Gate #${gate.sequence_number}${gate.name ? ` — ${gate.name}` : ""}?`,
+            body: "This will permanently remove the gate and all its budget data.",
+            confirmLabel: "Delete gate",
+          });
+          if (reason === null) return;
           setError(null);
           startTransition(async () => {
             try {
@@ -793,6 +811,7 @@ function GateCORow({
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const confirmDestructive = useConfirmDestructive();
 
   const catName = categories.find((c) => c.id === co.cost_category_id);
 
@@ -866,8 +885,12 @@ function GateCORow({
             {isAdmin && (
               <button
                 disabled={isPending}
-                onClick={() => {
-                  if (!confirm("Permanently delete this change order?")) return;
+                onClick={async () => {
+                  const reason = await confirmDestructive({
+                    title: "Permanently delete this change order?",
+                    confirmLabel: "Delete change order",
+                  });
+                  if (reason === null) return;
                   act(() => deleteChangeOrder(co.id, projectId, null));
                 }}
                 className="rounded border border-destructive/30 px-2 py-0.5 text-xs font-medium text-destructive/70 hover:bg-destructive/10 disabled:opacity-50"
@@ -881,8 +904,13 @@ function GateCORow({
           <div className="flex gap-1 mt-1.5 justify-end">
             <button
               disabled={isPending}
-              onClick={() => {
-                if (!confirm("Void this approved CO? This will reverse its budget impact.")) return;
+              onClick={async () => {
+                const voidReason = await confirmDestructive({
+                  title: "Void this approved CO?",
+                  body: "This will reverse its budget impact.",
+                  confirmLabel: "Void CO",
+                });
+                if (voidReason === null) return;
                 act(() => voidChangeOrder(co.id, null, projectId));
               }}
               className="rounded border px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent disabled:opacity-50"
