@@ -80,43 +80,9 @@ export default async function LandingPage() {
             </div>
           </div>
 
-          {/* Right-hand visual: stacked phase blocks */}
-          <div className="hidden lg:flex justify-end">
-            <div className="relative w-full max-w-md">
-              <div
-                className="absolute inset-0 rounded-2xl"
-                style={{
-                  background:
-                    "radial-gradient(circle at 70% 30%, hsl(15 63% 47% / 0.25) 0%, transparent 60%)",
-                }}
-              />
-              <div className="relative space-y-3">
-                {[
-                  { n: "01", label: "Plan", note: "Ideas. Estimates. Moving targets." },
-                  { n: "02", label: "Structure", note: "Budgets. Contracts. Intention becomes real." },
-                  { n: "03", label: "Control", note: "Gates. Approvals. Money under control." },
-                  { n: "04", label: "Build", note: "Draws. Changes. Execution with discipline." },
-                  { n: "05", label: "Complete", note: "Closeout. Audit. A record that lasts." },
-                ].map((step, i) => (
-                  <div
-                    key={step.n}
-                    className="flex items-center gap-4 rounded-lg border border-white/10 px-4 py-3 backdrop-blur-sm"
-                    style={{
-                      background: `hsl(0 0% 100% / ${0.03 + i * 0.015})`,
-                      marginLeft: `${i * 8}px`,
-                    }}
-                  >
-                    <span className="font-mono text-xs text-primary tracking-wider shrink-0">{step.n}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-white">{step.label}</p>
-                      <p className="text-[11px]" style={{ color: "hsl(36 14% 70%)" }}>
-                        {step.note}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* Right-hand visual: realistic app preview */}
+          <div className="hidden lg:block">
+            <AppPreview />
           </div>
         </div>
       </section>
@@ -304,54 +270,8 @@ export default async function LandingPage() {
             </ul>
           </div>
 
-          {/* Mock dashboard panel */}
-          <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-            <div className="px-5 py-3 border-b bg-muted/30">
-              <p className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">
-                Portfolio overview
-              </p>
-            </div>
-            <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: "Total projects", value: "24" },
-                { label: "Total commitments", value: "$412.6M" },
-                { label: "Forecast to complete", value: "$287.3M" },
-                { label: "Total exposure", value: "$112.8M" },
-              ].map((stat) => (
-                <div key={stat.label} className="rounded-lg border bg-background p-3">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                    {stat.label}
-                  </p>
-                  <p className="mt-1 text-lg font-bold tabular-nums">{stat.value}</p>
-                </div>
-              ))}
-            </div>
-            <div className="px-5 pb-5">
-              <p className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground mb-2">
-                Control point health
-              </p>
-              <div className="rounded-lg border bg-background p-4 space-y-2">
-                {[
-                  { label: "On track", pct: 68, color: "bg-green-500" },
-                  { label: "At risk", pct: 21, color: "bg-amber-500" },
-                  { label: "Overdue", pct: 11, color: "bg-destructive" },
-                ].map((row) => (
-                  <div key={row.label} className="flex items-center gap-3">
-                    <span className="text-xs font-medium w-20 shrink-0">{row.label}</span>
-                    <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full ${row.color}`}
-                        style={{ width: `${row.pct}%` }}
-                      />
-                    </div>
-                    <span className="text-xs tabular-nums text-muted-foreground w-8 text-right">
-                      {row.pct}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          {/* App-accurate dashboard mock */}
+          <DashboardMock />
         </div>
       </section>
 
@@ -438,5 +358,194 @@ export default async function LandingPage() {
         </div>
       </footer>
     </div>
+  );
+}
+
+/* ─── Realistic app-surface mocks ──────────────────────────────────────────
+ * These mirror the production look: charcoal sidebar with terracotta active
+ * row, slate-800 dark table headers, status pills, and the same KPI card
+ * layout the dashboard uses. Numbers are placeholder.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+function AppPreview() {
+  // Compact hero-side preview: sidebar + KPI strip + a table row.
+  return (
+    <div className="rounded-xl overflow-hidden border border-white/10 shadow-2xl bg-background">
+      {/* Window chrome */}
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b" style={{ background: "hsl(0 0% 14%)" }}>
+        <span className="h-2.5 w-2.5 rounded-full bg-red-500/70" />
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
+        <span className="h-2.5 w-2.5 rounded-full bg-green-500/70" />
+        <span className="ml-3 text-[10px] font-mono text-white/50">app.kilnhq.com/dashboard</span>
+      </div>
+      <div className="flex h-[340px]">
+        <MiniSidebar />
+        <div className="flex-1 overflow-hidden bg-background">
+          {/* Header */}
+          <div className="px-4 py-3 border-b">
+            <p className="text-[10px] text-muted-foreground tracking-wide">Projects / Northline</p>
+            <p className="text-sm font-bold tracking-tight">Dashboard</p>
+          </div>
+          {/* KPI strip */}
+          <div className="grid grid-cols-2 gap-2 p-3">
+            {[
+              { label: "Projects", value: "24" },
+              { label: "Commitments", value: "$412.6M" },
+              { label: "Forecast", value: "$287.3M" },
+              { label: "Exposure", value: "$112.8M" },
+            ].map((s) => (
+              <div key={s.label} className="rounded-md border bg-card px-2.5 py-2">
+                <p className="text-[9px] uppercase tracking-wider text-muted-foreground">{s.label}</p>
+                <p className="text-sm font-bold tabular-nums">{s.value}</p>
+              </div>
+            ))}
+          </div>
+          {/* Mini table preview */}
+          <div className="px-3 pb-3">
+            <div className="rounded-md border overflow-hidden">
+              <div className="bg-slate-800 text-white text-[10px] font-medium px-2.5 py-1.5 flex">
+                <span className="flex-1">Vendor</span>
+                <span className="w-16 text-right">Amount</span>
+                <span className="w-14 text-right">Status</span>
+              </div>
+              {[
+                { v: "ACME Concrete", a: "$48,200", s: "Paid", color: "bg-green-100 text-green-800" },
+                { v: "Northline Steel", a: "$112,000", s: "Unpaid", color: "bg-amber-100 text-amber-800" },
+                { v: "Pacific Glazing", a: "$24,750", s: "Paid", color: "bg-green-100 text-green-800" },
+              ].map((r) => (
+                <div key={r.v} className="flex items-center px-2.5 py-1.5 text-[10px] border-t first:border-0">
+                  <span className="flex-1 font-medium truncate">{r.v}</span>
+                  <span className="w-16 text-right tabular-nums">{r.a}</span>
+                  <span className="w-14 text-right">
+                    <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[9px] font-medium ${r.color}`}>
+                      {r.s}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardMock() {
+  // Larger, more detailed mock for the "Built for developer decisions"
+  // section. Shows the dashboard with full KPI strip + Recent Bills table
+  // + a Pending COs side card — all using production styling tokens.
+  return (
+    <div className="rounded-xl overflow-hidden border shadow-md bg-background">
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b bg-muted/40">
+        <span className="h-2 w-2 rounded-full bg-red-400" />
+        <span className="h-2 w-2 rounded-full bg-amber-400" />
+        <span className="h-2 w-2 rounded-full bg-green-500" />
+        <span className="ml-3 text-[10px] font-mono text-muted-foreground">app.kilnhq.com/dashboard</span>
+      </div>
+      <div className="flex">
+        <MiniSidebar />
+        <div className="flex-1 bg-background">
+          {/* Header */}
+          <div className="px-5 py-4 border-b">
+            <p className="text-[11px] text-muted-foreground mb-1">Welcome back, Sarah.</p>
+            <p className="text-base font-bold tracking-tight">Dashboard</p>
+          </div>
+          {/* KPI row — same layout as the real dashboard */}
+          <div className="grid grid-cols-4 gap-3 p-4">
+            {[
+              { label: "Total Projects", value: "24" },
+              { label: "Total Commitments", value: "$412.6M" },
+              { label: "Forecast to Complete", value: "$287.3M" },
+              { label: "Total Exposure", value: "$112.8M", trend: "12 pending COs" },
+            ].map((s) => (
+              <div key={s.label} className="rounded-lg border bg-card px-4 py-3">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {s.label}
+                </p>
+                <p className="mt-1 text-xl font-bold tabular-nums">{s.value}</p>
+                {s.trend && <p className="text-[10px] text-amber-600 font-medium mt-0.5">{s.trend}</p>}
+              </div>
+            ))}
+          </div>
+          {/* Recent Bills table */}
+          <div className="px-4 pb-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Recent Bills
+            </p>
+            <div className="rounded-lg border overflow-hidden">
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr className="bg-slate-800 text-white">
+                    <th className="px-3 py-2 text-left font-medium">Date</th>
+                    <th className="px-3 py-2 text-left font-medium">Vendor</th>
+                    <th className="px-3 py-2 text-left font-medium">Project</th>
+                    <th className="px-3 py-2 text-right font-medium">Paid</th>
+                    <th className="px-3 py-2 text-right font-medium">Unpaid</th>
+                    <th className="px-3 py-2 text-left font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {[
+                    { d: "Apr 24", v: "ACME Concrete", p: "Northline", paid: "$48,200", unpaid: "—", s: "Paid", c: "bg-green-100 text-green-800" },
+                    { d: "Apr 22", v: "Pacific Glazing", p: "Founders Row", paid: "$24,750", unpaid: "—", s: "Paid", c: "bg-green-100 text-green-800" },
+                    { d: "Apr 20", v: "Northline Steel", p: "Northline", paid: "—", unpaid: "$112,000", s: "Unpaid", c: "bg-amber-100 text-amber-800" },
+                    { d: "Apr 18", v: "Western Mech", p: "Harbor Point", paid: "$8,400", unpaid: "$3,200", s: "Partial", c: "bg-blue-100 text-blue-800" },
+                  ].map((r) => (
+                    <tr key={r.d + r.v} className="hover:bg-slate-50/50">
+                      <td className="px-3 py-2 whitespace-nowrap text-muted-foreground tabular-nums">{r.d}</td>
+                      <td className="px-3 py-2 font-medium">
+                        <span className="text-blue-600 hover:underline">{r.v}</span>
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">{r.p}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-green-700">{r.paid}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-amber-700">{r.unpaid}</td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-medium ${r.c}`}>
+                          {r.s}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniSidebar() {
+  return (
+    <aside
+      className="w-32 sm:w-40 shrink-0 flex flex-col border-r"
+      style={{ background: "hsl(var(--sidebar-bg))", borderColor: "hsl(var(--sidebar-border))" }}
+    >
+      <div className="px-3 py-3 border-b" style={{ borderColor: "hsl(var(--sidebar-border))" }}>
+        <KilnLockup endorsed={false} size="sm" invert />
+      </div>
+      <nav className="flex-1 py-2 px-1.5 space-y-0.5">
+        {[
+          { label: "Dashboard", active: true },
+          { label: "Projects" },
+          { label: "Vendors" },
+          { label: "Reporting" },
+          { label: "Settings" },
+        ].map((i) => (
+          <div
+            key={i.label}
+            className="px-2 py-1.5 rounded-md text-[10px] font-medium"
+            style={{
+              background: i.active ? "hsl(var(--sidebar-active-bg))" : "transparent",
+              color: i.active ? "white" : "hsl(var(--sidebar-fg))",
+            }}
+          >
+            {i.label}
+          </div>
+        ))}
+      </nav>
+    </aside>
   );
 }
