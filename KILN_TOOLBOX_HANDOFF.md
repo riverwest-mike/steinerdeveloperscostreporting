@@ -8,6 +8,14 @@
 > App display name: **KILN** ("Where projects take shape." — by RiverWest)
 > Package name: `kiln` (v0.1.0, private)
 
+> **📁 This file is the overview. The full rebuild-grade spec lives in [`handoff/`](handoff/README.md).**
+> Every file in the codebase was reviewed; `handoff/` contains verbatim configs, the
+> definitive DB schema + RLS, the PCM calculation engine, all workflows, the design
+> system, and admin/auth. **Read [`handoff/README.md`](handoff/README.md) first** — it
+> includes a "cross-section reconciliation notes" block that corrects a few misleading
+> labels in the code (and supersedes any contradicting detail in this overview, e.g.
+> the `.kiln-table` usage nuance and the `audit_log` vs `audit_logs` dead-table point).
+
 ---
 
 ## 1. TL;DR — What KILN is
