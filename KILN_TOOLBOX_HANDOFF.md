@@ -272,16 +272,112 @@ CSS class (branded headers that survive printing).
 
 ---
 
-## 9. AppFolio integration
+## 9. AppFolio integration (full detail)
 
-- `lib/appfolio.ts` — V2 Reporting API client, **Basic Auth** (`APPFOLIO_CLIENT_ID:SECRET`
-  base64), base `https://${APPFOLIO_DATABASE_URL}/api/v2/reports`, handles pagination
-  (`next_page_url`). Pulls `bill_detail.json` (vendor ledger) + balance sheet.
-- `lib/appfolio-sync-core.ts` — upserts transactions, parses cost category from raw
-  AppFolio strings (e.g. `"010700 Survey"` → code `010700`, name `Survey`), runs
-  **gate auto-assignment** (matches `bill_date` to gate date windows) after each sync.
-- Triggers: manual (Admin › AppFolio, or on-demand when running PCM/Cost/Vendor reports)
-  + daily Vercel cron.
+This is the most involved external coupling. Two files do the work — `lib/appfolio.ts`
+(the API client) and `lib/appfolio-sync-core.ts` (the sync + post-processing) — plus a
+set of API routes and admin UI for linking and triggering.
+
+### 9.1 Connection / auth
+- **AppFolio V2 Reporting API.** Base URL: `https://${APPFOLIO_DATABASE_URL}/api/v2/reports`
+  (e.g. `https://riverwest.appfolio.com/api/v2/reports`).
+- **HTTP Basic Auth**: `Authorization: Basic base64(APPFOLIO_CLIENT_ID:APPFOLIO_CLIENT_SECRET)`.
+  No token exchange / OAuth — credentials are sent on every request.
+- All report calls are `POST <report>.json` with a JSON body of filter params and
+  `paginate_results: true`. **Pagination quirk:** the first page is a POST; each
+  subsequent `next_page_url` is followed with a **GET** (cursor embedded in the URL).
+  `next_page_url` may be relative, so it's resolved against the base host.
+  All fetches use `cache: "no-store"`.
+
+### 9.2 Reports consumed (all in `lib/appfolio.ts`)
+| Function | Endpoint | Key params | Used for |
+|----------|----------|-----------|----------|
+| `fetchVendorLedger()` | `vendor_ledger.json` | `occurred_on_from/to`, `properties.properties_ids`, `payment_status` | **Primary sync source** — bills + Project Cost Category |
+| `fetchBillDetail()` | `bill_detail.json` | same | Property discovery; alt bill view |
+| `fetchBalanceSheet()` | `balance_sheet.json` | `as_of_date`, `accounting_basis` (Cash/Accrual) | Balance Sheet report / `gl_balances` |
+| `fetchGeneralLedger()` | `general_ledger.json` | `posted_on_from/to`, `accounting_basis: Accrual` | GL / trial balance support |
+
+**Response-shape resilience:** AppFolio is inconsistent about JSON shapes and field
+casing, and the code defends against it heavily:
+- `getProjectCostCategory(row)` reads the cost-category field across variants
+  (`project_cost_category`, `Project_Cost_Category`, `projectCostCategory`, `cost_category`).
+- `parseCostCategory("010700 Survey")` → `{ code: "010700", name: "Survey" }`
+  (splits on first space; digits-led code).
+- `extractRows()` for balance sheet handles **5 different response shapes**
+  (`{results}`, bare array, `{data}`, `{balance_sheet:[...]}`, and nested
+  `{balance_sheet:{sections:[{accounts}]}}`), throwing a diagnostic error with the raw
+  shape if none match. Amounts arrive as strings (`"3327.50"`) and are `parseFloat`'d.
+
+### 9.3 Sync workflow — `runAppfolioSync()` (`lib/appfolio-sync-core.ts`)
+The shared core used by both the manual and cron endpoints:
+1. Insert an `appfolio_syncs` row (`status: running`, `sync_type`, `triggered_by`).
+2. Load `projects` where `appfolio_property_id` is set (optionally filtered to one property).
+   If none, complete the sync as a no-op.
+3. `fetchVendorLedger({ propertyIds, fromDate, toDate, paymentStatus: "All" })`.
+   **Default date window:** from = 1 year ago, to = **yesterday** (today is excluded
+   because AppFolio returns unposted pending records for the current day).
+4. Map each row → transaction record in batches of 100:
+   - `appfolio_bill_id = payable_invoice_detail_id` (the unique upsert key),
+   - `invoice_amount = paid + unpaid`, `payment_status` derived (`Paid`/`Unpaid`/`Partial`),
+   - cost code/name parsed from the Project Cost Category field.
+5. **Dedup** within the batch by `appfolio_bill_id`, preferring the row that has a cost code.
+6. **Preserve existing categorization** — fetch current DB rows for those bill IDs:
+   - a manual UI override (`cost_category_code_override`) **always wins**;
+   - if AppFolio returns no code, the previously stored DB value is kept.
+   - rows that end up with no code increment `records_unmapped`.
+7. `upsert(..., { onConflict: "appfolio_bill_id" })` into `appfolio_transactions`.
+8. **`autoAssignGates()`** — for every transaction (by property→project), find the gate
+   whose `start_date <= bill_date <= end_date` (only `active`/`closed` gates with date
+   windows; lowest `sequence_number` wins ties), and upsert into
+   `transaction_gate_assignments`. **Manual overrides (`is_override = true`) are never
+   overwritten.** Unmatched transactions are left unassigned.
+9. **`autoUpsertVendors()`** — collect unique `(project_id, vendor_name)` pairs from the
+   synced rows and upsert into `project_vendors` (`onConflict: project_id,name`,
+   ignore duplicates) so the per-project vendor directory stays in sync automatically.
+10. Mark the `appfolio_syncs` row `completed` with counts (fetched/upserted/unmapped),
+    or `failed` with `error_message` on throw.
+
+`SyncResult` returns `{ syncId, status, records_fetched, records_upserted,
+records_unmapped, projects_synced, date_range }`.
+
+### 9.4 Balance-sheet sync — `/api/appfolio/sync-balance-sheet`
+Separate from the vendor-ledger core. Iterates **one property at a time** (AppFolio
+doesn't include `property_id` per balance-sheet row, so the caller must scope each
+request), maps rows defensively (tries many field-name variants for account id/type),
+and upserts into `gl_balances` keyed by
+`(appfolio_property_id, gl_account_id, as_of_date, accounting_basis)`. Defaults: as-of =
+today, basis = Accrual.
+
+### 9.5 Triggers & auth gating
+- **Manual full sync:** `POST /api/appfolio/sync` (no `propertyId`) — requires
+  `admin`/`accounting`/`development_lead`. Single-property sync (with `propertyId`) is
+  allowed for any authenticated user.
+- **Daily cron:** `GET /api/cron/daily-sync` — Vercel injects
+  `Authorization: Bearer $CRON_SECRET`; the route rejects anything else. Runs as
+  `sync_type: scheduled`, `triggered_by: null`. Schedule `0 6 * * *` in `vercel.json`.
+- **Preview/debug:** `GET /api/appfolio/sync-preview?property_id=…` (admin) does the exact
+  same fetch as the real sync and returns a side-by-side AppFolio-vs-DB comparison —
+  useful for diagnosing why a code didn't store. (Reports also trigger on-demand syncs.)
+
+### 9.6 Linking projects → AppFolio properties (3 mechanisms)
+The link is a single column: `projects.appfolio_property_id` (TEXT). Everything keys off it.
+1. **Property discovery:** `GET /api/appfolio/properties` (admin) scans `bill_detail` over
+   the last 2 years and returns unique `{id, name, address}` properties for lookup.
+2. **Manual entry:** `admin/appfolio/link-projects.tsx` lists active projects with no
+   property ID and has the user paste the numeric ID (found in the AppFolio property URL
+   `/properties/<ID>/edit`). Saves via the `linkAppfolioId` server action.
+3. **Fuzzy auto-map:** `GET/POST /api/admin/appfolio-map` suggests matches by name
+   similarity (normalizes out `llc/inc/the/fka`, Jaccard word overlap, ≥0.4 threshold)
+   and bulk-applies chosen mappings.
+   ⚠️ **This route currently hardcodes ~70 real RiverWest AppFolio property IDs + names
+   inline** (a snapshot of the live portfolio). Flag for the Toolbox session — that list
+   should be fetched from `/api/appfolio/properties` (or a table) rather than committed
+   to source.
+
+### 9.7 DB tables touched by AppFolio
+`appfolio_syncs` (run log), `appfolio_transactions` (bills), `transaction_gate_assignments`
+(auto-assigned), `project_vendors` (auto-upserted directory), `gl_balances` (balance sheet),
+`projects.appfolio_property_id` (the link).
 
 ---
 
@@ -364,6 +460,14 @@ NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=  # address-autocomplete + project map tab
    whether KILN keeps its own Supabase project/schema (namespaced) or merges into a
    shared Toolbox DB (table-name collisions to watch: `users`, `audit_log` vs
    `audit_logs`, generic names like `gates`, `contracts`).
+10. **AppFolio is the heaviest external coupling** (see §9): Basic-Auth report API with
+    quirky pagination + inconsistent JSON shapes the code defends against. The whole
+    integration hangs off one column (`projects.appfolio_property_id`) and a shared
+    `runAppfolioSync()` core reused by cron + manual routes — portable, but bring the
+    response-shape defenses with it.
+11. **Hardcoded portfolio data**: `app/api/admin/appfolio-map/route.ts` embeds ~70 real
+    AppFolio property IDs/names inline. Before any wider exposure, replace it with a
+    runtime fetch (`/api/appfolio/properties`) or a config table.
 
 ---
 
