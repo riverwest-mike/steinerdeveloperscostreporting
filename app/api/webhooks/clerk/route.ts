@@ -117,8 +117,10 @@ export async function POST(req: Request) {
   if (eventType === "user.updated") {
     const { id, email_addresses, first_name, last_name, public_metadata } = data;
 
-    // Only update records that already exist (invited users).
-    // Never auto-create on update — that would bypass the invite gate.
+    const email = email_addresses?.[0]?.email_address ?? "";
+    const full_name = [first_name, last_name].filter(Boolean).join(" ") || email;
+    const role = (public_metadata?.role as string | undefined)?.toLowerCase() || undefined;
+
     const { data: existing } = await supabase
       .from("users")
       .select("id")
@@ -126,12 +128,31 @@ export async function POST(req: Request) {
       .single();
 
     if (!existing) {
+      // No row yet. Only provision on update when Clerk metadata carries a role —
+      // a role is set exclusively by an admin (or an invite), never by an
+      // uninvited self-signup, so this preserves the invite gate while making the
+      // documented first-admin bootstrap (set publicMetadata.role → user.updated)
+      // actually work. Users without a role are left unprovisioned.
+      if (!role) {
+        return NextResponse.json({ received: true });
+      }
+
+      const { error } = await supabase.from("users").insert({
+        id,
+        email,
+        full_name,
+        role,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        console.error("Supabase provision-on-update error:", error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+
       return NextResponse.json({ received: true });
     }
-
-    const email = email_addresses?.[0]?.email_address ?? "";
-    const full_name = [first_name, last_name].filter(Boolean).join(" ") || email;
-    const role = (public_metadata?.role as string | undefined)?.toLowerCase() || undefined;
 
     const { error } = await supabase
       .from("users")
